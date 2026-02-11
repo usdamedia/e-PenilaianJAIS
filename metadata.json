@@ -1,0 +1,7 @@
+{
+  "name": "e-Penilaian Program",
+  "description": "Sistem Borang Penilaian Program rasmi untuk maklum balas peserta.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
