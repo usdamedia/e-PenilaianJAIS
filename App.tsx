@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS } from './constants';
 import { Input } from './components/Input';
@@ -11,6 +11,7 @@ import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
 import { GoogleGenAI } from "@google/genai";
+import html2canvas from 'html2canvas';
 
 const INITIAL_DATA: EvaluationFormData = {
   namaProgram: '',
@@ -49,7 +50,13 @@ function App() {
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
+  
+  // Social Flex Poster Ref & State
+  const posterRef = useRef<HTMLDivElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [posterRatio, setPosterRatio] = useState<'square' | 'story'>('square');
+  
   // Date Picker Local State
   const [dateParts, setDateParts] = useState({ d: '', m: '', y: '' });
 
@@ -129,6 +136,104 @@ function App() {
       window.scrollTo(0, 0);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // --- SANDBOX MODE (FOR TESTING) ---
+  const activateSandboxMode = () => {
+    setFormData({
+      namaProgram: 'DAURAH KITAB TURATH SIRI 1',
+      bahagianProgram: 'KUCHING',
+      tempatProgram: 'MASJID JAMEK NEGERI SARAWAK',
+      tarikhMula: new Date().toISOString().split('T')[0],
+      tempohProgram: '1 HARI',
+      penganjurUtama: 'BAHAGIAN DAKWAH (HQ)',
+      jantina: 'LELAKI',
+      umur: '31-40 TAHUN',
+      tarafPendidikan: 'IJAZAH SARJANA MUDA',
+      ratingTarikhMasa: 5,
+      ratingPengisian: 5,
+      ratingJamuan: 5,
+      ratingFasilitator: 5,
+      ratingUrusetia: 5,
+      ratingKeseluruhan: 5,
+      komenProgram: 'Sandbox Test Data',
+      cadanganProgram: 'Sandbox Test Data',
+    });
+    setSubmitted(true);
+  };
+
+  // --- SOCIAL SHARE LOGIC ---
+  const handleSharePoster = async () => {
+    if (!posterRef.current) return;
+    setIsSharing(true);
+    
+    try {
+      // Small delay to ensure any text edits are rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Generate Image with High Quality Settings
+      const canvas = await html2canvas(posterRef.current, {
+        scale: 4, // 300 DPI Quality (High Res)
+        backgroundColor: '#0F0F0F', // Explicit match to CSS bg
+        logging: false,
+        useCORS: true,
+        allowTaint: true, // Handle cross-origin issues
+        imageTimeout: 0,  // Wait for images to load
+      });
+      
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+      if (!blob) throw new Error("Gagal menjana imej");
+
+      const file = new File([blob], `Tamat_Kursus_${formData.namaProgram.replace(/\s+/g, '_')}.png`, { type: 'image/png' });
+
+      // Web Share API
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Selesai Program',
+          text: `Alhamdulillah, selesai program ${formData.namaProgram}! ✨`
+        });
+      } else {
+        // Fallback Download
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.download = `Selesai_${formData.namaProgram.replace(/\s+/g, '_')}.png`;
+        link.click();
+        alert("Gambar disimpan ke galeri.");
+      }
+    } catch (error) {
+      console.error("Share failed", error);
+      alert("Maaf, tidak dapat berkongsi. Sila cuba lagi.");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // --- SAVE TO ALBUM LOGIC ---
+  const handleSaveToAlbum = async () => {
+    if (!posterRef.current) return;
+    setIsSaving(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const canvas = await html2canvas(posterRef.current, {
+        scale: 4,
+        backgroundColor: '#0F0F0F',
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        imageTimeout: 0,
+      });
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.download = `Selesai_${formData.namaProgram.replace(/\s+/g, '_')}.png`;
+      link.click();
+      alert("Poster berjaya disimpan ke galeri!");
+    } catch (error) {
+      console.error("Save failed", error);
+      alert("Gagal menyimpan gambar.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -263,30 +368,150 @@ function App() {
     return <AdminDashboard onLogout={() => setView('form')} />;
   }
 
-  // ROUTE: SUCCESS PAGE (Standard Form only)
+  // ROUTE: SUCCESS PAGE (Standard Form)
   if (submitted) {
     return (
       <div className="min-h-screen bg-dark-surface flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-md rounded-[2rem] shadow-soft p-8 md:p-12 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-lime-400"></div>
-          <div className="w-20 h-20 bg-lime-400/20 text-lime-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 size={40} strokeWidth={2.5} />
+        <div className="w-full max-w-md flex flex-col items-center">
+          
+          <div className="bg-white w-full rounded-[2rem] shadow-soft p-8 md:p-10 text-center relative overflow-hidden mb-6">
+            <div className="w-16 h-16 bg-lime-400/20 text-lime-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} strokeWidth={3} />
+            </div>
+            <h1 className="text-2xl font-extrabold text-dark tracking-tight mb-2">Penilaian Dihantar!</h1>
+            <p className="text-gray-500 text-sm">
+              Terima kasih atas maklum balas anda.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold text-dark tracking-tight mb-3">Terima Kasih!</h1>
-          <p className="text-gray-500 mb-8 text-base">
-            Maklum balas anda telah berjaya direkodkan.
-          </p>
+
+          {/* SOCIAL FLEX POSTER PREVIEW */}
+          <div className="w-full mb-6">
+             <div className="flex justify-between items-end mb-3">
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">
+                ✨ Kongsi Pencapaian Anda
+               </p>
+               {/* Ratio Toggles */}
+               <div className="bg-gray-200 p-1 rounded-lg flex gap-1">
+                  <button 
+                    onClick={() => setPosterRatio('square')}
+                    className={`p-1.5 rounded-md transition-all ${posterRatio === 'square' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
+                    title="Square 1:1"
+                  >
+                     <Square size={16} />
+                  </button>
+                  <button 
+                    onClick={() => setPosterRatio('story')}
+                    className={`p-1.5 rounded-md transition-all ${posterRatio === 'story' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
+                    title="Story 9:16"
+                  >
+                     <Smartphone size={16} />
+                  </button>
+               </div>
+             </div>
+            
+            {/* EDITABLE NAME SECTION */}
+            <div className="bg-white rounded-xl p-3 mb-4 shadow-sm border border-gray-100 flex flex-col gap-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                    <PenLine size={12}/> Edit Nama Program (Poster)
+                </label>
+                <input 
+                    type="text" 
+                    value={formData.namaProgram}
+                    onChange={(e) => setFormData(prev => ({...prev, namaProgram: e.target.value.toUpperCase()}))}
+                    className="w-full font-bold text-dark text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-lime-400 focus:outline-none uppercase"
+                    placeholder="NAMA PROGRAM"
+                />
+            </div>
+
+            {/* The Actual Poster to be Captured */}
+            <div 
+              ref={posterRef}
+              className={`
+                w-full bg-[#0F0F0F] rounded-[2rem] p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl border-[3px] border-lime-400
+                ${posterRatio === 'square' ? 'aspect-square' : 'aspect-[9/16]'}
+                transition-all duration-300
+              `}
+            >
+              {/* Background Accents (Reference Style) */}
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-lime-400 rounded-full blur-[60px] opacity-20"></div>
+              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-lime-400 rounded-full blur-[60px] opacity-10"></div>
+              
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                  {/* Badge */}
+                  <div className="inline-block bg-lime-400 text-[#0F0F0F] text-[11px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-6">
+                     Tamat Program
+                  </div>
+                  
+                  {/* Title */}
+                  <h2 
+                    className={`text-white font-black uppercase leading-[0.9] tracking-tighter mb-4 break-words ${posterRatio === 'story' ? 'text-5xl' : 'text-4xl'}`}
+                    style={{ overflowWrap: 'break-word', wordWrap: 'break-word' }}
+                  >
+                    {formData.namaProgram || "NAMA PROGRAM"}
+                  </h2>
+                  
+                  {/* Date with Icon */}
+                  <div className="flex items-center gap-2.5 text-gray-400">
+                    <Clock size={18} className="text-lime-400"/>
+                    <span className="text-sm font-bold uppercase tracking-wide">
+                       {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="pt-6 border-t border-white/10 mt-auto">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                         <LayoutDashboard size={20} className="text-[#0F0F0F]"/>
+                      </div>
+                      <div>
+                         <div className="text-white font-bold text-base leading-none mb-1">e-Penilaian JAIS</div>
+                         <div className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">Jabatan Agama Islam Sarawak</div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Share Buttons */}
+            <div className="space-y-3 mt-4">
+              {/* WhatsApp Share */}
+              <button 
+                onClick={handleSharePoster}
+                disabled={isSharing}
+                className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
+              >
+                {isSharing ? <Loader2 className="animate-spin" /> : <Share2 size={24} />}
+                Share to WhatsApp Status
+              </button>
+
+              {/* Save to Album */}
+              <button 
+                onClick={handleSaveToAlbum}
+                disabled={isSaving}
+                className="w-full bg-[#1A1C1E] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all border border-gray-800"
+              >
+                {isSaving ? <Loader2 className="animate-spin text-lime-400" /> : <ImageIcon size={24} className="text-lime-400" />}
+                Simpan Poster (Album)
+              </button>
+            </div>
+            
+            <p className="text-center text-xs text-gray-400 mt-3">Simpan kenangan ini!</p>
+          </div>
+
           <button 
             onClick={() => {
               setSubmitted(false);
               setFormData(INITIAL_DATA);
               setDateParts({ d: '', m: '', y: '' });
             }}
-            className="bg-dark text-white px-8 py-4 rounded-2xl font-bold hover:bg-black transition-all w-full shadow-lg active:scale-95 flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+            className="text-gray-500 font-bold hover:text-dark transition-colors text-sm flex items-center gap-2 py-2"
           >
-            Kembali ke Borang
-            <ArrowRight size={16} />
+            <ArrowRight size={16} /> Kembali ke Borang Utama
           </button>
+
         </div>
       </div>
     );
@@ -368,6 +593,7 @@ function App() {
 
             {/* Admin & Font Controls (Mobile: Show on right of logo) */}
             <div className="flex items-center gap-2 sm:hidden">
+               <button onClick={activateSandboxMode} className="p-2 text-gray-400" title="Sandbox"><Beaker size={16}/></button>
                <button onClick={() => setView('adminLogin')} className="p-2 text-gray-400"><Lock size={16}/></button>
             </div>
           </div>
@@ -390,6 +616,7 @@ function App() {
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
+             <button onClick={activateSandboxMode} className="p-2 text-gray-400 hover:text-dark transition-colors" title="Sandbox Mode"><Beaker size={16}/></button>
              <button
                onClick={() => setView('adminLogin')}
                className="p-2 text-gray-400 hover:text-dark transition-colors"

@@ -33,6 +33,16 @@ interface GroupedFeedback {
   items: string[];
 }
 
+// Helper untuk format tarikh (ISO -> DD/MM/YYYY)
+const formatDateKey = (isoString: string) => {
+  if (!isoString) return '-';
+  try {
+    return new Date(isoString).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch (e) {
+    return '-';
+  }
+};
+
 export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data, onBack, onRefresh }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
@@ -53,8 +63,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const [groupedSuggestions, setGroupedSuggestions] = useState<GroupedFeedback[] | null>(null);
 
   // Filter States
+  const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
   const [selectedBahagian, setSelectedBahagian] = useState<string>('SEMUA');
-  const [selectedTempat, setSelectedTempat] = useState<string>('SEMUA');
+  // Removed selectedTempat state as requested
 
   // --- FONT SIZE LOGIC ---
   const fontSizes = {
@@ -76,7 +87,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     });
   };
 
-  // 1. RAW DATA
+  // 1. RAW DATA (Base Set for this Program)
   const allProgramData = useMemo(() => {
     return data.filter(d => {
       const isProgramMatch = d.programName === programName;
@@ -85,38 +96,67 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     });
   }, [data, programName]);
 
-  // Extract Unique Options
-  const uniqueBahagian = useMemo(() => {
-    const set = new Set(allProgramData.map(d => d.bahagian).filter(Boolean));
-    return Array.from(set).sort();
+  // 2. DYNAMIC FILTER OPTIONS
+
+  // A. Unique Dates (Level 1)
+  const uniqueDates = useMemo(() => {
+    const dates = allProgramData.map(d => ({
+        iso: d.programDate,
+        label: formatDateKey(d.programDate)
+    }));
+    
+    // Remove duplicates based on label
+    const unique = Array.from(new Set(dates.map(d => d.label)))
+        .map(label => {
+            return dates.find(d => d.label === label);
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime()); // Sort Descending
+
+    return unique as { iso: string, label: string }[];
   }, [allProgramData]);
 
-  const uniqueTempat = useMemo(() => {
+  // B. Unique Bahagian (Level 2 - Depends on Date)
+  const uniqueBahagian = useMemo(() => {
     let source = allProgramData;
-    if (selectedBahagian !== 'SEMUA') {
-      source = source.filter(d => d.bahagian === selectedBahagian);
+    if (selectedDate !== 'SEMUA') {
+        source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     }
-    const set = new Set(source.map(d => d.tempat).filter(Boolean));
+    const set = new Set(source.map(d => d.bahagian).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedBahagian]);
+  }, [allProgramData, selectedDate]);
 
-  // Reset Tempat logic
+  // Reset Filters logic when parent filter changes
   useEffect(() => {
-    if (selectedTempat !== 'SEMUA' && !uniqueTempat.includes(selectedTempat)) {
-      setSelectedTempat('SEMUA');
+    if (selectedDate !== 'SEMUA') {
+        // If current bahagian not in new valid list, reset
+        if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) {
+            setSelectedBahagian('SEMUA');
+        }
     }
-  }, [selectedBahagian, uniqueTempat, selectedTempat]);
+  }, [selectedDate, uniqueBahagian, selectedBahagian]);
 
-  // 2. FILTERED DATA
+
+  // 3. FINAL FILTERED DATA (Now excludes Tempat filter)
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
+      const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
       const matchBahagian = selectedBahagian === 'SEMUA' || d.bahagian === selectedBahagian;
-      const matchTempat = selectedTempat === 'SEMUA' || d.tempat === selectedTempat;
-      return matchBahagian && matchTempat;
+      return matchDate && matchBahagian;
     });
-  }, [allProgramData, selectedBahagian, selectedTempat]);
+  }, [allProgramData, selectedDate, selectedBahagian]);
 
-  // 3. ANALISIS
+  // 4. DERIVE LOCATION AUTOMATICALLY (Based on filteredData)
+  const displayedLocation = useMemo(() => {
+    if (filteredData.length === 0) return '-';
+    const locations = Array.from(new Set(filteredData.map(d => d.tempat).filter(Boolean)));
+    
+    if (locations.length === 0) return '-';
+    if (locations.length === 1) return locations[0];
+    return `${locations.length} LOKASI BERBEZA`; // Or list them e.g. "LOKASI A, LOKASI B..."
+  }, [filteredData]);
+
+  // 5. ANALISIS COMPUTATION
   const analysis = useMemo(() => {
     if (filteredData.length === 0) return null;
     
@@ -141,7 +181,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     };
   }, [filteredData]);
 
-  // 4. DEMOGRAFI
+  // 6. DEMOGRAFI COMPUTATION
   const getCounts = (key: keyof DashboardData) => {
     const counts: Record<string, number> = {};
     filteredData.forEach(item => {
@@ -160,7 +200,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     pendidikan: getCounts('tarafPendidikan')
   }), [filteredData]);
 
-  // 5. COMMENTS & SUGGESTIONS
+  // 7. COMMENTS & SUGGESTIONS LISTS
   const commentList = useMemo(() => {
     return filteredData
       .filter(d => d.komen && d.komen.trim().length > 2 && d.komen !== 'KOMEN PROGRAM')
@@ -175,10 +215,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   const displayInfo = filteredData.length > 0 ? filteredData[0] : allProgramData[0];
   const displayPenganjur = displayInfo?.penganjur || "PENGANJUR TIDAK DINYATAKAN";
-  
-  const formattedDate = displayInfo ? new Date(displayInfo.programDate).toLocaleDateString('ms-MY', { 
-    day: 'numeric', month: 'long', year: 'numeric' 
-  }) : '-';
 
   // --- AI LOGIC (S.M.A.R.T GOALS FRAMEWORK) ---
   const handleGenerateAI = async () => {
@@ -240,7 +276,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   };
 
   const handleGroupFeedbackWithAI = async () => {
-      // (Keep existing AI grouping logic here - omitted for brevity but assume it's same as before)
       setIsGrouping(true);
       setTimeout(() => setIsGrouping(false), 2000); // Mock for UI demo if API key missing
   };
@@ -298,8 +333,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       }
 
       // 2. Define Font Mapping
-      // Mapping 'PlusJakartaSans' to the available Roboto fonts in vfs_fonts.js
-      // This ensures we have a clean Sans Serif font without needing external loading.
       pdfMake.fonts = {
         PlusJakartaSans: {
           normal: 'Roboto-Regular.ttf',
@@ -337,8 +370,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                       // Metadata Grid inside Header
                       {
                         columns: [
-                           { width: '*', stack: [{ text: 'TARIKH', style: 'metaLabel' }, { text: formattedDate, style: 'metaValue' }] },
-                           { width: '*', stack: [{ text: 'LOKASI', style: 'metaLabel' }, { text: selectedTempat === 'SEMUA' ? (uniqueTempat.length === 1 ? uniqueTempat[0] : 'Semua Lokasi') : selectedTempat, style: 'metaValue' }] },
+                           { width: '*', stack: [{ text: 'TARIKH', style: 'metaLabel' }, { text: selectedDate === 'SEMUA' ? (uniqueDates.length === 1 ? uniqueDates[0].label : 'Semua Tarikh') : selectedDate, style: 'metaValue' }] },
+                           { width: '*', stack: [{ text: 'LOKASI', style: 'metaLabel' }, { text: displayedLocation, style: 'metaValue' }] },
                            { width: '*', stack: [{ text: 'BAHAGIAN', style: 'metaLabel' }, { text: selectedBahagian === 'SEMUA' ? (uniqueBahagian.length === 1 ? uniqueBahagian[0] : 'Semua Bahagian') : selectedBahagian, style: 'metaValue' }] },
                         ],
                         columnGap: 15
@@ -641,38 +674,41 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                 
                 {/* Info Grid - Refined for Scanning */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-white/10 mt-2">
-                   {/* Date */}
+                   {/* Date Filter - DYNAMIC */}
                    <div>
                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Tarikh</span>
-                       <div className="flex items-center gap-2 text-white font-bold text-sm">
-                          <Calendar size={14} className="text-lime-500"/> {formattedDate}
-                       </div>
-                   </div>
-
-                   {/* Location Filter - DYNAMIC */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Lokasi</span>
                        <div className="relative">
-                          {uniqueTempat.length > 1 ? (
+                          {uniqueDates.length > 1 ? (
                             <>
                                 <select 
-                                  value={selectedTempat}
-                                  onChange={(e) => setSelectedTempat(e.target.value)}
+                                  value={selectedDate}
+                                  onChange={(e) => setSelectedDate(e.target.value)}
                                   className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
                                 >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA LOKASI ({uniqueTempat.length})</option>
-                                  {uniqueTempat.map(t => (
-                                    <option key={t} value={t} className="text-dark bg-white">{t}</option>
+                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TARIKH ({uniqueDates.length})</option>
+                                  {uniqueDates.map(d => (
+                                    <option key={d.label} value={d.label} className="text-dark bg-white">{d.label}</option>
                                   ))}
                                 </select>
                                 <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
                             </>
                           ) : (
                              <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
-                                <MapPin size={14} className="text-lime-500" />
-                                {uniqueTempat[0] || '-'}
+                                <Calendar size={14} className="text-lime-500" />
+                                {uniqueDates[0]?.label || '-'}
                              </div>
                           )}
+                       </div>
+                   </div>
+
+                   {/* Location Display - READ ONLY */}
+                   <div>
+                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Lokasi (Auto)</span>
+                       <div className="relative">
+                          <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
+                            <MapPin size={14} className="text-lime-500 shrink-0" />
+                            <span className="truncate" title={displayedLocation}>{displayedLocation}</span>
+                          </div>
                        </div>
                    </div>
 
