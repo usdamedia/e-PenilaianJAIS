@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, CheckCircle2, ArrowRight, RefreshCw, ChevronLeft, Share2, Loader2, LayoutDashboard, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon } from 'lucide-react';
+import { Send, Bot, User, CheckCircle2, ArrowRight, RefreshCw, ChevronLeft, Share2, Loader2, LayoutDashboard, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from '../types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS } from '../constants';
 import { submitEvaluation } from '../services/api';
@@ -287,17 +287,39 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
                 <div className="bg-lime-400 text-black text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-3">
                     Tamat Program
                 </div>
+                
+                {/* Organizer (NEW) */}
+                <div className="flex items-center gap-1.5 text-lime-400 mb-1.5 opacity-90">
+                    <Building2 size={12} className="shrink-0"/>
+                    <span className="text-[10px] font-bold uppercase tracking-wider line-clamp-1">
+                    {formData.penganjurUtama || "PENGANJUR"}
+                    </span>
+                </div>
+
                 <h2 
                     className={`text-white font-black uppercase leading-none tracking-tighter mb-2 break-words ${posterRatio === 'story' ? 'text-2xl' : 'text-xl'}`}
                     style={{ overflowWrap: 'break-word', wordWrap: 'break-word' }}
                 >
                   {formData.namaProgram || "PROGRAM"}
                 </h2>
-                <div className="mt-2 flex items-center gap-1.5 text-gray-400">
-                  <Clock size={12} className="text-lime-400"/>
-                  <span className="text-[10px] font-bold uppercase tracking-wide">
-                     {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </span>
+
+                {/* Location & Date Group (UPDATED) */}
+                <div className="space-y-2 mt-3 border-l-2 border-white/20 pl-2">
+                    {/* Location */}
+                    <div className="flex items-center gap-2 text-gray-300">
+                    <MapPin size={12} className="text-white shrink-0"/>
+                    <span className="text-[10px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
+                        {formData.tempatProgram || "LOKASI"}
+                    </span>
+                    </div>
+                    
+                    {/* Date */}
+                    <div className="flex items-center gap-2 text-gray-300">
+                    <Clock size={12} className="text-white shrink-0"/>
+                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                        {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                    </div>
                 </div>
               </div>
 

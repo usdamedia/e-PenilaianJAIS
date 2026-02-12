@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS } from './constants';
 import { Input } from './components/Input';
@@ -443,6 +443,14 @@ function App() {
                      Tamat Program
                   </div>
                   
+                  {/* Organizer (NEW) */}
+                  <div className="flex items-center gap-2 text-lime-400 mb-2 opacity-90">
+                      <Building2 size={16} className="shrink-0"/>
+                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider line-clamp-1">
+                      {formData.penganjurUtama || "PENGANJUR"}
+                      </span>
+                  </div>
+
                   {/* Title */}
                   <h2 
                     className={`text-white font-black uppercase leading-[0.9] tracking-tighter mb-4 break-words ${posterRatio === 'story' ? 'text-5xl' : 'text-4xl'}`}
@@ -451,12 +459,23 @@ function App() {
                     {formData.namaProgram || "NAMA PROGRAM"}
                   </h2>
                   
-                  {/* Date with Icon */}
-                  <div className="flex items-center gap-2.5 text-gray-400">
-                    <Clock size={18} className="text-lime-400"/>
-                    <span className="text-sm font-bold uppercase tracking-wide">
-                       {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
-                    </span>
+                  {/* Location & Date Group (UPDATED) */}
+                  <div className="space-y-3 mt-4 border-l-2 border-white/20 pl-4">
+                      {/* Location */}
+                      <div className="flex items-center gap-3 text-gray-300">
+                        <MapPin size={18} className="text-white shrink-0"/>
+                        <span className="text-sm font-bold uppercase tracking-wide leading-tight line-clamp-2">
+                           {formData.tempatProgram || "LOKASI PROGRAM"}
+                        </span>
+                      </div>
+                      
+                      {/* Date */}
+                      <div className="flex items-center gap-3 text-gray-300">
+                        <Clock size={18} className="text-white shrink-0"/>
+                        <span className="text-sm font-bold uppercase tracking-wide">
+                          {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
+                        </span>
+                      </div>
                   </div>
                 </div>
 
