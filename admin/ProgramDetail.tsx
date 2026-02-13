@@ -6,7 +6,7 @@ import {
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
@@ -59,8 +59,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // AI States for Grouping Feedback
   const [isGrouping, setIsGrouping] = useState(false);
-  const [groupedComments, setGroupedComments] = useState<GroupedFeedback[] | null>(null);
-  const [groupedSuggestions, setGroupedSuggestions] = useState<GroupedFeedback[] | null>(null);
+  const [groupedFeedback, setGroupedFeedback] = useState<GroupedFeedback[] | null>(null);
 
   // Filter States
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
@@ -276,8 +275,45 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   };
 
   const handleGroupFeedbackWithAI = async () => {
+      if (commentList.length === 0 && suggestionList.length === 0) {
+        alert("Tiada komen atau cadangan untuk dianalisis.");
+        return;
+      }
+
       setIsGrouping(true);
-      setTimeout(() => setIsGrouping(false), 2000); // Mock for UI demo if API key missing
+      try {
+         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+         const prompt = `
+            Analisis senarai maklum balas berikut daripada peserta program "${programName}".
+            Kelompokkan mereka kepada kategori utama (contoh: Logistik, Pengisian, Makanan, Fasilitator, Lain-lain).
+            Abaikan komen yang tidak bermakna seperti "Tiada", "Bagus", "Mantap". Ambil yang ada isi penting sahaja.
+            
+            KOMEN: ${JSON.stringify(commentList)}
+            CADANGAN: ${JSON.stringify(suggestionList)}
+
+            Format Output (JSON Array sahaja, tiada markdown):
+            [
+              { "category": "Nama Kategori", "items": ["item 1", "item 2"] }
+            ]
+         `;
+
+         const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-latest', 
+            contents: [{ parts: [{ text: prompt }] }],
+            config: { responseMimeType: 'application/json' }
+         });
+
+         const text = response.text;
+         if (text) {
+             const data = JSON.parse(text);
+             setGroupedFeedback(data);
+         }
+      } catch (e) {
+         console.error(e);
+         alert("Gagal mengelompokkan isu. Sila cuba lagi.");
+      } finally {
+         setIsGrouping(false);
+      }
   };
 
   // --- JPEG DOWNLOAD LOGIC (New) ---
@@ -852,22 +888,22 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
               </div>
             </div>
 
-            {/* 3. AI PREMIUM ANALYSIS CARD - Principle: Highlight Key Features */}
+            {/* 3. AI PREMIUM ANALYSIS CARD - Light Mode */}
             <div className="p-8 sm:p-12 bg-white">
-              <div className="bg-[#111] rounded-3xl overflow-hidden relative shadow-2xl shadow-gray-200">
-                  {/* Decorative Gradient */}
-                  <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-gray-900 to-transparent"></div>
-                  <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-lime-400 rounded-full blur-[80px] opacity-20"></div>
+              <div className="bg-white rounded-3xl overflow-hidden relative shadow-xl shadow-gray-100 border border-gray-200">
+                  {/* Decorative Gradient - Lighter for white bg */}
+                  <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-gray-50 to-transparent"></div>
+                  <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-lime-100 rounded-full blur-[80px] opacity-60"></div>
 
                   <div className="relative z-10 p-8 sm:p-10">
                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                         <div>
                            <div className="flex items-center gap-2 mb-2">
-                              <Sparkles size={16} className="text-lime-400 fill-lime-400 animate-pulse" />
-                              <span className="text-lime-400 font-bold text-xs uppercase tracking-widest">Gemini AI Intelligence</span>
+                              <Sparkles size={16} className="text-lime-500 fill-lime-500 animate-pulse" />
+                              <span className="text-lime-600 font-bold text-xs uppercase tracking-widest">Gemini AI Intelligence</span>
                            </div>
-                           <h3 className="text-2xl font-black text-white">Analisis Pintar Program</h3>
-                           <p className="text-gray-400 text-sm mt-1 max-w-lg">
+                           <h3 className="text-2xl font-black text-gray-900">Analisis Pintar Program</h3>
+                           <p className="text-gray-500 text-sm mt-1 max-w-lg">
                               Dapatkan rumusan automatik mengenai kekuatan, kelemahan, dan cadangan penambahbaikan berdasarkan data.
                            </p>
                         </div>
@@ -875,7 +911,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                         {!aiAnalysisResult && !isAnalyzing && (
                            <button 
                               onClick={handleGenerateAI}
-                              className="bg-lime-400 hover:bg-lime-300 text-black px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-glow"
+                              className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:bg-gray-800"
                            >
                               <Bot size={18} /> JANA ANALISIS (TL;DR)
                            </button>
@@ -883,25 +919,26 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                      </div>
 
                      {isAnalyzing && (
-                        <div className="py-12 flex flex-col items-center justify-center text-center border border-dashed border-gray-800 rounded-2xl bg-white/5">
-                           <Loader2 size={32} className="text-lime-400 animate-spin mb-3" />
-                           <p className="text-gray-300 font-medium">Sedang memproses data...</p>
+                        <div className="py-12 flex flex-col items-center justify-center text-center border border-dashed border-gray-200 rounded-2xl bg-gray-50">
+                           <Loader2 size={32} className="text-lime-500 animate-spin mb-3" />
+                           <p className="text-gray-500 font-medium">Sedang memproses data...</p>
                         </div>
                      )}
 
                      {aiAnalysisResult && (
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 animate-in fade-in slide-in-from-bottom-2">
-                           <div className={`prose prose-invert max-w-none prose-p:text-gray-300 prose-headings:text-lime-400 prose-strong:text-white ${fs('body')}`}>
+                        <div className="bg-white rounded-2xl p-6 border border-gray-100 animate-in fade-in slide-in-from-bottom-2 shadow-sm">
+                           {/* Using prose-stone for better light mode typography */}
+                           <div className={`prose prose-stone max-w-none prose-p:text-gray-600 prose-headings:text-gray-900 prose-strong:text-gray-900 ${fs('body')}`}>
                               {aiAnalysisResult.split('\n').map((line, idx) => {
                                  if (line.trim().startsWith('**') || line.trim().startsWith('#')) 
-                                    return <h4 key={idx} className="text-lime-400 font-bold text-lg mt-4 mb-2 uppercase tracking-wide">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>;
+                                    return <h4 key={idx} className="text-lime-600 font-bold text-lg mt-4 mb-2 uppercase tracking-wide">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>;
                                  if (line.trim().startsWith('-')) 
-                                    return <li key={idx} className="ml-4 text-gray-300 mb-1 list-disc marker:text-lime-500">{line.replace('-', '')}</li>;
+                                    return <li key={idx} className="ml-4 text-gray-700 mb-1 list-disc marker:text-lime-500">{line.replace('-', '')}</li>;
                                  return <p key={idx} className="mb-2 leading-relaxed">{line}</p>;
                               })}
                            </div>
-                           <div className="flex justify-end mt-4 pt-4 border-t border-white/10">
-                              <button onClick={handleGenerateAI} className="text-xs font-bold text-gray-500 hover:text-white flex items-center gap-1 transition-colors"><RefreshCw size={12}/> JANA SEMULA</button>
+                           <div className="flex justify-end mt-4 pt-4 border-t border-gray-100">
+                              <button onClick={handleGenerateAI} className="text-xs font-bold text-gray-400 hover:text-dark flex items-center gap-1 transition-colors"><RefreshCw size={12}/> JANA SEMULA</button>
                            </div>
                         </div>
                      )}
@@ -913,55 +950,94 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
             <div className="p-8 sm:p-12 bg-[#F9FAFB] border-t border-gray-100">
                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                   <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Suara Peserta</h3>
-                  {!groupedComments && !isGrouping && (
-                    <button 
-                        onClick={handleGroupFeedbackWithAI}
-                        className="bg-white border border-gray-200 text-dark hover:border-lime-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
-                    >
-                        <Layers size={14} className="text-lime-600"/> Kelompokkan Isu (AI)
-                    </button>
-                  )}
-               </div>
-
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Comments */}
-                  <div>
-                     <div className="flex items-center gap-2 mb-4 text-lime-700">
-                        <MessageSquare size={18} fill="currentColor" className="opacity-20"/>
-                        <span className="font-bold text-sm uppercase tracking-wider">Komen ({commentList.length})</span>
-                     </div>
-                     <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {commentList.length > 0 ? (
-                           commentList.map((c, i) => (
-                              <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed">
-                                 "{c}"
-                              </div>
-                           ))
-                        ) : (
-                           <div className="text-gray-400 text-sm italic">Tiada komen.</div>
-                        )}
-                     </div>
-                  </div>
-
-                  {/* Suggestions */}
-                  <div>
-                     <div className="flex items-center gap-2 mb-4 text-orange-600">
-                        <Lightbulb size={18} fill="currentColor" className="opacity-20"/>
-                        <span className="font-bold text-sm uppercase tracking-wider">Cadangan ({suggestionList.length})</span>
-                     </div>
-                     <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {suggestionList.length > 0 ? (
-                           suggestionList.map((c, i) => (
-                              <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300">
-                                 {c}
-                              </div>
-                           ))
-                        ) : (
-                           <div className="text-gray-400 text-sm italic">Tiada cadangan.</div>
-                        )}
-                     </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {groupedFeedback && (
+                         <button 
+                            onClick={() => setGroupedFeedback(null)}
+                            className="text-red-500 hover:text-red-700 px-3 py-2 text-xs font-bold flex items-center gap-2 transition-all"
+                        >
+                            <XCircle size={14}/> Reset View
+                        </button>
+                    )}
+                    
+                    {!groupedFeedback && !isGrouping && (commentList.length > 0 || suggestionList.length > 0) && (
+                        <button 
+                            onClick={handleGroupFeedbackWithAI}
+                            className="bg-white border border-gray-200 text-dark hover:border-lime-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+                        >
+                            <Layers size={14} className="text-lime-600"/> Kelompokkan Isu (AI)
+                        </button>
+                    )}
+                    
+                    {isGrouping && (
+                        <div className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm text-lime-600">
+                             <Loader2 size={14} className="animate-spin"/> Mengelompokkan...
+                        </div>
+                    )}
                   </div>
                </div>
+               
+               {/* Conditional Rendering: Grouped vs Raw Lists */}
+               {groupedFeedback ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
+                    {groupedFeedback.map((group, idx) => (
+                        <div key={idx} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-lime-300 transition-all">
+                            <h4 className="font-black text-lime-700 uppercase text-xs tracking-wider border-b border-gray-100 pb-3 mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-lime-400"></span>
+                                {group.category}
+                            </h4>
+                            <ul className="space-y-3">
+                                {group.items.map((item, i) => (
+                                    <li key={i} className="text-sm text-gray-600 leading-relaxed pl-3 border-l-2 border-gray-100 text-xs sm:text-sm">
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                 </div>
+               ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Comments */}
+                    <div>
+                        <div className="flex items-center gap-2 mb-4 text-lime-700">
+                            <MessageSquare size={18} fill="currentColor" className="opacity-20"/>
+                            <span className="font-bold text-sm uppercase tracking-wider">Komen ({commentList.length})</span>
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {commentList.length > 0 ? (
+                            commentList.map((c, i) => (
+                                <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed">
+                                    "{c}"
+                                </div>
+                            ))
+                            ) : (
+                            <div className="text-gray-400 text-sm italic">Tiada komen.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Suggestions */}
+                    <div>
+                        <div className="flex items-center gap-2 mb-4 text-orange-600">
+                            <Lightbulb size={18} fill="currentColor" className="opacity-20"/>
+                            <span className="font-bold text-sm uppercase tracking-wider">Cadangan ({suggestionList.length})</span>
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {suggestionList.length > 0 ? (
+                            suggestionList.map((c, i) => (
+                                <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300">
+                                    {c}
+                                </div>
+                            ))
+                            ) : (
+                            <div className="text-gray-400 text-sm italic">Tiada cadangan.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+               )}
             </div>
 
           </>

@@ -2,11 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
-  Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X 
+  Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  PieChart as RechartsPie, Pie, Cell, Legend 
 } from 'recharts';
 import { useDashboardData } from '../dashboard/hooks/useDashboardData';
 import { StatCard } from '../dashboard/components/StatCard';
@@ -52,6 +52,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // Define View Types
 type AdminView = 'dashboard' | 'settings' | 'records' | 'users';
 
+// Helper to determine quarter
+const getQuarter = (dateStr: string) => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const m = d.getMonth(); // 0-11
+  if (m <= 2) return 'Q1';
+  if (m <= 5) return 'Q2';
+  if (m <= 8) return 'Q3';
+  return 'Q4';
+};
+
+const getQuarterLabel = (q: string) => {
+  switch(q) {
+    case 'Q1': return 'Suku 1 (Jan-Mac)';
+    case 'Q2': return 'Suku 2 (Apr-Jun)';
+    case 'Q3': return 'Suku 3 (Jul-Sep)';
+    case 'Q4': return 'Suku 4 (Okt-Dis)';
+    default: return q;
+  }
+};
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { rawData, loading, refreshData, lastFetchTime } = useDashboardData();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -62,12 +83,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // --- FILTER STATES ---
   const [selectedYear, setSelectedYear] = useState<string>('SEMUA');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('SEMUA');
   const [selectedOrganizer, setSelectedOrganizer] = useState<string>('SEMUA');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // --- DYNAMIC FILTER OPTIONS ---
-  const { years, organizers } = useMemo(() => {
+  const { years, quarters, organizers } = useMemo(() => {
     const uniqueYears = new Set<string>();
+    const uniqueQuarters = new Set<string>();
     const uniqueOrganizers = new Set<string>();
 
     rawData.forEach(item => {
@@ -77,6 +100,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         const d = new Date(item.programDate);
         if (!isNaN(d.getTime())) {
           y = d.getFullYear().toString();
+          
+          // Extract Quarter (Only if date is valid)
+          const q = getQuarter(item.programDate);
+          if (q) uniqueQuarters.add(q);
         } else if (typeof item.programDate === 'string' && item.programDate.length >= 4) {
           y = item.programDate.substring(0, 4); 
         }
@@ -90,6 +117,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     return {
       years: Array.from(uniqueYears).sort().reverse(),
+      quarters: Array.from(uniqueQuarters).sort(),
       organizers: Array.from(uniqueOrganizers).sort()
     };
   }, [rawData]);
@@ -106,16 +134,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         matchYear = y === selectedYear;
       }
 
-      // 2. Organizer Check
+      // 2. Quarter Check (New)
+      let matchQuarter = true;
+      if (selectedQuarter !== 'SEMUA') {
+        const q = getQuarter(item.programDate);
+        matchQuarter = q === selectedQuarter;
+      }
+
+      // 3. Organizer Check
       let matchOrg = true;
       if (selectedOrganizer !== 'SEMUA') {
         matchOrg = item.penganjur === selectedOrganizer;
       }
 
-      return matchYear && matchOrg;
+      return matchYear && matchQuarter && matchOrg;
     });
-  }, [rawData, selectedYear, selectedOrganizer]);
+  }, [rawData, selectedYear, selectedQuarter, selectedOrganizer]);
 
+  // --- TOP 3 PLACES LOGIC (NEW) ---
+  const topPlaces = useMemo(() => {
+      if (filteredData.length === 0) return [];
+
+      const counts: Record<string, number> = {};
+      filteredData.forEach(item => {
+        // Map specifically from 'tempat' which corresponds to TEMPAT PROGRAM DILAKSANA header
+        const place = (item.tempat || '-').toUpperCase().trim();
+        
+        // Filter out invalid/empty placeholders
+        if (place === '-' || place === '' || place === 'TIADA') return;
+        
+        counts[place] = (counts[place] || 0) + 1;
+      });
+
+      // Sort descending and take top 3
+      return Object.entries(counts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3);
+  }, [filteredData]);
 
   // --- CALCULATE CHARTS BASED ON FILTERED DATA ---
   const charts = useMemo(() => {
@@ -149,8 +205,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return { 
         scores, 
         jantina: countBy('jantina'), 
-        umur: countBy('umur'), 
-        bahagian: countBy('bahagian').slice(0, 10) 
+        umur: countBy('umur'),
+        bahagian: countBy('bahagian')
     };
   }, [filteredData]);
 
@@ -258,7 +314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     );
   }
 
-  const hasActiveFilters = selectedYear !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || searchTerm !== '';
+  const hasActiveFilters = selectedYear !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || searchTerm !== '';
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex font-sans">
@@ -390,7 +446,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <div className="h-8 w-px bg-gray-200 hidden xl:block mx-1"></div>
 
                 {/* Filters Group */}
-                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
+                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto overflow-x-auto pb-1 sm:pb-0">
                     {/* Year Select */}
                     <div className="relative min-w-[160px]">
                        <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
@@ -401,6 +457,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        >
                           <option value="SEMUA">Semua Tahun</option>
                           {years.map(y => <option key={y} value={y}>{y}</option>)}
+                       </select>
+                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {/* Quarter Select (New) */}
+                    <div className="relative min-w-[160px]">
+                       <PieChart size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                       <select 
+                          value={selectedQuarter}
+                          onChange={(e) => setSelectedQuarter(e.target.value)}
+                          className="w-full pl-10 pr-8 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 appearance-none cursor-pointer hover:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/20 transition-all"
+                       >
+                          <option value="SEMUA">Semua Suku</option>
+                          {quarters.map(q => <option key={q} value={q}>{getQuarterLabel(q)}</option>)}
                        </select>
                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
@@ -423,8 +493,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 {/* Reset Button - Only shows when needed to reduce noise */}
                 {hasActiveFilters && (
                   <button 
-                    onClick={() => { setSelectedYear('SEMUA'); setSelectedOrganizer('SEMUA'); setSearchTerm(''); }}
-                    className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-700 transition-colors flex items-center justify-center tooltip"
+                    onClick={() => { setSelectedYear('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSearchTerm(''); }}
+                    className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-700 transition-colors flex items-center justify-center tooltip shrink-0"
                     title="Reset Semua Penapis"
                   >
                     <X size={18} />
@@ -611,48 +681,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                      </div>
                   </div>
 
-                  {/* Location Breakdown */}
-                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100">
-                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-gray-50 rounded-xl text-[#1A1C1E]">
-                           <MapPin size={20} />
+                  {/* Top 3 Places - Dynamic Result Card */}
+                  <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col">
+                     <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-lime-50 rounded-xl text-lime-700">
+                                <Trophy size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-[#1A1C1E] text-lg">Lokasi Paling Popular</h3>
+                                <p className="text-gray-400 text-xs font-bold uppercase tracking-wide">Top 3 Tempat Program</p>
+                            </div>
                         </div>
-                        <div>
-                           <h3 className="font-black text-[#1A1C1E] text-lg">Lokasi & Bahagian</h3>
-                           <p className="text-gray-400 text-xs font-bold uppercase tracking-wide">Jumlah program mengikut kawasan</p>
-                        </div>
+                        {topPlaces.length > 0 && (
+                            <div className="bg-dark text-lime-400 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">
+                                Dynamic
+                            </div>
+                        )}
                      </div>
                      
-                     <div className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={charts.bahagian}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis 
-                              dataKey="name" 
-                              tick={{ fill: '#9CA3AF', fontSize: 9, fontWeight: 700 }} 
-                              interval={0}
-                              angle={-45}
-                              textAnchor="end"
-                              height={60}
-                              axisLine={false} 
-                              tickLine={false} 
-                            />
-                            <YAxis 
-                              tick={{ fill: '#9CA3AF', fontSize: 10 }} 
-                              axisLine={false} 
-                              tickLine={false} 
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar 
-                              dataKey="value" 
-                              name="Program"
-                              fill={COLORS.limeDark} 
-                              radius={[4, 4, 0, 0]} 
-                            />
-                          </BarChart>
-                        </ResponsiveContainer>
+                     <div className="flex-1 flex flex-col justify-center gap-4">
+                        {topPlaces.length > 0 ? (
+                            topPlaces.map((place, index) => (
+                                <div 
+                                    key={place.name} 
+                                    className={`
+                                        relative p-4 rounded-2xl flex items-center justify-between gap-4 transition-all hover:scale-[1.02]
+                                        ${index === 0 
+                                            ? 'bg-gradient-to-r from-lime-400 to-lime-500 shadow-lg shadow-lime-200' 
+                                            : 'bg-gray-50 border border-gray-100'
+                                        }
+                                    `}
+                                >
+                                    <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className={`
+                                            flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-black text-sm
+                                            ${index === 0 ? 'bg-black text-lime-400' : 'bg-white text-gray-500 border border-gray-200'}
+                                        `}>
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className={`
+                                                font-black uppercase text-sm truncate
+                                                ${index === 0 ? 'text-black' : 'text-gray-700'}
+                                            `}>
+                                                {place.name}
+                                            </span>
+                                            {index === 0 && <span className="text-[10px] font-bold text-black/60 uppercase tracking-wide">Pilihan Utama</span>}
+                                        </div>
+                                    </div>
+
+                                    <div className={`
+                                        text-lg font-black shrink-0
+                                        ${index === 0 ? 'text-black' : 'text-gray-400'}
+                                    `}>
+                                        {place.value}
+                                    </div>
+                                    
+                                    {index === 0 && (
+                                        <div className="absolute top-0 right-0 -mt-2 -mr-2 text-yellow-500 animate-bounce delay-700">
+                                            <Medal size={24} fill="currentColor" stroke="none" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                             <div className="flex flex-col items-center justify-center h-full text-center py-8 opacity-50">
+                                <MapPin size={32} className="text-gray-300 mb-2"/>
+                                <p className="text-sm font-bold text-gray-400">Tiada Data Lokasi</p>
+                             </div>
+                        )}
                      </div>
                   </div>
+              </div>
+
+              {/* BAHAGIAN CHART SECTION */}
+              <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100">
+                 <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-gray-50 rounded-xl text-[#1A1C1E]">
+                       <MapPin size={20} />
+                    </div>
+                    <div>
+                       <h3 className="font-black text-[#1A1C1E] text-lg">Analisis Bahagian</h3>
+                       <p className="text-gray-400 text-xs font-bold uppercase tracking-wide">Jumlah program mengikut bahagian pentadbiran</p>
+                    </div>
+                 </div>
+                 
+                 <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={charts.bahagian} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700 }} 
+                          axisLine={false} 
+                          tickLine={false}
+                          dy={10}
+                        />
+                        <YAxis 
+                          tick={{ fill: '#9CA3AF', fontSize: 10 }} 
+                          axisLine={false} 
+                          tickLine={false} 
+                        />
+                        <Tooltip cursor={{ fill: '#F9FAFB' }} content={<CustomTooltip />} />
+                        <Bar 
+                          dataKey="value" 
+                          name="Program"
+                          fill={COLORS.limeDark} 
+                          radius={[4, 4, 4, 4]} 
+                          barSize={32}
+                          animationDuration={1500}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                 </div>
               </div>
 
               {/* TABLE SECTION */}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -7,6 +8,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   uppercase?: boolean;
   fontSizeClass?: string;
   labelSizeClass?: string;
+  suggestions?: string[]; // New Prop for Autocomplete
 }
 
 export const Input: React.FC<InputProps> = ({ 
@@ -17,8 +19,12 @@ export const Input: React.FC<InputProps> = ({
   fontSizeClass = 'text-base',
   labelSizeClass = 'text-sm',
   className = '', 
+  suggestions,
   ...props 
 }) => {
+  // Generate a unique ID for the datalist based on the input name
+  const listId = suggestions && props.name ? `${props.name}-list` : undefined;
+
   return (
     <div className="w-full">
       <div className="flex justify-between items-baseline mb-2">
@@ -33,6 +39,7 @@ export const Input: React.FC<InputProps> = ({
       </div>
 
       <input
+        list={listId}
         className={`
           w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-2xl transition-all duration-300
           text-dark bg-gray-50 border-2 border-transparent
@@ -45,6 +52,15 @@ export const Input: React.FC<InputProps> = ({
         `}
         {...props}
       />
+
+      {/* Render Datalist if suggestions are provided */}
+      {suggestions && (
+        <datalist id={listId}>
+          {suggestions.map((item, index) => (
+            <option key={index} value={item} />
+          ))}
+        </datalist>
+      )}
       
       {error && (
         <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold animate-pulse">

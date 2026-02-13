@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
-import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS } from './constants';
+import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
 import { Input } from './components/Input';
 import { Select } from './components/Select';
 import { RatingScale } from './components/RatingScale';
@@ -750,6 +750,7 @@ function App() {
                     helperText="HURUF BESAR"
                     uppercase
                     required
+                    suggestions={PROGRAM_VENUES}
                     fontSizeClass={currentFontSize('input')}
                     labelSizeClass={currentFontSize('label')}
                   />
@@ -864,8 +865,9 @@ function App() {
               </div>
             </div>
           </div>
-
-          {/* SECTION B */}
+          
+          {/* ... Rest of the form (Sections B, C, D) remain unchanged ... */}
+          {/* Section B */}
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-sm sm:shadow-soft p-5 sm:p-10 border border-gray-100/50">
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">B</div>
@@ -925,7 +927,7 @@ function App() {
             </div>
           </div>
 
-          {/* SECTION C */}
+          {/* Section C */}
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-sm sm:shadow-soft p-5 sm:p-10 border border-gray-100/50">
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">C</div>
@@ -1006,7 +1008,7 @@ function App() {
             </div>
           </div>
 
-          {/* SECTION D */}
+          {/* Section D */}
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-sm sm:shadow-soft p-5 sm:p-10 border border-gray-100/50">
              <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">D</div>

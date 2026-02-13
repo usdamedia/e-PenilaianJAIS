@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, CheckCircle2, ArrowRight, RefreshCw, ChevronLeft, Share2, Loader2, LayoutDashboard, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, Beaker } from 'lucide-react';
 import { EvaluationFormData } from '../types';
-import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS } from '../constants';
+import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES } from '../constants';
 import { submitEvaluation } from '../services/api';
 import html2canvas from 'html2canvas';
-import { GoogleGenAI } from "@google/genai";
 
 interface ChatEvaluationProps {
   onBack: () => void;
@@ -29,7 +27,13 @@ type QuestionStep = {
 const STEPS: QuestionStep[] = [
   { field: 'namaProgram', question: "Assalamualaikum & Hai! Saya AI JAIS. Jom mulakan. Boleh berikan NAMA PROGRAM yang anda hadiri? (Ringkas & Huruf Besar)", type: 'text', uppercase: true },
   { field: 'bahagianProgram', question: "Di BAHAGIAN mana program ini diadakan?", type: 'options', options: LOCATIONS },
-  { field: 'tempatProgram', question: "Sila nyatakan TEMPAT spesifik program (Contoh: Dewan Hikmah).", type: 'text', uppercase: true },
+  { 
+    field: 'tempatProgram', 
+    question: "Sila nyatakan TEMPAT spesifik program (Contoh: Dewan Hikmah).", 
+    type: 'text', 
+    uppercase: true,
+    options: PROGRAM_VENUES 
+  },
   { field: 'tarikhMula', question: "Bilakah TARIKH MULA program ini?", type: 'date' },
   { field: 'tempohProgram', question: "Berapa lama TEMPOH program berjalan?", type: 'options', options: DURATIONS },
   { field: 'penganjurUtama', question: "Siapakah PENGANJUR UTAMA program ini?", type: 'options', options: ORGANIZERS },
@@ -53,6 +57,9 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
   ]);
   const [formData, setFormData] = useState<Partial<EvaluationFormData>>({});
   const [inputText, setInputText] = useState('');
+  
+  // Logic States
+  const [readyToSubmit, setReadyToSubmit] = useState(false); // New state for confirmation button
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   
@@ -65,11 +72,15 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
 
   const currentStep = STEPS[currentStepIndex];
 
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
-  }, [messages, isCompleted]); // Trigger scroll when completed too
+  }, [messages, readyToSubmit, isCompleted]);
 
   const addMessage = (sender: 'bot' | 'user', text: React.ReactNode) => {
     const newMsg: Message = { id: Date.now().toString(), sender, text };
@@ -84,7 +95,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
     const updatedData = { ...formData, [currentStep.field]: value };
     setFormData(updatedData);
 
-    // 3. Move to next or Submit
+    // 3. Move to next or Trigger Submit Confirmation
     if (currentStepIndex < STEPS.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
@@ -92,36 +103,48 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
       // Simulate Typing
       setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
       
-      // GENERATE RANDOM DELAY (1s - 2s)
-      const randomDelay = Math.floor(Math.random() * 1000) + 1000;
+      const randomDelay = Math.floor(Math.random() * 800) + 800; // Slightly faster
       
       setTimeout(() => {
         setMessages(prev => prev.filter(m => m.id !== 'typing'));
         addMessage('bot', STEPS[nextIndex].question);
       }, randomDelay);
     } else {
-      // Submit
-      setIsSubmitting(true);
-      setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: 'Sedang menghantar...', isTyping: true }]);
+      // Last question answered. Ask for confirmation.
+      setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
       
-      try {
-        await submitEvaluation(updatedData as EvaluationFormData);
+      setTimeout(() => {
         setMessages(prev => prev.filter(m => m.id !== 'typing'));
-        addMessage('bot', "Terima kasih! Maklum balas anda telah berjaya direkodkan.");
-        setIsCompleted(true);
-      } catch (error) {
-        setMessages(prev => prev.filter(m => m.id !== 'typing'));
-        addMessage('bot', "Maaf, ada ralat rangkaian. Sila cuba lagi.");
-        setIsSubmitting(false);
-      }
+        addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila tekan butang HANTAR di bawah untuk mengesahkan penilaian anda.");
+        setReadyToSubmit(true);
+      }, 1000);
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    setIsSubmitting(true);
+    setReadyToSubmit(false); // Hide the button
+    
+    // Add a fake "Submitting" message bubble
+    addMessage('bot', <span className="flex items-center gap-2"><Loader2 className="animate-spin" size={14}/> Menghantar penilaian...</span>);
+
+    try {
+      await submitEvaluation(formData as EvaluationFormData);
+      
+      // Success!
+      setIsCompleted(true);
+      // Note: We don't add a text message here, we switch the UI to the Success View
+      
+    } catch (error) {
+      setIsSubmitting(false);
+      setReadyToSubmit(true); // Show button again
+      addMessage('bot', "Maaf, ada ralat rangkaian. Sila cuba tekan Hantar sekali lagi.");
     }
   };
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    
-    // We already force uppercase on change, but this acts as a final safeguard
     const finalVal = inputText.toUpperCase(); 
     handleNextStep(finalVal);
     setInputText('');
@@ -149,8 +172,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
       cadanganProgram: 'Sandbox Test Data',
     };
     setFormData(sandboxData);
-    setIsCompleted(true);
-    addMessage('bot', "SANDBOX MODE ACTIVATED. Data dummy telah dimuatkan.");
+    setReadyToSubmit(true);
+    addMessage('bot', "SANDBOX MODE: Data dummy dimuatkan. Sila tekan HANTAR.");
   };
 
   // --- SOCIAL SHARE LOGIC ---
@@ -159,11 +182,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
     setIsSharing(true);
     
     try {
-      // Small delay to ensure any text edits are rendered
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(posterRef.current, {
-        scale: 4, // 300 DPI Quality (High Res)
+        scale: 4, 
         backgroundColor: '#0F0F0F',
         logging: false,
         useCORS: true,
@@ -187,7 +209,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
         link.href = canvas.toDataURL('image/png', 1.0);
         link.download = `Selesai_${formData.namaProgram?.replace(/\s+/g, '_') || "Program"}.png`;
         link.click();
-        alert("Gambar berkualiti tinggi disimpan! Sila upload ke Status WhatsApp anda.");
+        alert("Gambar disimpan! Sila upload ke Status WhatsApp anda.");
       }
     } catch (error) {
       console.error("Share failed", error);
@@ -197,7 +219,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
     }
   };
 
-  // --- SAVE TO ALBUM LOGIC ---
   const handleSaveToAlbum = async () => {
     if (!posterRef.current) return;
     setIsSaving(true);
@@ -224,150 +245,165 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
     }
   };
 
-  // --- RENDER HELPERS ---
+  // --- UI RENDERERS ---
 
   const renderInputArea = () => {
+    // 1. SUCCESS VIEW (Finished)
     if (isCompleted) {
       return (
-        <div className="p-4 bg-white border-t border-gray-100 flex flex-col items-center">
-          
-           {/* SOCIAL FLEX POSTER PREVIEW */}
-           <div className="w-full mb-4">
-             <div className="flex justify-between items-end mb-2 px-2">
-               <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                ✨ Poster Kenangan
-               </p>
-               {/* Ratio Toggles */}
-               <div className="bg-gray-100 p-0.5 rounded-lg flex gap-1">
-                  <button 
-                    onClick={() => setPosterRatio('square')}
-                    className={`p-1 rounded-md transition-all ${posterRatio === 'square' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
-                    title="Square"
-                  >
-                     <Square size={12} />
-                  </button>
-                  <button 
-                    onClick={() => setPosterRatio('story')}
-                    className={`p-1 rounded-md transition-all ${posterRatio === 'story' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
-                    title="Story"
-                  >
-                     <Smartphone size={12} />
-                  </button>
-               </div>
-             </div>
-             
-             {/* EDITABLE NAME SECTION */}
-            <div className="bg-white rounded-lg p-2 mb-3 shadow-sm border border-gray-100 flex flex-col gap-1 w-full max-w-[280px] mx-auto">
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <PenLine size={10}/> Edit Nama (Poster)
-                </label>
-                <input 
-                    type="text" 
-                    value={formData.namaProgram}
-                    onChange={(e) => setFormData(prev => ({...prev, namaProgram: e.target.value.toUpperCase()}))}
-                    className="w-full font-bold text-dark text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-lime-400 focus:outline-none uppercase"
-                    placeholder="NAMA PROGRAM"
-                />
-            </div>
-            
-            {/* The Actual Poster to be Captured */}
-            <div 
-              ref={posterRef}
-              className={`
-                w-full mx-auto bg-[#0F0F0F] rounded-[1.5rem] p-6 flex flex-col justify-between relative overflow-hidden shadow-lg border-2 border-lime-400
-                ${posterRatio === 'square' ? 'aspect-square max-w-[280px]' : 'aspect-[9/16] max-w-[200px]'}
-                transition-all duration-300
-              `}
-            >
-              {/* Background Accents */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-lime-400/20 rounded-full blur-2xl -mr-6 -mt-6"></div>
-              <div className="absolute bottom-0 left-0 w-20 h-20 bg-lime-400/10 rounded-full blur-2xl -ml-6 -mb-6"></div>
-              
-              <div className="relative z-10">
-                <div className="bg-lime-400 text-black text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-3">
-                    Tamat Program
-                </div>
-                
-                {/* Organizer (NEW) */}
-                <div className="flex items-center gap-1.5 text-lime-400 mb-1.5 opacity-90">
-                    <Building2 size={12} className="shrink-0"/>
-                    <span className="text-[10px] font-bold uppercase tracking-wider line-clamp-1">
-                    {formData.penganjurUtama || "PENGANJUR"}
-                    </span>
-                </div>
-
-                <h2 
-                    className={`text-white font-black uppercase leading-none tracking-tighter mb-2 break-words ${posterRatio === 'story' ? 'text-2xl' : 'text-xl'}`}
-                    style={{ overflowWrap: 'break-word', wordWrap: 'break-word' }}
-                >
-                  {formData.namaProgram || "PROGRAM"}
-                </h2>
-
-                {/* Location & Date Group (UPDATED) */}
-                <div className="space-y-2 mt-3 border-l-2 border-white/20 pl-2">
-                    {/* Location */}
-                    <div className="flex items-center gap-2 text-gray-300">
-                    <MapPin size={12} className="text-white shrink-0"/>
-                    <span className="text-[10px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
-                        {formData.tempatProgram || "LOKASI"}
-                    </span>
-                    </div>
-                    
-                    {/* Date */}
-                    <div className="flex items-center gap-2 text-gray-300">
-                    <Clock size={12} className="text-white shrink-0"/>
-                    <span className="text-[10px] font-bold uppercase tracking-wide">
-                        {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </span>
-                    </div>
-                </div>
-              </div>
-
-              <div className="relative z-10 pt-4 border-t border-white/10 mt-auto">
-                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                       <LayoutDashboard size={14} className="text-[#0F0F0F]"/>
-                    </div>
-                    <div>
-                       <div className="text-white font-bold text-xs leading-none mb-0.5">e-Penilaian JAIS</div>
-                       <div className="text-gray-500 text-[8px] uppercase tracking-widest font-bold">Sarawak</div>
-                    </div>
+        <div className="absolute inset-0 bg-white z-20 flex flex-col overflow-y-auto animate-in fade-in slide-in-from-bottom-10 duration-700">
+           {/* Success Header */}
+           <div className="bg-lime-400 p-8 pb-12 rounded-b-[3rem] shadow-glow relative overflow-hidden shrink-0">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
+              <div className="relative z-10 flex flex-col items-center text-center">
+                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-lime-600 mb-4 shadow-lg">
+                    <CheckCircle2 size={32} strokeWidth={4} />
                  </div>
+                 <h2 className="text-3xl font-black text-dark tracking-tight mb-2">Terima Kasih!</h2>
+                 <p className="text-dark/80 font-bold text-sm max-w-xs leading-relaxed">
+                   Kerana memberikan penilaian kepada Program Jabatan Agama Islam Sarawak.
+                 </p>
               </div>
-            </div>
+           </div>
 
-            {/* Share Buttons */}
-            <div className="mt-3 space-y-2 w-full max-w-[280px] mx-auto">
-              <button 
-                onClick={handleSharePoster}
-                disabled={isSharing}
-                className="w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
-              >
-                {isSharing ? <Loader2 className="animate-spin" size={16} /> : <Share2 size={16} />}
-                Share to WhatsApp
-              </button>
+           {/* Social Poster Section */}
+           <div className="flex-1 p-6 flex flex-col items-center -mt-8">
+              <div className="w-full max-w-sm">
+                  <div className="bg-white rounded-3xl p-4 shadow-xl border border-gray-100">
+                      <div className="flex justify-between items-center mb-4 px-2">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-lime-100 rounded-lg text-lime-700">
+                                <Sparkles size={14} fill="currentColor"/>
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kongsikan Di Media Sosial</span>
+                        </div>
+                        {/* Ratio Toggles */}
+                        <div className="bg-gray-100 p-0.5 rounded-lg flex gap-1">
+                            <button onClick={() => setPosterRatio('square')} className={`p-1 rounded-md ${posterRatio === 'square' ? 'bg-white shadow-sm text-dark' : 'text-gray-400'}`}><Square size={12} /></button>
+                            <button onClick={() => setPosterRatio('story')} className={`p-1 rounded-md ${posterRatio === 'story' ? 'bg-white shadow-sm text-dark' : 'text-gray-400'}`}><Smartphone size={12} /></button>
+                        </div>
+                      </div>
 
-              <button 
-                onClick={handleSaveToAlbum}
-                disabled={isSaving}
-                className="w-full bg-[#1A1C1E] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all border border-gray-800"
-              >
-                {isSaving ? <Loader2 className="animate-spin text-lime-400" size={16} /> : <ImageIcon size={16} className="text-lime-400" />}
-                Simpan Poster (Album)
-              </button>
-            </div>
+                      {/* Poster Preview */}
+                      <div className="flex justify-center mb-4">
+                         <div 
+                            ref={posterRef}
+                            className={`
+                                w-full bg-[#0F0F0F] rounded-[1.5rem] p-6 flex flex-col justify-between relative overflow-hidden shadow-2xl border-[3px] border-lime-400
+                                ${posterRatio === 'square' ? 'aspect-square max-w-[260px]' : 'aspect-[9/16] max-w-[180px]'}
+                                transition-all duration-300
+                            `}
+                            >
+                            {/* Background Accents */}
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-lime-400/20 rounded-full blur-2xl -mr-6 -mt-6"></div>
+                            <div className="absolute bottom-0 left-0 w-20 h-20 bg-lime-400/10 rounded-full blur-2xl -ml-6 -mb-6"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="bg-lime-400 text-black text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-2">
+                                    Tamat Program
+                                </div>
+                                <div className="flex items-center gap-1.5 text-lime-400 mb-1 opacity-90">
+                                    <Building2 size={10} className="shrink-0"/>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider line-clamp-1">
+                                    {formData.penganjurUtama || "PENGANJUR"}
+                                    </span>
+                                </div>
+                                <h2 className={`text-white font-black uppercase leading-none tracking-tighter mb-2 break-words ${posterRatio === 'story' ? 'text-xl' : 'text-lg'}`}>
+                                {formData.namaProgram || "PROGRAM"}
+                                </h2>
+                                <div className="space-y-1.5 mt-2 border-l-2 border-white/20 pl-2">
+                                    <div className="flex items-center gap-1.5 text-gray-300">
+                                        <MapPin size={10} className="text-white shrink-0"/>
+                                        <span className="text-[9px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
+                                            {formData.tempatProgram || "LOKASI"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-gray-300">
+                                        <Clock size={10} className="text-white shrink-0"/>
+                                        <span className="text-[9px] font-bold uppercase tracking-wide">
+                                            {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative z-10 pt-3 border-t border-white/10 mt-auto">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
+                                    <LayoutDashboard size={12} className="text-[#0F0F0F]"/>
+                                    </div>
+                                    <div>
+                                    <div className="text-white font-bold text-[10px] leading-none mb-0.5">e-Penilaian JAIS</div>
+                                    <div className="text-gray-500 text-[6px] uppercase tracking-widest font-bold">Sarawak</div>
+                                    </div>
+                                </div>
+                            </div>
+                         </div>
+                      </div>
 
-          </div>
+                      {/* Actions */}
+                      <div className="space-y-2">
+                         <button 
+                            onClick={handleSharePoster}
+                            disabled={isSharing}
+                            className="w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
+                         >
+                            {isSharing ? <Loader2 className="animate-spin" size={16} /> : <Share2 size={16} />}
+                            Share WhatsApp Status
+                         </button>
+                         <button 
+                            onClick={handleSaveToAlbum}
+                            disabled={isSaving}
+                            className="w-full bg-dark text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all"
+                         >
+                             {isSaving ? <Loader2 className="animate-spin text-lime-400" size={16} /> : <ImageIcon size={16} className="text-lime-400" />}
+                            Simpan ke Album
+                         </button>
+                      </div>
+                  </div>
 
-          <button onClick={onBack} className="bg-white text-gray-500 border border-gray-200 px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform text-sm">
-            <RefreshCw size={16} /> Isi Semula / Kembali
-          </button>
+                  <button 
+                    onClick={onBack} 
+                    className="w-full mt-6 text-gray-400 hover:text-dark font-bold text-xs py-2 flex items-center justify-center gap-2 transition-colors"
+                  >
+                     <RefreshCw size={14}/> Kembali ke Menu Utama
+                  </button>
+              </div>
+           </div>
         </div>
       );
     }
 
+    // 2. SUBMIT CONFIRMATION (Ready to Submit)
+    if (readyToSubmit) {
+       return (
+         <div className="p-4 bg-white border-t border-gray-100">
+             <div className="bg-lime-50 border border-lime-200 rounded-xl p-3 mb-3 text-xs text-lime-800 font-medium text-center">
+                Semua soalan telah dijawab. Sila sahkan.
+             </div>
+             <button
+               onClick={handleFinalSubmit}
+               disabled={isSubmitting}
+               className="w-full bg-lime-400 text-dark py-4 rounded-2xl font-black text-lg shadow-glow hover:bg-lime-500 active:scale-95 transition-all flex items-center justify-center gap-3"
+             >
+                {isSubmitting ? (
+                   <>
+                     <Loader2 className="animate-spin" size={24} />
+                     MENGHANTAR...
+                   </>
+                ) : (
+                   <>
+                     HANTAR JAWAPAN <Send size={24} strokeWidth={2.5} />
+                   </>
+                )}
+             </button>
+         </div>
+       );
+    }
+    
+    // 3. SUBMITTING STATE (Block inputs)
     if (isSubmitting) return null;
 
+    // 4. NORMAL INPUTS
     switch (currentStep.type) {
       case 'options':
         return (
@@ -401,7 +437,13 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
 
       case 'date':
         return (
-           <form onSubmit={(e) => { e.preventDefault(); if(inputText) handleNextStep(inputText); }} className="p-4 bg-white border-t border-gray-100 flex gap-2">
+           <form onSubmit={(e) => { 
+             e.preventDefault(); 
+             if(inputText) {
+               handleNextStep(inputText); 
+               setInputText('');
+             }
+           }} className="p-4 bg-white border-t border-gray-100 flex gap-2">
               <input 
                 type="date" 
                 required
@@ -445,7 +487,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
           </div>
         );
 
-      default: // Text
+      default: // Text with potential datalist
+        const datalistId = `list-${currentStep.field}`;
         return (
           <form onSubmit={handleTextSubmit} className="p-4 bg-white border-t border-gray-100 flex gap-2">
             <input
@@ -455,7 +498,13 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
               placeholder="TAIP JAWAPAN..."
               className="flex-1 bg-gray-50 border-0 rounded-xl px-4 py-3 text-dark font-medium focus:ring-2 focus:ring-lime-400/50 uppercase placeholder:normal-case"
               autoFocus
+              list={currentStep.options ? datalistId : undefined}
             />
+            {currentStep.options && (
+              <datalist id={datalistId}>
+                {currentStep.options.map(opt => <option key={opt} value={opt} />)}
+              </datalist>
+            )}
             <button type="submit" className="bg-dark text-lime-400 p-3 rounded-xl shadow-lg hover:bg-black transition-transform active:scale-95" disabled={!inputText.trim()}>
               <Send size={20} />
             </button>
@@ -467,7 +516,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[600px] w-full max-w-lg mx-auto bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
       {/* Chat Header */}
-      <div className="bg-[#1A1C1E] p-4 flex items-center justify-between text-white shadow-md z-10">
+      <div className="bg-[#1A1C1E] p-4 flex items-center justify-between text-white shadow-md z-10 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-lime-400 rounded-full flex items-center justify-center text-black shadow-glow">
             <Bot size={20} />
@@ -481,7 +530,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
           </div>
         </div>
         <div className="flex items-center">
-            {!isCompleted && <button onClick={activateSandboxMode} className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors" title="Sandbox"><Beaker size={20}/></button>}
+            {!isCompleted && !readyToSubmit && <button onClick={activateSandboxMode} className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors" title="Sandbox"><Beaker size={20}/></button>}
             <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
             <ChevronLeft size={20} />
             </button>
@@ -489,7 +538,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
       </div>
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F2F2F2]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F2F2F2] pb-24">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -515,7 +564,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
           </div>
         ))}
         {/* Progress Bar */}
-        {!isCompleted && (
+        {!isCompleted && !readyToSubmit && (
           <div className="sticky bottom-0 left-0 right-0 flex justify-center pb-2 pointer-events-none">
              <div className="bg-black/10 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-gray-500">
                Soalan {currentStepIndex + 1} / {STEPS.length}
@@ -524,8 +573,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack }) => {
         )}
       </div>
 
-      {/* Input Area */}
-      {renderInputArea()}
+      {/* Input Area (Sticky Bottom) */}
+      <div className="shrink-0 bg-white border-t border-gray-100">
+         {renderInputArea()}
+      </div>
     </div>
   );
 };
