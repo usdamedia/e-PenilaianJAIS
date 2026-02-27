@@ -1,20 +1,17 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip,
-  PieChart as RechartsPie, Pie, Cell, Legend
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
 } from 'recharts';
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle, PenLine
 } from 'lucide-react';
-import { ReportHeader } from '../../components/ReportHeader';
-import { ProgramReportPDF } from '../../components/ProgramReportPDF';
-import { DashboardData } from '../../../dashboard/types';
+import { DashboardData } from '../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
 import html2canvas from 'html2canvas';
-import { pdf } from '@react-pdf/renderer';
+import { jsPDF } from 'jspdf';
 
 interface ProgramDetailProps {
   programName: string;
@@ -64,6 +61,24 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // AI States for Grouping Feedback
   const [isGrouping, setIsGrouping] = useState(false);
   const [groupedFeedback, setGroupedFeedback] = useState<GroupedFeedback[] | null>(null);
+
+  // --- WYSIWYG EDITABLE STATES ---
+  const [editableProgramName, setEditableProgramName] = useState(programName);
+  const [editablePenganjur, setEditablePenganjur] = useState('');
+  const [editableAnalysis, setEditableAnalysis] = useState<string | null>(null);
+  const [editableComments, setEditableComments] = useState<string[]>([]);
+  const [editableSuggestions, setEditableSuggestions] = useState<string[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+    setEditableProgramName(programName);
+  }, [programName]);
+
+  useEffect(() => {
+    if (aiAnalysisResult) {
+      setEditableAnalysis(aiAnalysisResult);
+    }
+  }, [aiAnalysisResult]);
 
   // Filter States
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
@@ -216,6 +231,20 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       .map(d => d.cadangan!.trim());
   }, [filteredData]);
 
+  // Initialize editable states when data changes
+  useEffect(() => {
+    const penganjur = filteredData.length > 0 ? filteredData[0].penganjur : (allProgramData.length > 0 ? allProgramData[0].penganjur : "PENGANJUR TIDAK DINYATAKAN");
+    setEditablePenganjur(penganjur);
+  }, [filteredData, allProgramData]);
+
+  useEffect(() => {
+    setEditableComments(commentList);
+  }, [commentList]);
+
+  useEffect(() => {
+    setEditableSuggestions(suggestionList);
+  }, [suggestionList]);
+
   const displayInfo = filteredData.length > 0 ? filteredData[0] : allProgramData[0];
   const displayPenganjur = displayInfo?.penganjur || "PENGANJUR TIDAK DINYATAKAN";
 
@@ -320,44 +349,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       }
   };
 
-  // --- PDF GENERATION LOGIC ---
-  const handleGeneratePDF = async () => {
-    setIsDownloading(true);
-
-    try {
-      const blob = await pdf(
-        <ProgramReportPDF 
-          programName={programName}
-          displayPenganjur={displayPenganjur}
-          id={filteredData[0]?.id || 'N/A'}
-          selectedDate={selectedDate === 'SEMUA' ? (uniqueDates.length === 1 ? uniqueDates[0].label : 'Semua Tarikh') : selectedDate}
-          displayedLocation={displayedLocation}
-          selectedBahagian={selectedBahagian === 'SEMUA' ? (uniqueBahagian.length === 1 ? uniqueBahagian[0] : 'Semua Bahagian') : selectedBahagian}
-          analysis={analysis}
-          demographics={demographics}
-          commentList={commentList}
-          suggestionList={suggestionList}
-          filteredData={filteredData}
-        />
-      ).toBlob();
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Laporan_${programName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('PDF Gen Error:', error);
-      alert('Maaf, ralat berlaku semasa menjana PDF.');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   // --- JPEG DOWNLOAD LOGIC (New) ---
   const handleGenerateJPEG = async () => {
     if (!reportRef.current) return;
@@ -388,6 +379,56 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       alert("Gagal menjana imej. Sila cuba lagi.");
     } finally {
       setIsDownloadingImage(false);
+    }
+  };
+
+
+  // --- PDF GENERATION LOGIC (WYSIWYG) ---
+  const handleGeneratePDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    try {
+      // Small delay to ensure rendering is stable
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, // 300 DPI equivalent
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
+        logging: false,
+        windowWidth: 1200
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Handle multi-page if height exceeds A4
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`Laporan_${editableProgramName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+
+    } catch (error) {
+      console.error('PDF Gen Error:', error);
+      alert('Maaf, ralat berlaku semasa menjana PDF.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -424,6 +465,14 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         </div>
 
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsEditMode(!isEditMode)} 
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${isEditMode ? 'bg-lime-400 text-dark shadow-glow' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-white'}`}
+          >
+            <PenLine size={18} />
+            <span>{isEditMode ? 'MOD WYSIWYG' : 'EDIT LAPORAN'}</span>
+          </button>
+
           <button onClick={onRefresh} className="p-2.5 bg-gray-50 hover:bg-lime-50 text-gray-600 hover:text-lime-600 rounded-xl border border-gray-200 transition-all" title="Refresh">
              <RefreshCw size={18} />
           </button>
@@ -439,11 +488,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
           </button>
 
           {/* PDF Button */}
-          <button 
-            onClick={handleGeneratePDF} 
-            disabled={isDownloading} 
-            className="bg-[#1A1C1E] text-lime-400 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all active:scale-95"
-          >
+          <button onClick={handleGeneratePDF} disabled={isDownloading} className="bg-[#1A1C1E] text-lime-400 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all active:scale-95">
             {isDownloading ? <Loader2 size={18} className="animate-spin"/> : <FileDown size={18} />}
             <span className="hidden sm:inline">PDF</span>
           </button>
@@ -455,20 +500,122 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         {/* Added ref here to capture this container */}
         <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl overflow-hidden min-h-[297mm]">
           
-          {/* MODERN HEADER SECTION */}
-          <ReportHeader 
-            programName={programName}
-            displayPenganjur={displayPenganjur}
-            id={filteredData[0]?.id || 'N/A'}
-            uniqueDates={uniqueDates}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            displayedLocation={displayedLocation}
-            uniqueBahagian={uniqueBahagian}
-            selectedBahagian={selectedBahagian}
-            setSelectedBahagian={setSelectedBahagian}
-            fs={fs}
-          />
+          {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
+          <div className="bg-[#1A1C1E] text-white p-8 sm:p-12 relative overflow-hidden">
+             {/* Abstract Background */}
+             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-lime-400/10 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20"></div>
+             
+             <div className="relative z-10 flex flex-col gap-6">
+                {/* Meta Tag */}
+                <div className="flex items-center gap-3">
+                  <div className="bg-lime-400 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">
+                     Laporan Program
+                  </div>
+                  <span className="text-gray-500 text-[10px] font-mono tracking-wider">
+                     ID: {filteredData[0]?.id || 'N/A'}
+                  </span>
+                </div>
+                
+                {/* Title & Organizer */}
+                <div>
+                  {isEditMode ? (
+                    <textarea
+                      value={editableProgramName}
+                      onChange={(e) => setEditableProgramName(e.target.value.toUpperCase())}
+                      className="w-full bg-white/10 text-white font-black uppercase leading-tight tracking-tight break-words mb-4 p-2 rounded-xl border border-white/20 focus:outline-none focus:border-lime-400 text-3xl sm:text-4xl"
+                      rows={2}
+                    />
+                  ) : (
+                    <h1 className={`${fs('headerTitle')} font-black uppercase leading-tight tracking-tight break-words mb-4 text-white`}>
+                      {editableProgramName}
+                    </h1>
+                  )}
+                  
+                  <div className="flex items-center gap-2 text-lime-400/90 border-l-2 border-lime-400 pl-3">
+                     {isEditMode ? (
+                       <input 
+                        type="text"
+                        value={editablePenganjur}
+                        onChange={(e) => setEditablePenganjur(e.target.value.toUpperCase())}
+                        className="bg-white/10 text-lime-400 font-bold uppercase tracking-wide opacity-90 p-1 rounded border border-white/10 focus:outline-none focus:border-lime-400 w-full"
+                       />
+                     ) : (
+                       <p className={`${fs('subHeader')} font-bold uppercase tracking-wide opacity-90`}>
+                         {editablePenganjur}
+                       </p>
+                     )}
+                  </div>
+                </div>
+                
+                {/* Info Grid - Refined for Scanning */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-white/10 mt-2">
+                   {/* Date Filter - DYNAMIC */}
+                   <div>
+                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Tarikh</span>
+                       <div className="relative">
+                          {uniqueDates.length > 1 ? (
+                            <>
+                                <select 
+                                  value={selectedDate}
+                                  onChange={(e) => setSelectedDate(e.target.value)}
+                                  className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
+                                >
+                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TARIKH ({uniqueDates.length})</option>
+                                  {uniqueDates.map(d => (
+                                    <option key={d.label} value={d.label} className="text-dark bg-white">{d.label}</option>
+                                  ))}
+                                </select>
+                                <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </>
+                          ) : (
+                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
+                                <Calendar size={14} className="text-lime-500" />
+                                {uniqueDates[0]?.label || '-'}
+                             </div>
+                          )}
+                       </div>
+                   </div>
+
+                   {/* Location Display - READ ONLY */}
+                   <div>
+                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Lokasi (Auto)</span>
+                       <div className="relative">
+                          <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
+                            <MapPin size={14} className="text-lime-500 shrink-0" />
+                            <span className="truncate" title={displayedLocation}>{displayedLocation}</span>
+                          </div>
+                       </div>
+                   </div>
+
+                   {/* Division Filter - DYNAMIC */}
+                   <div>
+                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Bahagian</span>
+                       <div className="relative">
+                          {uniqueBahagian.length > 1 ? (
+                            <>
+                              <select 
+                                value={selectedBahagian}
+                                onChange={(e) => setSelectedBahagian(e.target.value)}
+                                className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
+                              >
+                                <option value="SEMUA" className="text-dark bg-white">SEMUA BAHAGIAN ({uniqueBahagian.length})</option>
+                                {uniqueBahagian.map(b => (
+                                  <option key={b} value={b} className="text-dark bg-white">{b}</option>
+                                ))}
+                              </select>
+                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </>
+                          ) : (
+                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
+                                <Building2 size={14} className="text-lime-500" />
+                                {uniqueBahagian[0] || '-'}
+                             </div>
+                          )}
+                       </div>
+                   </div>
+                </div>
+             </div>
+          </div>
 
           {!analysis ? (
              <div className="p-16 text-center text-gray-400 flex flex-col items-center gap-4">
@@ -541,28 +688,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                      {/* Jantina Section */}
                      <div>
                         <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Jantina</div>
-                        <div className="h-[180px] w-full mb-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPie>
-                                    <Pie
-                                        data={demographics.jantina}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={65}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                                    >
-                                        {demographics.jantina.map((entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.lime : COLORS.dark} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '8px 12px'}} />
-                                    <Legend verticalAlign="bottom" height={36} iconSize={10} wrapperStyle={{fontSize: '10px', fontWeight: 'bold'}} />
-                                </RechartsPie>
-                            </ResponsiveContainer>
-                        </div>
                         <div className="space-y-2">
                             {demographics.jantina.length > 0 ? demographics.jantina.map((item, idx) => (
                                 <div key={idx} className="bg-white border border-gray-100 p-3 rounded-xl flex justify-between items-center shadow-sm hover:border-lime-300 transition-colors">
@@ -639,19 +764,26 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                         </div>
                      )}
 
-                     {aiAnalysisResult && (
+                      {aiAnalysisResult && (
                         <div className="bg-white rounded-2xl p-6 border border-gray-100 animate-in fade-in slide-in-from-bottom-2 shadow-sm">
-                           {/* Using prose-stone for better light mode typography */}
-                           <div className={`prose prose-stone max-w-none prose-p:text-gray-600 prose-headings:text-gray-900 prose-strong:text-gray-900 ${fs('body')}`}>
-                              {aiAnalysisResult.split('\n').map((line, idx) => {
-                                 if (line.trim().startsWith('**') || line.trim().startsWith('#')) 
-                                    return <h4 key={idx} className="text-lime-600 font-bold text-lg mt-4 mb-2 uppercase tracking-wide">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>;
-                                 if (line.trim().startsWith('-')) 
-                                    return <li key={idx} className="ml-4 text-gray-700 mb-1 list-disc marker:text-lime-500">{line.replace('-', '')}</li>;
-                                 return <p key={idx} className="mb-2 leading-relaxed">{line}</p>;
-                              })}
-                           </div>
-                           <div className="flex justify-end mt-4 pt-4 border-t border-gray-100">
+                           {isEditMode ? (
+                             <textarea 
+                                value={editableAnalysis || ''}
+                                onChange={(e) => setEditableAnalysis(e.target.value)}
+                                className="w-full min-h-[300px] p-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-lime-400 font-medium text-gray-700 leading-relaxed"
+                             />
+                           ) : (
+                             <div className={`prose prose-stone max-w-none prose-p:text-gray-600 prose-headings:text-gray-900 prose-strong:text-gray-900 ${fs('body')}`}>
+                                {(editableAnalysis || aiAnalysisResult).split('\n').map((line, idx) => {
+                                   if (line.trim().startsWith('**') || line.trim().startsWith('#')) 
+                                      return <h4 key={idx} className="text-lime-600 font-bold text-lg mt-4 mb-2 uppercase tracking-wide">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>;
+                                   if (line.trim().startsWith('-')) 
+                                      return <li key={idx} className="ml-4 text-gray-700 mb-1 list-disc marker:text-lime-500">{line.replace('-', '')}</li>;
+                                   return <p key={idx} className="mb-2 leading-relaxed">{line}</p>;
+                                })}
+                             </div>
+                           )}
+                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-100" data-html2canvas-ignore>
                               <button onClick={handleGenerateAI} className="text-xs font-bold text-gray-400 hover:text-dark flex items-center gap-1 transition-colors"><RefreshCw size={12}/> JANA SEMULA</button>
                            </div>
                         </div>
@@ -665,7 +797,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                   <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Suara Peserta</h3>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" data-html2canvas-ignore>
                     {groupedFeedback && (
                          <button 
                             onClick={() => setGroupedFeedback(null)}
@@ -720,14 +852,46 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                             <span className="font-bold text-sm uppercase tracking-wider">Komen ({commentList.length})</span>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {commentList.length > 0 ? (
-                            commentList.map((c, i) => (
-                                <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed">
-                                    "{c}"
+                            {editableComments.length > 0 ? (
+                            editableComments.map((c, i) => (
+                                <div key={i} className="group relative">
+                                    {isEditMode ? (
+                                        <textarea 
+                                            value={c}
+                                            onChange={(e) => {
+                                                const newComments = [...editableComments];
+                                                newComments[i] = e.target.value;
+                                                setEditableComments(newComments);
+                                            }}
+                                            className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed focus:outline-none focus:border-lime-400"
+                                            rows={2}
+                                        />
+                                    ) : (
+                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed">
+                                            "{c}"
+                                        </div>
+                                    )}
+                                    {isEditMode && (
+                                        <button 
+                                            onClick={() => setEditableComments(editableComments.filter((_, idx) => idx !== i))}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <XCircle size={12}/>
+                                        </button>
+                                    )}
                                 </div>
                             ))
                             ) : (
                             <div className="text-gray-400 text-sm italic">Tiada komen.</div>
+                            )}
+                            {isEditMode && (
+                                <button 
+                                    onClick={() => setEditableComments([...editableComments, ''])}
+                                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-lime-600 hover:border-lime-400 transition-all flex items-center justify-center gap-2 text-xs font-bold"
+                                    data-html2canvas-ignore
+                                >
+                                    <Plus size={14}/> TAMBAH KOMEN
+                                </button>
                             )}
                         </div>
                     </div>
@@ -736,54 +900,55 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                     <div>
                         <div className="flex items-center gap-2 mb-4 text-orange-600">
                             <Lightbulb size={18} fill="currentColor" className="opacity-20"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">Cadangan ({suggestionList.length})</span>
+                            <span className="font-bold text-sm uppercase tracking-wider">Cadangan ({editableSuggestions.length})</span>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {suggestionList.length > 0 ? (
-                            suggestionList.map((c, i) => (
-                                <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300">
-                                    {c}
+                            {editableSuggestions.length > 0 ? (
+                            editableSuggestions.map((c, i) => (
+                                <div key={i} className="group relative">
+                                    {isEditMode ? (
+                                        <textarea 
+                                            value={c}
+                                            onChange={(e) => {
+                                                const newSugg = [...editableSuggestions];
+                                                newSugg[i] = e.target.value;
+                                                setEditableSuggestions(newSugg);
+                                            }}
+                                            className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300 focus:outline-none focus:border-lime-400"
+                                            rows={2}
+                                        />
+                                    ) : (
+                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300">
+                                            {c}
+                                        </div>
+                                    )}
+                                    {isEditMode && (
+                                        <button 
+                                            onClick={() => setEditableSuggestions(editableSuggestions.filter((_, idx) => idx !== i))}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                            data-html2canvas-ignore
+                                        >
+                                            <XCircle size={12}/>
+                                        </button>
+                                    )}
                                 </div>
                             ))
                             ) : (
                             <div className="text-gray-400 text-sm italic">Tiada cadangan.</div>
                             )}
+                            {isEditMode && (
+                                <button 
+                                    onClick={() => setEditableSuggestions([...editableSuggestions, ''])}
+                                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-600 hover:border-orange-400 transition-all flex items-center justify-center gap-2 text-xs font-bold"
+                                    data-html2canvas-ignore
+                                >
+                                    <Plus size={14}/> TAMBAH CADANGAN
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
                )}
-            </div>
-
-            {/* 5. PARTICIPANT LIST SECTION */}
-            <div className="p-8 sm:p-12 bg-white border-t border-gray-100">
-               <div className="flex items-center gap-3 mb-8">
-                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500">
-                     <Users size={20} />
-                  </div>
-                  <div>
-                    <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Senarai Peserta</h3>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Nama yang didaftarkan untuk sijil</p>
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {filteredData.map((item, idx) => (
-                    <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center gap-3 group hover:border-lime-400 transition-all">
-                       <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:bg-lime-400 group-hover:text-black transition-all">
-                          {idx + 1}
-                       </div>
-                       <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-dark truncate uppercase">{item.namaPenuh || '-'}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{item.jantina} • {item.umur}</p>
-                       </div>
-                    </div>
-                  ))}
-                  {filteredData.length === 0 && (
-                    <div className="col-span-full py-12 text-center text-gray-400 italic text-sm">
-                       Tiada data peserta dijumpai.
-                    </div>
-                  )}
-               </div>
             </div>
 
           </>
