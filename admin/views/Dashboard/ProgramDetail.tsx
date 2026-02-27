@@ -1,16 +1,20 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip,
+  PieChart as RechartsPie, Pie, Cell, Legend
 } from 'recharts';
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
   Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle
 } from 'lucide-react';
-import { DashboardData } from '../dashboard/types';
+import { ReportHeader } from '../../components/ReportHeader';
+import { ProgramReportPDF } from '../../components/ProgramReportPDF';
+import { DashboardData } from '../../../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
 import html2canvas from 'html2canvas';
+import { pdf } from '@react-pdf/renderer';
 
 interface ProgramDetailProps {
   programName: string;
@@ -298,7 +302,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
          `;
 
          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-latest', 
+            model: 'gemini-3-flash-preview', 
             contents: [{ parts: [{ text: prompt }] }],
             config: { responseMimeType: 'application/json' }
          });
@@ -314,6 +318,44 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       } finally {
          setIsGrouping(false);
       }
+  };
+
+  // --- PDF GENERATION LOGIC ---
+  const handleGeneratePDF = async () => {
+    setIsDownloading(true);
+
+    try {
+      const blob = await pdf(
+        <ProgramReportPDF 
+          programName={programName}
+          displayPenganjur={displayPenganjur}
+          id={filteredData[0]?.id || 'N/A'}
+          selectedDate={selectedDate === 'SEMUA' ? (uniqueDates.length === 1 ? uniqueDates[0].label : 'Semua Tarikh') : selectedDate}
+          displayedLocation={displayedLocation}
+          selectedBahagian={selectedBahagian === 'SEMUA' ? (uniqueBahagian.length === 1 ? uniqueBahagian[0] : 'Semua Bahagian') : selectedBahagian}
+          analysis={analysis}
+          demographics={demographics}
+          commentList={commentList}
+          suggestionList={suggestionList}
+          filteredData={filteredData}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Laporan_${programName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('PDF Gen Error:', error);
+      alert('Maaf, ralat berlaku semasa menjana PDF.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // --- JPEG DOWNLOAD LOGIC (New) ---
@@ -346,277 +388,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       alert("Gagal menjana imej. Sila cuba lagi.");
     } finally {
       setIsDownloadingImage(false);
-    }
-  };
-
-
-  // --- PDF GENERATION LOGIC ---
-  const handleGeneratePDF = () => {
-    setIsDownloading(true);
-
-    const pdfMake = (window as any).pdfMake;
-
-    if (!pdfMake) {
-      alert("Sistem PDF belum dimuatkan sepenuhnya. Sila tunggu sebentar.");
-      setIsDownloading(false);
-      return;
-    }
-
-    try {
-      // 1. CRITICAL: Link VFS (Virtual File System) for Fonts if not already linked
-      if (!pdfMake.vfs && (window as any).pdfFonts) {
-        pdfMake.vfs = (window as any).pdfFonts.pdfMake.vfs;
-      }
-
-      // 2. Define Font Mapping
-      pdfMake.fonts = {
-        PlusJakartaSans: {
-          normal: 'Roboto-Regular.ttf',
-          bold: 'Roboto-Medium.ttf',
-          italics: 'Roboto-Italic.ttf',
-          bolditalics: 'Roboto-MediumItalic.ttf'
-        }
-      };
-
-      // Define styles variables based on COLORS constant
-      const headerColor = COLORS.dark; // #1A1C1E
-      const accentColor = COLORS.lime; // #D0F240
-      const textColor = '#374151'; // Gray-700
-      
-      const docDefinition = {
-        pageSize: 'A4',
-        pageMargins: [40, 40, 40, 40], // Increased margins for better print layout
-        info: {
-          title: `Laporan - ${programName}`,
-          author: 'JAIS Admin',
-        },
-        content: [
-          // 1. HEADER BLOCK (Matches UI: Dark BG + Lime Accent)
-          {
-            table: {
-              widths: ['*'],
-              body: [
-                [
-                  {
-                    stack: [
-                      { text: 'LAPORAN PENILAIAN PROGRAM', style: 'tag', margin: [0, 0, 0, 8] },
-                      { text: programName, style: 'headerTitle', margin: [0, 0, 0, 8] },
-                      { text: displayPenganjur, style: 'headerSubtitle', margin: [0, 0, 0, 20] },
-                      
-                      // Metadata Grid inside Header
-                      {
-                        columns: [
-                           { width: '*', stack: [{ text: 'TARIKH', style: 'metaLabel' }, { text: selectedDate === 'SEMUA' ? (uniqueDates.length === 1 ? uniqueDates[0].label : 'Semua Tarikh') : selectedDate, style: 'metaValue' }] },
-                           { width: '*', stack: [{ text: 'LOKASI', style: 'metaLabel' }, { text: displayedLocation, style: 'metaValue' }] },
-                           { width: '*', stack: [{ text: 'BAHAGIAN', style: 'metaLabel' }, { text: selectedBahagian === 'SEMUA' ? (uniqueBahagian.length === 1 ? uniqueBahagian[0] : 'Semua Bahagian') : selectedBahagian, style: 'metaValue' }] },
-                        ],
-                        columnGap: 15
-                      }
-                    ],
-                    fillColor: headerColor,
-                    margin: [25, 25, 25, 25], 
-                  }
-                ]
-              ]
-            },
-            layout: 'noBorders',
-            margin: [0, 0, 0, 25]
-          },
-
-          // 2. EXECUTIVE SUMMARY
-          { text: 'RINGKASAN EKSEKUTIF', style: 'sectionHeader' },
-          {
-             table: {
-                widths: ['*', '*'],
-                body: [
-                   [
-                      { 
-                         stack: [
-                            { text: 'JUMLAH RESPONDEN', style: 'kpiLabel' },
-                            { text: analysis?.totalRespondents || 0, style: 'kpiValue' }
-                         ],
-                         fillColor: '#F9FAFB', margin: [15, 12, 15, 12], border: [false, false, false, false]
-                      },
-                      { 
-                         stack: [
-                            { text: 'PURATA SKOR', style: 'kpiLabel' },
-                            // Use Lime Dark for text visibility on white paper/card background
-                            { text: `${analysis?.avgTotal.toFixed(2)} / 5.00`, style: 'kpiValue', color: COLORS.limeDark }
-                         ],
-                         fillColor: '#F9FAFB', margin: [15, 12, 15, 12], border: [false, false, false, false]
-                      }
-                   ]
-                ]
-             },
-             layout: { 
-                 hLineWidth: (i: number) => 0,
-                 vLineWidth: (i: number) => 0,
-             },
-             margin: [0, 0, 0, 25]
-          },
-
-          // 3. SCORE BREAKDOWN TABLE
-          { text: 'ANALISIS PRESTASI', style: 'sectionHeader' },
-          {
-            table: {
-              headerRows: 1,
-              widths: ['*', 100],
-              body: [
-                [
-                   { text: 'KRITERIA PENILAIAN', style: 'tableHeader', fillColor: headerColor, color: 'white', border: [false, false, false, false] }, 
-                   { text: 'SKOR MIN', style: 'tableHeader', fillColor: headerColor, color: 'white', alignment: 'center', border: [false, false, false, false] }
-                ],
-                ...analysis?.spiderData.map((item, index) => [
-                   { text: item.subject, style: 'tableCell', fillColor: index % 2 === 0 ? 'white' : '#F9FAFB', border: [false, false, false, false] },
-                   { text: item.A.toFixed(2), style: 'tableCell', alignment: 'center', bold: true, fillColor: index % 2 === 0 ? 'white' : '#F9FAFB', border: [false, false, false, false] }
-                ]) || []
-              ]
-            },
-            layout: 'noBorders',
-            margin: [0, 0, 0, 25]
-          },
-
-          // 4. DEMOGRAPHICS
-          { text: 'PROFIL PESERTA', style: 'sectionHeader' },
-          {
-            table: {
-               widths: ['33%', '33%', '33%'],
-               body: [
-                  [
-                     {
-                        stack: [
-                           { text: 'JANTINA', style: 'subHeader' },
-                           {
-                              ul: demographics.jantina.map(d => ({ text: `${d.name} (${d.value})`, fontSize: 9, margin: [0, 2, 0, 2] })),
-                              margin: [0, 8, 0, 0]
-                           }
-                        ],
-                        margin: [0, 0, 5, 0]
-                     },
-                     {
-                        stack: [
-                           { text: 'UMUR', style: 'subHeader' },
-                           {
-                              ul: demographics.umur.map(d => ({ text: `${d.name} (${d.value})`, fontSize: 9, margin: [0, 2, 0, 2] })),
-                              margin: [0, 8, 0, 0]
-                           }
-                        ],
-                        margin: [5, 0, 5, 0]
-                     },
-                     {
-                        stack: [
-                           { text: 'PENDIDIKAN', style: 'subHeader' },
-                           {
-                              ul: demographics.pendidikan.map(d => ({ text: `${d.name} (${d.value})`, fontSize: 9, margin: [0, 2, 0, 2] })),
-                              margin: [0, 8, 0, 0]
-                           }
-                        ],
-                        margin: [5, 0, 0, 0]
-                     }
-                  ]
-               ]
-            },
-            layout: 'noBorders',
-            margin: [0, 0, 0, 25]
-          },
-
-          // 5. COMMENTS (Card Style)
-          { text: `KOMEN PESERTA (${commentList.length})`, style: 'sectionHeader', pageBreak: 'before' },
-          commentList.length > 0 
-            ? commentList.map(c => ({
-                table: {
-                  widths: ['*'],
-                  body: [[
-                    { 
-                      text: `"${c}"`, 
-                      fontSize: 10, 
-                      color: '#4B5563', 
-                      fillColor: '#FFFFFF',
-                      margin: [12, 10, 12, 10],
-                      lineHeight: 1.4,
-                      border: [true, true, true, true]
-                    }
-                  ]]
-                },
-                layout: {
-                  hLineWidth: () => 1,
-                  vLineWidth: () => 1,
-                  hLineColor: () => '#F3F4F6',
-                  vLineColor: () => '#F3F4F6',
-                },
-                margin: [0, 0, 0, 10]
-              }))
-            : { text: 'Tiada komen direkodkan.', style: 'italicText', margin: [0, 0, 0, 20] },
-
-          // 6. SUGGESTIONS (Card Style)
-          { text: `CADANGAN PESERTA (${suggestionList.length})`, style: 'sectionHeader', margin: [0, 20, 0, 10] },
-           suggestionList.length > 0 
-            ? suggestionList.map(c => ({
-                table: {
-                  widths: ['*'],
-                  body: [[
-                    { 
-                      text: c, 
-                      fontSize: 10, 
-                      color: '#4B5563',
-                      fillColor: '#FFFFFF',
-                      margin: [12, 10, 12, 10],
-                      lineHeight: 1.4,
-                      border: [true, true, true, true]
-                    }
-                  ]]
-                },
-                layout: {
-                   hLineWidth: () => 1,
-                   vLineWidth: () => 1,
-                   hLineColor: () => '#F3F4F6',
-                   vLineColor: () => '#F3F4F6',
-                },
-                margin: [0, 0, 0, 10]
-              }))
-            : { text: 'Tiada cadangan direkodkan.', style: 'italicText' },
-            
-           // Footer
-           { 
-             text: `Laporan ini dijana secara automatik oleh Sistem e-Penilaian JAIS pada ${new Date().toLocaleString('ms-MY')}`, 
-             fontSize: 8, color: '#9CA3AF', alignment: 'center', margin: [0, 40, 0, 0] 
-           }
-        ],
-        // Set PlusJakartaSans as default font
-        defaultStyle: {
-          font: 'PlusJakartaSans',
-          fontSize: 10,
-          color: textColor,
-          lineHeight: 1.2
-        },
-        styles: {
-          tag: { fontSize: 8, bold: true, color: accentColor, characterSpacing: 1 },
-          headerTitle: { fontSize: 20, bold: true, color: 'white', alignment: 'left' },
-          headerSubtitle: { fontSize: 10, color: '#9CA3AF', bold: true, uppercase: true },
-          metaLabel: { fontSize: 7, color: '#9CA3AF', bold: true, uppercase: true },
-          metaValue: { fontSize: 9, color: 'white', bold: true },
-          
-          sectionHeader: { fontSize: 12, bold: true, color: headerColor, margin: [0, 5, 0, 15], uppercase: true, decoration: 'underline', decorationStyle: 'dotted' },
-          subHeader: { fontSize: 10, bold: true, color: '#4B5563', decoration: 'underline' },
-          
-          kpiLabel: { fontSize: 8, bold: true, color: '#6B7280', uppercase: true },
-          kpiValue: { fontSize: 18, bold: true, color: headerColor, margin: [0, 5, 0, 0] },
-          
-          tableHeader: { fontSize: 9, bold: true, margin: [0, 10, 0, 10] },
-          tableCell: { fontSize: 9, margin: [0, 10, 0, 10], color: textColor },
-          
-          listText: { fontSize: 10, color: textColor, lineHeight: 1.4 },
-          italicText: { fontSize: 10, italics: true, color: '#9CA3AF' }
-        }
-      };
-
-      pdfMake.createPdf(docDefinition).download(`Laporan_${programName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-
-    } catch (error) {
-      console.error('PDF Gen Error:', error);
-      alert('Maaf, ralat berlaku semasa menjana PDF.');
-    } finally {
-      setIsDownloading(false);
     }
   };
 
@@ -668,7 +439,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
           </button>
 
           {/* PDF Button */}
-          <button onClick={handleGeneratePDF} disabled={isDownloading} className="bg-[#1A1C1E] text-lime-400 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all active:scale-95">
+          <button 
+            onClick={handleGeneratePDF} 
+            disabled={isDownloading} 
+            className="bg-[#1A1C1E] text-lime-400 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all active:scale-95"
+          >
             {isDownloading ? <Loader2 size={18} className="animate-spin"/> : <FileDown size={18} />}
             <span className="hidden sm:inline">PDF</span>
           </button>
@@ -680,103 +455,20 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         {/* Added ref here to capture this container */}
         <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl overflow-hidden min-h-[297mm]">
           
-          {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
-          <div className="bg-[#1A1C1E] text-white p-8 sm:p-12 relative overflow-hidden">
-             {/* Abstract Background */}
-             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-lime-400/10 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20"></div>
-             
-             <div className="relative z-10 flex flex-col gap-6">
-                {/* Meta Tag */}
-                <div className="flex items-center gap-3">
-                  <div className="bg-lime-400 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">
-                     Laporan Program
-                  </div>
-                  <span className="text-gray-500 text-[10px] font-mono tracking-wider">
-                     ID: {filteredData[0]?.id || 'N/A'}
-                  </span>
-                </div>
-                
-                {/* Title & Organizer */}
-                <div>
-                  <h1 className={`${fs('headerTitle')} font-black uppercase leading-tight tracking-tight break-words mb-4 text-white`}>
-                    {programName}
-                  </h1>
-                  <div className="flex items-center gap-2 text-lime-400/90 border-l-2 border-lime-400 pl-3">
-                     <p className={`${fs('subHeader')} font-bold uppercase tracking-wide opacity-90`}>
-                       {displayPenganjur}
-                     </p>
-                  </div>
-                </div>
-                
-                {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-white/10 mt-2">
-                   {/* Date Filter - DYNAMIC */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Tarikh</span>
-                       <div className="relative">
-                          {uniqueDates.length > 1 ? (
-                            <>
-                                <select 
-                                  value={selectedDate}
-                                  onChange={(e) => setSelectedDate(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
-                                >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TARIKH ({uniqueDates.length})</option>
-                                  {uniqueDates.map(d => (
-                                    <option key={d.label} value={d.label} className="text-dark bg-white">{d.label}</option>
-                                  ))}
-                                </select>
-                                <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
-                          ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
-                                <Calendar size={14} className="text-lime-500" />
-                                {uniqueDates[0]?.label || '-'}
-                             </div>
-                          )}
-                       </div>
-                   </div>
-
-                   {/* Location Display - READ ONLY */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Lokasi (Auto)</span>
-                       <div className="relative">
-                          <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
-                            <MapPin size={14} className="text-lime-500 shrink-0" />
-                            <span className="truncate" title={displayedLocation}>{displayedLocation}</span>
-                          </div>
-                       </div>
-                   </div>
-
-                   {/* Division Filter - DYNAMIC */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Bahagian</span>
-                       <div className="relative">
-                          {uniqueBahagian.length > 1 ? (
-                            <>
-                              <select 
-                                value={selectedBahagian}
-                                onChange={(e) => setSelectedBahagian(e.target.value)}
-                                className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
-                              >
-                                <option value="SEMUA" className="text-dark bg-white">SEMUA BAHAGIAN ({uniqueBahagian.length})</option>
-                                {uniqueBahagian.map(b => (
-                                  <option key={b} value={b} className="text-dark bg-white">{b}</option>
-                                ))}
-                              </select>
-                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
-                          ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
-                                <Building2 size={14} className="text-lime-500" />
-                                {uniqueBahagian[0] || '-'}
-                             </div>
-                          )}
-                       </div>
-                   </div>
-                </div>
-             </div>
-          </div>
+          {/* MODERN HEADER SECTION */}
+          <ReportHeader 
+            programName={programName}
+            displayPenganjur={displayPenganjur}
+            id={filteredData[0]?.id || 'N/A'}
+            uniqueDates={uniqueDates}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            displayedLocation={displayedLocation}
+            uniqueBahagian={uniqueBahagian}
+            selectedBahagian={selectedBahagian}
+            setSelectedBahagian={setSelectedBahagian}
+            fs={fs}
+          />
 
           {!analysis ? (
              <div className="p-16 text-center text-gray-400 flex flex-col items-center gap-4">
@@ -849,6 +541,28 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                      {/* Jantina Section */}
                      <div>
                         <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Jantina</div>
+                        <div className="h-[180px] w-full mb-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RechartsPie>
+                                    <Pie
+                                        data={demographics.jantina}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={40}
+                                        outerRadius={65}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                                    >
+                                        {demographics.jantina.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.lime : COLORS.dark} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '8px 12px'}} />
+                                    <Legend verticalAlign="bottom" height={36} iconSize={10} wrapperStyle={{fontSize: '10px', fontWeight: 'bold'}} />
+                                </RechartsPie>
+                            </ResponsiveContainer>
+                        </div>
                         <div className="space-y-2">
                             {demographics.jantina.length > 0 ? demographics.jantina.map((item, idx) => (
                                 <div key={idx} className="bg-white border border-gray-100 p-3 rounded-xl flex justify-between items-center shadow-sm hover:border-lime-300 transition-colors">
@@ -1038,6 +752,38 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                     </div>
                 </div>
                )}
+            </div>
+
+            {/* 5. PARTICIPANT LIST SECTION */}
+            <div className="p-8 sm:p-12 bg-white border-t border-gray-100">
+               <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500">
+                     <Users size={20} />
+                  </div>
+                  <div>
+                    <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Senarai Peserta</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Nama yang didaftarkan untuk sijil</p>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredData.map((item, idx) => (
+                    <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center gap-3 group hover:border-lime-400 transition-all">
+                       <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:bg-lime-400 group-hover:text-black transition-all">
+                          {idx + 1}
+                       </div>
+                       <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-dark truncate uppercase">{item.namaPenuh || '-'}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{item.jantina} • {item.umur}</p>
+                       </div>
+                    </div>
+                  ))}
+                  {filteredData.length === 0 && (
+                    <div className="col-span-full py-12 text-center text-gray-400 italic text-sm">
+                       Tiada data peserta dijumpai.
+                    </div>
+                  )}
+               </div>
             </div>
 
           </>

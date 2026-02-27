@@ -2,12 +2,14 @@
 export interface DashboardData {
   id: string;          // New unique ID
   timestamp: string;   // New timestamp
-  programDate: string; // Mapped from 'TARIKH MULA PROGRAM' for Year Filtering
+  programDate: string; // Mapped from 'TARIKH MULA PROGRAM' for Date Logic
+  filterTahun: string; // New: Mapped explicitly from 'FILTER TAHUN' column
   bahagian: string;    // Mapped from 'BAHAGIAN PROGRAM DILAKSANA'
   tempat: string;      // Mapped from 'TEMPAT PROGRAM DILAKSANA'
   penganjur: string;   // Col E
   jantina: string;     // Col G
   umur: string;        // Col I
+  quarter: string;     // New: Mapped from 'QUARTER' column
   tarafPendidikan: string; // Col J (New)
   // Ratings Col K - W (Assuming K-O are scores, P-W might be detailed scores or comments)
   // Mapping based on common structure

@@ -1,6 +1,6 @@
 {
   "name": "e-Penilaian Program",
-  "description": "Sistem Borang Penilaian Program rasmi untuk maklum balas peserta.",
+  "description": "Sistem Borang Penilaian Program rasmi dengan dashboard analisis, pemetaan suku tahunan, dan tempoh program boleh laras.",
   "requestFramePermissions": [
     "camera"
   ]

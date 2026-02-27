@@ -51,7 +51,10 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
         
         <div>
-          <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
+          <h3 className={`
+            font-extrabold tracking-tight mb-1
+            ${typeof value === 'string' && value.length > 15 ? 'text-lg sm:text-xl' : 'text-3xl sm:text-4xl'}
+          `}>
             {value}
           </h3>
           <p className={`text-sm font-semibold ${highlight ? 'text-gray-400' : 'text-gray-500'}`}>

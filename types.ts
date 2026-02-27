@@ -8,6 +8,7 @@ export interface EvaluationFormData {
   penganjurUtama: string;
 
   // Section B
+  namaPenuh: string;
   jantina: 'LELAKI' | 'PEREMPUAN' | '';
   umur: string;
   tarafPendidikan: string;

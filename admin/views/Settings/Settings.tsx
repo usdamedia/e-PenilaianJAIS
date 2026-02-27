@@ -4,7 +4,7 @@ import {
   Server, Database, Shield, Activity, RefreshCw, 
   GitBranch, Code, Globe, AlertCircle, CheckCircle2 
 } from 'lucide-react';
-import { GOOGLE_SCRIPT_URL } from '../services/api';
+import { GOOGLE_SCRIPT_URL } from '../../../services/api';
 
 interface SettingsProps {
   onRefresh: () => void;

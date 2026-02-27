@@ -31,6 +31,7 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
       penganjur_utama_ori: data.penganjurUtama,
 
       // Bahagian B: Maklumat Peserta
+      nama_penuh_ori: data.namaPenuh,
       jantina: data.jantina,
       umur: data.umur,
       pendidikan: data.tarafPendidikan,
@@ -71,5 +72,26 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
   } catch (error) {
     console.error("Submission Error:", error);
     throw error;
+  }
+};
+
+export const fetchPrograms = async () => {
+  try {
+    const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read&token=${API_TOKEN}&_t=${new Date().getTime()}`);
+    const result = await response.json();
+    if (result.status === "success" && Array.isArray(result.data)) {
+      const names = new Set<string>();
+      result.data.forEach((item: any) => {
+        const name = item['NAMA PROGRAM'] ? String(item['NAMA PROGRAM']).toUpperCase().trim() : '';
+        if (name && name !== 'NAMA PROGRAM' && name !== 'PROGRAM TIDAK DINYATAKAN') {
+          names.add(name);
+        }
+      });
+      return Array.from(names).sort();
+    }
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch programs:", error);
+    return [];
   }
 };

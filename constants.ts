@@ -19,7 +19,15 @@ export const LOCATIONS = [
 export const DURATIONS = [
   "1 HARI",
   "2 HARI",
-  "3 HARI"
+  "3 HARI",
+  "4 HARI",
+  "5 HARI",
+  "6 HARI",
+  "7 HARI",
+  "8 HARI",
+  "9 HARI",
+  "10 HARI",
+  "LAIN-LAIN"
 ];
 
 export const AGE_RANGES = [

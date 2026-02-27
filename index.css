@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-lime-300: #E1F87E;
+  --color-lime-400: #D0F240;
+  --color-lime-500: #B8D930;
+  --color-lime-600: #9AB820;
+
+  --color-dark: #111111;
+  --color-dark-800: #1A1A1A;
+  --color-dark-900: #0A0A0A;
+  --color-dark-surface: #F2F2F2;
+
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  --shadow-soft: 0 4px 40px -10px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(208, 242, 64, 0.3);
+  --shadow-up: 0 -4px 20px rgba(0,0,0,0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-dark-surface text-dark antialiased;
+    font-family: theme('fontFamily.sans');
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent iOS zoom on inputs */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #F2F2F2; 
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #D1D5DB; 
+    border-radius: 4px;
+  }
+}

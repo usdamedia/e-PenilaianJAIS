@@ -297,7 +297,7 @@ function App() {
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: {
           parts: [
             { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
@@ -839,14 +839,33 @@ function App() {
 
                   <Select
                     label="TEMPOH"
-                    name="tempohProgram"
-                    value={formData.tempohProgram}
-                    onChange={handleChange}
+                    name="tempohProgramSelect"
+                    value={DURATIONS.includes(formData.tempohProgram) ? formData.tempohProgram : (formData.tempohProgram ? 'LAIN-LAIN' : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({ ...prev, tempohProgram: val }));
+                    }}
                     options={DURATIONS}
                     required
                     fontSizeClass={currentFontSize('input')}
                     labelSizeClass={currentFontSize('label')}
                   />
+                  
+                  {(formData.tempohProgram === 'LAIN-LAIN' || (formData.tempohProgram && !DURATIONS.includes(formData.tempohProgram))) && (
+                    <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Input 
+                        label="SILA NYATAKAN TEMPOH (HARI)"
+                        name="tempohProgram"
+                        value={formData.tempohProgram === 'LAIN-LAIN' ? '' : formData.tempohProgram}
+                        onChange={handleChange}
+                        placeholder="CONTOH: 15 HARI"
+                        required
+                        uppercase
+                        fontSizeClass={currentFontSize('input')}
+                        labelSizeClass={currentFontSize('label')}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 sm:mt-6">
