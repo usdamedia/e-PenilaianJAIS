@@ -11,7 +11,8 @@ import {
 import { DashboardData } from '../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import { pdf } from '@react-pdf/renderer';
+import ProgramReportPDF from './ProgramReportPDF';
 
 interface ProgramDetailProps {
   programName: string;
@@ -383,50 +384,55 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   };
 
 
-  // --- PDF GENERATION LOGIC (WYSIWYG) ---
+  // --- PDF GENERATION LOGIC (Professional @react-pdf/renderer) ---
   const handleGeneratePDF = async () => {
-    if (!reportRef.current) return;
     setIsDownloading(true);
 
     try {
-      // Small delay to ensure rendering is stable
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2, // 300 DPI equivalent
-        useCORS: true,
-        backgroundColor: '#FFFFFF',
-        logging: false,
-        windowWidth: 1200
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      // Handle multi-page if height exceeds A4
-      let heightLeft = pdfHeight;
-      let position = 0;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      // 1. Capture Radar Chart as Image
+      const radarElement = document.getElementById('radar-chart');
+      let radarImage = '';
+      if (radarElement) {
+        const canvas = await html2canvas(radarElement, {
+          scale: 2,
+          backgroundColor: '#FFFFFF',
+          logging: false,
+        });
+        radarImage = canvas.toDataURL('image/png');
       }
 
-      pdf.save(`Laporan_${editableProgramName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+      // 2. Prepare Data for PDF
+      const pdfProps = {
+        programName: editableProgramName,
+        penganjur: editablePenganjur,
+        location: displayedLocation,
+        date: selectedDate === 'SEMUA' ? (uniqueDates[0]?.label || '-') : selectedDate,
+        totalRespondents: analysis?.totalRespondents || 0,
+        avgScore: Number(analysis?.avgTotal.toFixed(2)) || 0,
+        radarData: analysis?.spiderData || [],
+        demographics: demographics,
+        groupedComments: groupedFeedback || [], // Use grouped feedback if available
+        groupedSuggestions: [], // Suggestions grouping logic can be added if needed, or just pass empty
+        totalComments: editableComments.length,
+        totalSuggestions: editableSuggestions.length
+      };
+
+      // 3. Generate PDF Blob
+      const blob = await pdf(<ProgramReportPDF {...pdfProps} />).toBlob();
+      
+      // 4. Trigger Download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Laporan_Eksekutif_${editableProgramName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
     } catch (error) {
-      console.error('PDF Gen Error:', error);
-      alert('Maaf, ralat berlaku semasa menjana PDF.');
+      console.error('PDF Generation Error:', error);
+      alert('Maaf, ralat berlaku semasa menjana PDF profesional. Sila cuba lagi.');
     } finally {
       setIsDownloading(false);
     }
@@ -665,7 +671,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                         <TrendingUp size={20} className="text-lime-500"/> Analisis Radar
                      </h3>
                   </div>
-                  <div className="h-[350px] w-full relative">
+                  <div className="h-[350px] w-full relative" id="radar-chart">
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={analysis.spiderData} outerRadius={110}>
                         <PolarGrid stroke="#E5E7EB" />
