@@ -411,10 +411,14 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         avgScore: Number(analysis?.avgTotal.toFixed(2)) || 0,
         radarData: analysis?.spiderData || [],
         demographics: demographics,
-        groupedComments: groupedFeedback || [], // Use grouped feedback if available
-        groupedSuggestions: [], // Suggestions grouping logic can be added if needed, or just pass empty
+        // Pass raw comments and suggestions for the new grid layout
+        rawComments: editableComments,
+        rawSuggestions: editableSuggestions,
+        // Pass AI grouped feedback as well
+        groupedComments: groupedFeedback || [],
+        groupedSuggestions: [], 
         totalComments: editableComments.length,
-        totalSuggestions: editableSuggestions.length
+        totalSuggestions: editableSuggestions.length,
       };
 
       // 3. Generate PDF Blob
@@ -507,11 +511,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl overflow-hidden min-h-[297mm]">
           
           {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
-          <div className="bg-[#1A1C1E] text-white p-8 sm:p-12 relative overflow-hidden">
+          <div className="bg-[#1A1C1E] text-white p-10 sm:p-16 relative overflow-hidden">
              {/* Abstract Background */}
-             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-lime-400/10 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20"></div>
+             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-lime-400/10 rounded-full blur-[120px] pointer-events-none -mr-32 -mt-32"></div>
              
-             <div className="relative z-10 flex flex-col gap-6">
+             <div className="relative z-10 flex flex-col gap-8">
                 {/* Meta Tag */}
                 <div className="flex items-center gap-3">
                   <div className="bg-lime-400 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">

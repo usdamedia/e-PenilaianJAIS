@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
+import { CADANGAN_NAMA_PROGRAM } from './NAMA_PROGRAM_CADANGAN';
 import { Input } from './components/Input';
 import { Select } from './components/Select';
 import { RatingScale } from './components/RatingScale';
@@ -109,6 +110,21 @@ function App() {
       return Math.min(Math.max(newValue, 0), 2);
     });
   };
+
+  // Prevent body scroll when in chat mode
+  useEffect(() => {
+    if (inputMode === 'chat') {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100dvh';
+    } else {
+      document.body.style.overflow = 'auto';
+      document.body.style.height = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+      document.body.style.height = 'auto';
+    };
+  }, [inputMode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -598,7 +614,7 @@ function App() {
 
 
       {/* Mobile-First Sticky Header */}
-      <div className="sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2">
+      <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' ? 'hidden sm:block' : 'block'}`}>
         <div className="max-w-4xl mx-auto px-4 py-3 sm:bg-white/80 sm:backdrop-blur-xl sm:rounded-full sm:shadow-soft sm:px-6 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:border sm:border-white/50">
           
           {/* Logo & Title */}
@@ -655,12 +671,12 @@ function App() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 pt-4 sm:pt-0">
+      <div className={`max-w-4xl mx-auto transition-all duration-500 ${inputMode === 'chat' ? 'px-0 sm:px-6 pt-0 sm:pt-0' : 'px-3 sm:px-6 pt-4 sm:pt-0'}`}>
         
         {/* CONDITIONAL RENDERING: CHAT VS FORM */}
         {inputMode === 'chat' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <ChatEvaluation onBack={() => setInputMode('standard')} />
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 sm:pt-4">
+             <ChatEvaluation onBack={() => setInputMode('standard')} programSuggestions={CADANGAN_NAMA_PROGRAM} />
           </div>
         ) : (
         <>
@@ -727,6 +743,7 @@ function App() {
                   placeholder="CONTOH: KURSUS JENAZAH"
                   required
                   uppercase
+                  suggestions={CADANGAN_NAMA_PROGRAM}
                   fontSizeClass={currentFontSize('input')}
                   labelSizeClass={currentFontSize('label')}
                 />

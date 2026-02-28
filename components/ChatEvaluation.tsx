@@ -3,6 +3,7 @@ import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, S
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES } from '../constants';
+import { CADANGAN_NAMA_PROGRAM } from '../NAMA_PROGRAM_CADANGAN';
 import { submitEvaluation } from '../services/api';
 import html2canvas from 'html2canvas';
 
@@ -34,10 +35,7 @@ const STEPS: QuestionStep[] = [
     question: "Assalamualaikum & Hai! Saya AI JAIS. Jom mulakan. Boleh berikan NAMA PROGRAM yang anda hadiri? (Ringkas & Huruf Besar)", 
     type: 'text', 
     uppercase: true,
-    options: [
-      "BENGKEL PEMURNIAN DOKUMEN MS ISO 9001:2015 (SISTEM PENGURUSAN KUALITI) JAIS TAHUN 2026",
-      "KURSUS PRA PERKAHWINAN"
-    ]
+    options: CADANGAN_NAMA_PROGRAM
   },
   { field: 'bahagianProgram', question: "Di BAHAGIAN mana program ini diadakan?", type: 'options', options: LOCATIONS },
   { 
@@ -824,7 +822,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
               </div>
             )}
 
-            <form onSubmit={handleTextSubmit} className="p-3 flex gap-2 items-center bg-white">
+            <form onSubmit={handleTextSubmit} className="p-2 sm:p-3 flex gap-2 items-center bg-white">
               <div className="flex-1 relative group">
                 <input
                   type="text"
@@ -832,7 +830,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                   onChange={(e) => setInputText(e.target.value.toUpperCase())} // Force Upper
                   onFocus={(e) => e.target.select()}
                   placeholder="TAIP JAWAPAN ANDA..."
-                  className="w-full bg-gray-100 border-0 rounded-[1.5rem] px-5 py-4 pr-12 text-dark font-bold focus:ring-2 focus:ring-lime-400/50 focus:bg-white uppercase placeholder:normal-case placeholder:font-medium text-sm transition-all"
+                  className="w-full bg-gray-100 border-0 rounded-[1.5rem] px-4 py-3 sm:px-5 sm:py-4 pr-12 text-dark font-bold focus:ring-2 focus:ring-lime-400/50 focus:bg-white uppercase placeholder:normal-case placeholder:font-medium text-sm transition-all"
                   autoFocus
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -849,10 +847,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
               </div>
               <button 
                 type="submit" 
-                className="bg-dark text-lime-400 w-14 h-14 rounded-[1.5rem] shadow-lg hover:bg-black hover:scale-105 transition-all active:scale-90 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:grayscale disabled:scale-100" 
+                className="bg-dark text-lime-400 w-12 h-12 sm:w-14 sm:h-14 rounded-[1.5rem] shadow-lg hover:bg-black hover:scale-105 transition-all active:scale-90 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:grayscale disabled:scale-100" 
                 disabled={!inputText.trim()}
               >
-                <Send size={24} strokeWidth={2.5} className="ml-1" />
+                <Send size={20} sm:size={24} strokeWidth={2.5} className="ml-1" />
               </button>
             </form>
           </div>
@@ -861,28 +859,28 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[600px] w-full max-w-lg mx-auto bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100 relative">
+    <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative transition-all duration-500">
       {/* Chat Header */}
-      <div className="bg-white/90 backdrop-blur-xl p-4 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="bg-white/90 backdrop-blur-xl p-3 sm:p-4 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3">
           <motion.div 
             initial={{ rotate: -10, scale: 0.8 }}
             animate={{ rotate: 0, scale: 1 }}
             className="relative"
           >
-            <div className="w-12 h-12 bg-lime-400 rounded-2xl flex items-center justify-center text-black shadow-lg shadow-lime-400/20 rotate-3 transition-transform hover:rotate-0 border border-lime-500/20">
-              <Bot size={26} strokeWidth={2.5} />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-black shadow-lg shadow-lime-400/20 rotate-3 transition-transform hover:rotate-0 border border-lime-500/20">
+              <Bot size={22} sm:size={26} strokeWidth={2.5} />
             </div>
-            <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+            <span className="absolute -bottom-1 -right-1 flex h-3 w-3 sm:h-4 sm:w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500 border-2 border-white"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 sm:h-4 sm:w-4 bg-green-500 border-2 border-white"></span>
             </span>
           </motion.div>
           <div>
-            <h3 className="font-black text-dark text-base tracking-tight leading-none">AI JAIS</h3>
-            <div className="flex items-center gap-1.5 mt-1">
-               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sedang Aktif</p>
+            <h3 className="font-black text-dark text-sm tracking-tight leading-none uppercase">AI JAIS</h3>
+            <div className="flex items-center gap-1 mt-1 sm:mt-1">
+               <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+               <p className="text-[8px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wider">Aktif</p>
             </div>
           </div>
         </div>
@@ -910,7 +908,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
       </div>
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50/50 pb-32 scroll-smooth custom-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-6 bg-white sm:bg-gray-50/50 pb-4 sm:pb-32 scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -928,10 +926,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
 
               <div
                 className={`
-                  max-w-[85%] px-5 py-3.5 text-sm leading-relaxed shadow-sm relative group transition-all
+                  max-w-[85%] px-4 py-3 sm:px-5 sm:py-3.5 text-sm leading-relaxed shadow-sm relative group transition-all
                   ${msg.sender === 'user' 
                     ? 'bg-dark text-white rounded-2xl rounded-br-none hover:shadow-md' 
-                    : 'bg-white text-dark rounded-2xl rounded-bl-none border border-gray-100 hover:border-gray-200 hover:shadow-md'
+                    : 'bg-gray-100 sm:bg-white text-dark rounded-2xl rounded-bl-none border-0 sm:border border-gray-100 hover:border-gray-200 hover:shadow-md'
                   }
                 `}
               >
@@ -990,7 +988,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
       </div>
 
       {/* Input Area (Sticky Bottom) */}
-      <div className="shrink-0 bg-white border-t border-gray-100">
+      <div className="shrink-0 bg-white border-t sm:border-t border-gray-100 pb-5 sm:pb-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] sm:shadow-none">
          {renderInputArea()}
       </div>
     </div>
