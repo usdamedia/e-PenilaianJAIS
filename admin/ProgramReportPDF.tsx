@@ -5,25 +5,25 @@ import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/
 // Standard fonts are used by default (Helvetica, etc.)
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 10,
-    paddingBottom: 80, // More space for footer
+    paddingTop: 20,
+    paddingBottom: 90, // Increased space for footer
     fontFamily: 'Helvetica',
     backgroundColor: '#FFFFFF',
     color: '#1A1A1A',
   },
   topBar: {
-    height: 15,
+    height: 12,
     backgroundColor: '#D0F240',
     width: '100%',
   },
   content: {
-    padding: 40,
-    paddingTop: 20,
+    paddingHorizontal: 50, // Standardized horizontal padding
   },
   headerContainer: {
     backgroundColor: '#1A1A1A',
-    padding: 45,
-    marginBottom: 35,
+    paddingVertical: 50,
+    paddingHorizontal: 50,
+    marginBottom: 40,
   },
   headerLabel: {
     fontSize: 9,
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
   },
   infoGrid: {
     flexDirection: 'row',
-    marginBottom: 40,
-    paddingHorizontal: 45,
+    marginBottom: 45,
+    paddingHorizontal: 50,
   },
   infoCol: {
     flex: 1,
@@ -66,11 +66,11 @@ const styles = StyleSheet.create({
   kpiSection: {
     flexDirection: 'row',
     backgroundColor: '#F9FAFB',
-    marginHorizontal: 45,
-    marginBottom: 50,
+    marginHorizontal: 50,
+    marginBottom: 60,
     borderWidth: 1,
     borderColor: '#F3F4F6',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   kpiBox: {
     flex: 1,
@@ -101,17 +101,17 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 25,
-    paddingHorizontal: 45,
+    marginBottom: 30,
+    paddingHorizontal: 50,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   table: {
-    marginHorizontal: 45,
-    marginBottom: 50,
+    marginHorizontal: 50,
+    marginBottom: 60,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -137,9 +137,9 @@ const styles = StyleSheet.create({
   col2: { flex: 1, textAlign: 'right' },
   
   demographicsSection: {
-    paddingHorizontal: 45,
+    paddingHorizontal: 50,
     flexDirection: 'row',
-    gap: 40,
+    gap: 45,
   },
   demoCol: {
     flex: 1,
@@ -170,9 +170,9 @@ const styles = StyleSheet.create({
   
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 45,
-    right: 45,
+    bottom: 40,
+    left: 50,
+    right: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
@@ -189,12 +189,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 30,
-    paddingHorizontal: 45,
+    marginBottom: 40,
+    paddingHorizontal: 50,
   },
   feedbackGrid: {
     flexDirection: 'row',
-    paddingHorizontal: 45,
+    paddingHorizontal: 50,
     gap: 60,
   },
   feedbackCol: {
@@ -227,15 +227,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 25,
-    paddingHorizontal: 45,
+    marginBottom: 30,
+    paddingHorizontal: 50,
     paddingTop: 40,
   },
   tableContainer: {
-    marginHorizontal: 45,
+    marginHorizontal: 50,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 6,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   tableHeaderRow: {
@@ -437,7 +437,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
       {hasAIAnalysis && (
         <Page size="A4" style={styles.page}>
           <View style={styles.topBar} />
-          <View style={{ paddingTop: 40 }}>
+          <View wrap={false} style={{ paddingTop: 40 }}>
             <Text style={styles.page2Title}>RUMUSAN MAKLUM BALAS (AI)</Text>
             
             <View style={styles.feedbackGrid}>
@@ -465,7 +465,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
                 )) : <Text style={styles.feedbackItem}>Tiada cadangan dikelompokkan.</Text>}
               </View>
             </View>
-            <Text style={{ fontSize: 8, color: '#999999', paddingHorizontal: 30, marginTop: 20, fontStyle: 'italic' }}>
+            <Text style={{ fontSize: 8, color: '#999999', paddingHorizontal: 50, marginTop: 25, fontStyle: 'italic' }}>
               * Sila rujuk lampiran grid untuk senarai penuh maklum balas peserta.
             </Text>
           </View>

@@ -456,7 +456,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen flex flex-col font-sans">
+    <div className="bg-[#F8F9FA] h-screen flex flex-col font-sans overflow-hidden">
       {/* Top Action Bar - Sticky */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 sm:px-6 py-3 flex justify-between items-center shadow-sm print:hidden">
         <div className="flex items-center gap-3">
@@ -506,9 +506,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       </nav>
 
       {/* Main Report Container */}
-      <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center custom-scrollbar">
         {/* Added ref here to capture this container */}
-        <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl overflow-hidden min-h-[297mm]">
+        <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl min-h-[297mm] flex flex-col">
           
           {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
           <div className="bg-[#1A1C1E] text-white p-10 sm:p-16 relative overflow-hidden">
@@ -802,10 +802,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
               </div>
             </div>
 
-            {/* 4. FEEDBACK SECTION */}
+            {/* 4. FEEDBACK SECTION (REMOVED SCROLLABLE LISTS, KEPT AI GROUPING ONLY) */}
             <div className="p-8 sm:p-12 bg-[#F9FAFB] border-t border-gray-100">
                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                  <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Suara Peserta</h3>
+                  <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Analisis Isu Berbangkit</h3>
                   
                   <div className="flex items-center gap-2" data-html2canvas-ignore>
                     {groupedFeedback && (
@@ -813,7 +813,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                             onClick={() => setGroupedFeedback(null)}
                             className="text-red-500 hover:text-red-700 px-3 py-2 text-xs font-bold flex items-center gap-2 transition-all"
                         >
-                            <XCircle size={14}/> Reset View
+                            <XCircle size={14}/> Kembali
                         </button>
                     )}
                     
@@ -834,7 +834,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                   </div>
                </div>
                
-               {/* Conditional Rendering: Grouped vs Raw Lists */}
+               {/* AI Grouped Feedback Display */}
                {groupedFeedback ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
                     {groupedFeedback.map((group, idx) => (
@@ -854,112 +854,136 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                     ))}
                  </div>
                ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Comments */}
-                    <div>
-                        <div className="flex items-center gap-2 mb-4 text-lime-700">
-                            <MessageSquare size={18} fill="currentColor" className="opacity-20"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">Komen ({commentList.length})</span>
-                        </div>
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {editableComments.length > 0 ? (
-                            editableComments.map((c, i) => (
-                                <div key={i} className="group relative">
-                                    {isEditMode ? (
-                                        <textarea 
-                                            value={c}
-                                            onChange={(e) => {
-                                                const newComments = [...editableComments];
-                                                newComments[i] = e.target.value;
-                                                setEditableComments(newComments);
-                                            }}
-                                            className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed focus:outline-none focus:border-lime-400"
-                                            rows={2}
-                                        />
-                                    ) : (
-                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed">
-                                            "{c}"
-                                        </div>
-                                    )}
-                                    {isEditMode && (
-                                        <button 
-                                            onClick={() => setEditableComments(editableComments.filter((_, idx) => idx !== i))}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <XCircle size={12}/>
-                                        </button>
-                                    )}
-                                </div>
-                            ))
-                            ) : (
-                            <div className="text-gray-400 text-sm italic">Tiada komen.</div>
-                            )}
-                            {isEditMode && (
-                                <button 
-                                    onClick={() => setEditableComments([...editableComments, ''])}
-                                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-lime-600 hover:border-lime-400 transition-all flex items-center justify-center gap-2 text-xs font-bold"
-                                    data-html2canvas-ignore
-                                >
-                                    <Plus size={14}/> TAMBAH KOMEN
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Suggestions */}
-                    <div>
-                        <div className="flex items-center gap-2 mb-4 text-orange-600">
-                            <Lightbulb size={18} fill="currentColor" className="opacity-20"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">Cadangan ({editableSuggestions.length})</span>
-                        </div>
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {editableSuggestions.length > 0 ? (
-                            editableSuggestions.map((c, i) => (
-                                <div key={i} className="group relative">
-                                    {isEditMode ? (
-                                        <textarea 
-                                            value={c}
-                                            onChange={(e) => {
-                                                const newSugg = [...editableSuggestions];
-                                                newSugg[i] = e.target.value;
-                                                setEditableSuggestions(newSugg);
-                                            }}
-                                            className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300 focus:outline-none focus:border-lime-400"
-                                            rows={2}
-                                        />
-                                    ) : (
-                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 leading-relaxed border-l-4 border-l-orange-300">
-                                            {c}
-                                        </div>
-                                    )}
-                                    {isEditMode && (
-                                        <button 
-                                            onClick={() => setEditableSuggestions(editableSuggestions.filter((_, idx) => idx !== i))}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                            data-html2canvas-ignore
-                                        >
-                                            <XCircle size={12}/>
-                                        </button>
-                                    )}
-                                </div>
-                            ))
-                            ) : (
-                            <div className="text-gray-400 text-sm italic">Tiada cadangan.</div>
-                            )}
-                            {isEditMode && (
-                                <button 
-                                    onClick={() => setEditableSuggestions([...editableSuggestions, ''])}
-                                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-orange-600 hover:border-orange-400 transition-all flex items-center justify-center gap-2 text-xs font-bold"
-                                    data-html2canvas-ignore
-                                >
-                                    <Plus size={14}/> TAMBAH CADANGAN
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                 <div className="text-center py-12 text-gray-400 italic text-sm border-2 border-dashed border-gray-200 rounded-2xl">
+                    Klik "Kelompokkan Isu (AI)" untuk melihat analisis tema maklum balas, atau rujuk Lampiran di bawah untuk senarai penuh.
+                 </div>
                )}
             </div>
+
+            {/* 5. APPENDIX - RAW DATA TABLES (SIDE BY SIDE) */}
+            <div className="p-8 sm:p-12 bg-white border-t border-gray-100 break-before-page">
+               <div className="mb-8 border-b border-gray-100 pb-6">
+                  <h3 className="text-xs font-black uppercase text-gray-400 tracking-[0.2em] mb-2">Lampiran Maklum Balas</h3>
+                  <h2 className={`${fs('sectionTitle')} font-black text-dark`}>Senarai Penuh Komen & Cadangan</h2>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Raw Comments Column */}
+                  <div className="flex flex-col h-full">
+                     <div className="flex items-center gap-2 mb-4 p-3 bg-lime-50 rounded-t-xl border-b border-lime-100">
+                        <MessageSquare size={16} className="text-lime-600"/>
+                        <span className="font-black text-xs uppercase tracking-wider text-lime-800">Komen Peserta</span>
+                     </div>
+                     <div className="border border-gray-200 rounded-b-xl overflow-hidden shadow-sm flex-1 bg-white">
+                        <table className="w-full text-left border-collapse">
+                           <tbody className="divide-y divide-gray-100">
+                              {editableComments.length > 0 ? editableComments.map((c, i) => (
+                                 <tr key={i} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-4 py-3 text-[10px] font-mono text-gray-400 w-8 align-top pt-4">{i + 1}.</td>
+                                    <td className="px-4 py-3 text-xs sm:text-sm text-gray-600 italic leading-relaxed align-top">
+                                        {isEditMode ? (
+                                            <div className="relative">
+                                                <textarea 
+                                                    value={c}
+                                                    onChange={(e) => {
+                                                        const newComments = [...editableComments];
+                                                        newComments[i] = e.target.value;
+                                                        setEditableComments(newComments);
+                                                    }}
+                                                    className="w-full bg-gray-50 p-2 rounded border border-gray-200 text-xs focus:outline-none focus:border-lime-400"
+                                                    rows={3}
+                                                />
+                                                <button 
+                                                    onClick={() => setEditableComments(editableComments.filter((_, idx) => idx !== i))}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                >
+                                                    <XCircle size={10}/>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            `"${c}"`
+                                        )}
+                                    </td>
+                                 </tr>
+                              )) : (
+                                 <tr>
+                                    <td colSpan={2} className="px-6 py-12 text-center text-gray-400 text-xs italic">Tiada komen direkodkan.</td>
+                                 </tr>
+                              )}
+                           </tbody>
+                        </table>
+                        {isEditMode && (
+                            <div className="p-3 border-t border-gray-100 bg-gray-50">
+                                <button 
+                                    onClick={() => setEditableComments([...editableComments, ''])}
+                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-lime-600 hover:border-lime-400 transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase"
+                                >
+                                    <Plus size={12}/> Tambah Komen
+                                </button>
+                            </div>
+                        )}
+                     </div>
+                  </div>
+
+                  {/* Raw Suggestions Column */}
+                  <div className="flex flex-col h-full">
+                     <div className="flex items-center gap-2 mb-4 p-3 bg-orange-50 rounded-t-xl border-b border-orange-100">
+                        <Lightbulb size={16} className="text-orange-600"/>
+                        <span className="font-black text-xs uppercase tracking-wider text-orange-800">Cadangan Peserta</span>
+                     </div>
+                     <div className="border border-gray-200 rounded-b-xl overflow-hidden shadow-sm flex-1 bg-white">
+                        <table className="w-full text-left border-collapse">
+                           <tbody className="divide-y divide-gray-100">
+                              {editableSuggestions.length > 0 ? editableSuggestions.map((s, i) => (
+                                 <tr key={i} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-4 py-3 text-[10px] font-mono text-gray-400 w-8 align-top pt-4">{i + 1}.</td>
+                                    <td className="px-4 py-3 text-xs sm:text-sm text-gray-600 leading-relaxed align-top">
+                                        {isEditMode ? (
+                                            <div className="relative">
+                                                <textarea 
+                                                    value={s}
+                                                    onChange={(e) => {
+                                                        const newSugg = [...editableSuggestions];
+                                                        newSugg[i] = e.target.value;
+                                                        setEditableSuggestions(newSugg);
+                                                    }}
+                                                    className="w-full bg-gray-50 p-2 rounded border border-gray-200 text-xs focus:outline-none focus:border-orange-400"
+                                                    rows={3}
+                                                />
+                                                <button 
+                                                    onClick={() => setEditableSuggestions(editableSuggestions.filter((_, idx) => idx !== i))}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                >
+                                                    <XCircle size={10}/>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            s
+                                        )}
+                                    </td>
+                                 </tr>
+                              )) : (
+                                 <tr>
+                                    <td colSpan={2} className="px-6 py-12 text-center text-gray-400 text-xs italic">Tiada cadangan direkodkan.</td>
+                                 </tr>
+                              )}
+                           </tbody>
+                        </table>
+                        {isEditMode && (
+                            <div className="p-3 border-t border-gray-100 bg-gray-50">
+                                <button 
+                                    onClick={() => setEditableSuggestions([...editableSuggestions, ''])}
+                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-orange-600 hover:border-orange-400 transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase"
+                                >
+                                    <Plus size={12}/> Tambah Cadangan
+                                </button>
+                            </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            </div>
+
 
           </>
           )}

@@ -113,7 +113,7 @@ function App() {
 
   // Prevent body scroll when in chat mode
   useEffect(() => {
-    if (inputMode === 'chat') {
+    if (inputMode === 'chat' && view === 'form') {
       document.body.style.overflow = 'hidden';
       document.body.style.height = '100dvh';
     } else {
@@ -124,7 +124,7 @@ function App() {
       document.body.style.overflow = 'auto';
       document.body.style.height = 'auto';
     };
-  }, [inputMode]);
+  }, [inputMode, view]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
