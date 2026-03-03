@@ -7,7 +7,7 @@ import {
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
@@ -29,12 +29,6 @@ const COLORS = {
   gray: '#F3F4F6',
   white: '#FFFFFF'
 };
-
-// Interface untuk struktur data kumpulan AI
-interface GroupedFeedback {
-  category: string;
-  items: string[];
-}
 
 // Helper untuk format tarikh (ISO -> DD/MM/YYYY)
 const formatDateKey = (isoString: string) => {
@@ -59,10 +53,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // AI States for General Analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
-
-  // AI States for Grouping Feedback
-  const [isGrouping, setIsGrouping] = useState(false);
-  const [groupedFeedback, setGroupedFeedback] = useState<GroupedFeedback[] | null>(null);
 
   // --- WYSIWYG EDITABLE STATES ---
   const [editableProgramName, setEditableProgramName] = useState(programName);
@@ -330,6 +320,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         ARAHAN:
         1. Jangan buat karangan panjang. Gunakan "Bullet Points".
         2. Gunakan Bahasa Melayu profesional, padat, dan "action-oriented".
+        3. JANGAN gunakan simbol *** dalam jawapan anda.
         
         FORMAT JAWAPAN (WAJIB IKUT STRUKTUR INI):
         
@@ -350,54 +341,15 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         model: 'gemini-3-flash-preview',
         contents: [{ parts: [{ text: context }, { text: prompt }] }],
       });
-      setAiAnalysisResult(response.text);
+      
+      // Clean the result by removing *** symbols
+      const cleanText = response.text.replace(/\*\*\*/g, '');
+      setAiAnalysisResult(cleanText);
     } catch (error) {
       alert("AI Service Unavailable. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  const handleGroupFeedbackWithAI = async () => {
-      if (commentList.length === 0 && suggestionList.length === 0) {
-        alert("Tiada komen atau cadangan untuk dianalisis.");
-        return;
-      }
-
-      setIsGrouping(true);
-      try {
-         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-         const prompt = `
-            Analisis senarai maklum balas berikut daripada peserta program "${programName}".
-            Kelompokkan mereka kepada kategori utama (contoh: Logistik, Pengisian, Makanan, Fasilitator, Lain-lain).
-            Abaikan komen yang tidak bermakna seperti "Tiada", "Bagus", "Mantap". Ambil yang ada isi penting sahaja.
-            
-            KOMEN: ${JSON.stringify(commentList)}
-            CADANGAN: ${JSON.stringify(suggestionList)}
-
-            Format Output (JSON Array sahaja, tiada markdown):
-            [
-              { "category": "Nama Kategori", "items": ["item 1", "item 2"] }
-            ]
-         `;
-
-         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', 
-            contents: [{ parts: [{ text: prompt }] }],
-            config: { responseMimeType: 'application/json' }
-         });
-
-         const text = response.text;
-         if (text) {
-             const data = JSON.parse(text);
-             setGroupedFeedback(data);
-         }
-      } catch (e) {
-         console.error(e);
-         alert("Gagal mengelompokkan isu. Sila cuba lagi.");
-      } finally {
-         setIsGrouping(false);
-      }
   };
 
   // --- JPEG DOWNLOAD LOGIC (New) ---
@@ -464,11 +416,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         // Pass raw comments and suggestions for the new grid layout
         rawComments: editableComments,
         rawSuggestions: editableSuggestions,
-        // Pass AI grouped feedback as well
-        groupedComments: groupedFeedback || [],
-        groupedSuggestions: [], 
         totalComments: editableComments.length,
         totalSuggestions: editableSuggestions.length,
+        aiAnalysis: editableAnalysis || aiAnalysisResult,
       };
 
       // 3. Generate PDF Blob
@@ -1007,90 +957,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                               </button>
                            </div>
                         </motion.div>
-                      )}
-                  </div>
-              </motion.div>
-            </div>
-
-            {/* 4. FEEDBACK SECTION */}
-            <div className="p-10 sm:p-16 bg-gray-50/50 border-t border-gray-100">
-               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12">
-                  <div>
-                     <h3 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Analisis Isu Berbangkit</h3>
-                     <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Tema & Kategori Maklum Balas</p>
-                  </div>
-                  
-                  <div className="flex items-center gap-3" data-html2canvas-ignore>
-                    {groupedFeedback && (
-                         <button 
-                            onClick={() => setGroupedFeedback(null)}
-                            className="bg-white border border-gray-200 text-gray-500 hover:text-red-500 px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-sm"
-                        >
-                            <XCircle size={16}/> RESET
-                        </button>
-                    )}
-                    
-                    {!groupedFeedback && !isGrouping && (commentList.length > 0 || suggestionList.length > 0) && (
-                        <motion.button 
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleGroupFeedbackWithAI}
-                            className="bg-white border border-gray-200 text-dark hover:border-lime-400 px-5 py-3 rounded-xl text-xs font-black flex items-center gap-2 shadow-sm transition-all"
-                        >
-                            <Layers size={16} className="text-lime-600"/> KELOMPOKKAN ISU (AI)
-                        </motion.button>
-                    )}
-                    
-                    {isGrouping && (
-                        <div className="bg-white border border-gray-200 px-5 py-3 rounded-xl text-xs font-black flex items-center gap-2 shadow-sm text-lime-600">
-                             <Loader2 size={16} className="animate-spin"/> MENGANALISIS TEMA...
-                        </div>
-                    )}
-                  </div>
-               </div>
-               
-               {/* AI Grouped Feedback Display */}
-               {groupedFeedback ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-500">
-                    {groupedFeedback.map((group, idx) => (
-                        <motion.div 
-                          key={idx} 
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:border-lime-300 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 group"
-                        >
-                            <h4 className="font-black text-lime-700 uppercase text-[10px] tracking-[0.2em] border-b border-gray-50 pb-4 mb-5 flex items-center gap-3">
-                                <span className="w-2.5 h-2.5 rounded-full bg-lime-400 shadow-lg shadow-lime-400/50 group-hover:scale-125 transition-transform"></span>
-                                {group.category}
-                            </h4>
-                            <ul className="space-y-4">
-                                {group.items.map((item, i) => (
-                                    <li key={i} className="text-sm text-gray-600 leading-relaxed pl-4 border-l-2 border-gray-100 group-hover:border-lime-200 transition-colors font-medium">
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </motion.div>
-                    ))}
-                 </div>
-               ) : (
-                 <motion.div 
-                   initial={{ opacity: 0 }}
-                   whileInView={{ opacity: 1 }}
-                   className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-[3rem] flex flex-col items-center gap-4"
-                 >
-                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
-                       <Bot size={32} />
-                    </div>
-                    <div className="max-w-sm">
-                       <p className="text-gray-500 font-black text-xs uppercase tracking-widest mb-2">Analisis Tema Pintar</p>
-                       <p className="text-gray-400 text-sm font-medium leading-relaxed">
-                          Klik butang di atas untuk mengelompokkan maklum balas peserta ke dalam kategori tema secara automatik menggunakan AI.
-                       </p>
-                    </div>
-                 </motion.div>
-               )}
+                       )}
+                   </div>
+               </motion.div>
             </div>
 
             {/* 5. APPENDIX - RAW DATA TABLES (SIDE BY SIDE) */}

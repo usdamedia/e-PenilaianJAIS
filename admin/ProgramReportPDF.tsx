@@ -275,6 +275,46 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
     lineHeight: 1.4,
+  },
+  // AI Analysis Styles
+  aiSection: {
+    paddingHorizontal: 50,
+    paddingTop: 30,
+    paddingBottom: 40,
+  },
+  aiTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 20,
+  },
+  aiContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 25,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  aiHeading: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#84CC16',
+    marginTop: 15,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  aiListItem: {
+    fontSize: 9,
+    color: '#4B5563',
+    marginBottom: 5,
+    marginLeft: 10,
+    lineHeight: 1.4,
+  },
+  aiText: {
+    fontSize: 9,
+    color: '#374151',
+    marginBottom: 8,
+    lineHeight: 1.5,
   }
 });
 
@@ -291,13 +331,11 @@ interface ProgramReportPDFProps {
     umur: { name: string; value: number }[];
     pendidikan: { name: string; value: number }[];
   };
-  groupedComments: { category: string; items: string[] }[];
-  groupedSuggestions: { category: string; items: string[] }[];
   rawComments: string[];
   rawSuggestions: string[];
   totalComments: number;
   totalSuggestions: number;
-  gridConfig: string; // '2x2' | '2x3' | '2x4'
+  aiAnalysis?: string | null;
 }
 
 const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
@@ -309,12 +347,11 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
   avgScore,
   radarData,
   demographics,
-  groupedComments,
-  groupedSuggestions,
   rawComments,
   rawSuggestions,
   totalComments,
-  totalSuggestions
+  totalSuggestions,
+  aiAnalysis
 }) => {
   // Table layout is more compact, so we can fit more items per page
   const itemsPerPage = 20;
@@ -329,8 +366,6 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
 
   const commentChunks = chunkArray(rawComments, itemsPerPage);
   const suggestionChunks = chunkArray(rawSuggestions, itemsPerPage);
-
-  const hasAIAnalysis = groupedComments.length > 0 || groupedSuggestions.length > 0;
 
   return (
     <Document>
@@ -433,41 +468,40 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
         </View>
       </Page>
 
-      {/* Page 2: AI Grouped Feedback Summary (Conditional) */}
-      {hasAIAnalysis && (
+      {/* Page 2: AI Analysis (Conditional) */}
+      {aiAnalysis && (
         <Page size="A4" style={styles.page}>
           <View style={styles.topBar} />
-          <View wrap={false} style={{ paddingTop: 40 }}>
-            <Text style={styles.page2Title}>RUMUSAN MAKLUM BALAS (AI)</Text>
-            
-            <View style={styles.feedbackGrid}>
-              <View style={styles.feedbackCol}>
-                <Text style={[styles.feedbackHeader, { color: '#84CC16' }]}>KOMEN ({totalComments})</Text>
-                {groupedComments.length > 0 ? groupedComments.map((group, i) => (
-                  <View key={i} style={styles.feedbackGroup}>
-                    <Text style={styles.feedbackGroupTitle}>{group.category}</Text>
-                    {group.items.slice(0, 5).map((item, j) => (
-                      <Text key={j} style={styles.feedbackItem}>• "{item}"</Text>
-                    ))}
-                  </View>
-                )) : <Text style={styles.feedbackItem}>Tiada maklum balas dikelompokkan.</Text>}
-              </View>
-
-              <View style={styles.feedbackCol}>
-                <Text style={[styles.feedbackHeader, { color: '#B45309' }]}>CADANGAN ({totalSuggestions})</Text>
-                {groupedSuggestions.length > 0 ? groupedSuggestions.map((group, i) => (
-                  <View key={i} style={styles.feedbackGroup}>
-                    <Text style={styles.feedbackGroupTitle}>{group.category}</Text>
-                    {group.items.slice(0, 5).map((item, j) => (
-                      <Text key={j} style={styles.feedbackItem}>• {item}</Text>
-                    ))}
-                  </View>
-                )) : <Text style={styles.feedbackItem}>Tiada cadangan dikelompokkan.</Text>}
-              </View>
+          <View style={styles.aiSection}>
+            <Text style={styles.aiTitle}>ANALISIS PINTAR PROGRAM (AI)</Text>
+            <View style={styles.aiContainer}>
+              {aiAnalysis.split('\n').map((line, idx) => {
+                const trimmed = line.trim();
+                if (!trimmed) return null;
+                
+                if (trimmed.startsWith('**') || trimmed.startsWith('#')) {
+                  return (
+                    <Text key={idx} style={styles.aiHeading}>
+                      {trimmed.replace(/\*\*/g, '').replace(/#/g, '')}
+                    </Text>
+                  );
+                }
+                
+                if (trimmed.startsWith('-')) {
+                  return (
+                    <Text key={idx} style={styles.aiListItem}>
+                      • {trimmed.replace('-', '').trim()}
+                    </Text>
+                  );
+                }
+                
+                return (
+                  <Text key={idx} style={styles.aiText}>
+                    {trimmed}
+                  </Text>
+                );
+              })}
             </View>
-            <Text style={{ fontSize: 8, color: '#999999', paddingHorizontal: 50, marginTop: 25, fontStyle: 'italic' }}>
-              * Sila rujuk lampiran grid untuk senarai penuh maklum balas peserta.
-            </Text>
           </View>
 
           <View style={styles.footer}>
