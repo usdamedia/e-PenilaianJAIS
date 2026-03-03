@@ -317,7 +317,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
   totalSuggestions
 }) => {
   // Table layout is more compact, so we can fit more items per page
-  const itemsPerPage = 25;
+  const itemsPerPage = 20;
 
   const chunkArray = (arr: string[], size: number) => {
     const chunks = [];
@@ -479,61 +479,75 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
         </Page>
       )}
 
-      {/* Subsequent Pages: Raw Comments Table */}
-      {commentChunks.map((chunk, pageIdx) => (
-        <Page key={`comment-page-${pageIdx}`} size="A4" style={styles.page}>
-          <View style={styles.topBar} />
-          <Text style={styles.gridPageTitle}>LAMPIRAN: KOMEN PESERTA ({pageIdx + 1}/{commentChunks.length})</Text>
-          
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeaderRow}>
-              <Text style={styles.tableHeaderTextSmall}>NO.</Text>
-              <Text style={styles.tableHeaderTextLarge}>MAKLUM BALAS / KOMEN</Text>
-            </View>
-            {chunk.map((comment, itemIdx) => (
-              <View key={itemIdx} style={[styles.tableDataRow, itemIdx === chunk.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={styles.tableCellNo}>{pageIdx * itemsPerPage + itemIdx + 1}.</Text>
-                <Text style={styles.tableCellText}>"{comment}"</Text>
+      {/* Subsequent Pages: Raw Feedback (Side-by-Side) */}
+      {Array.from({ length: Math.ceil(Math.max(rawComments.length, rawSuggestions.length) / itemsPerPage) }).map((_, pageIdx) => {
+        const currentComments = rawComments.slice(pageIdx * itemsPerPage, (pageIdx + 1) * itemsPerPage);
+        const currentSuggestions = rawSuggestions.slice(pageIdx * itemsPerPage, (pageIdx + 1) * itemsPerPage);
+        
+        return (
+          <Page key={`feedback-page-${pageIdx}`} size="A4" style={styles.page}>
+            <View style={styles.topBar} />
+            <Text style={styles.gridPageTitle}>LAMPIRAN: MAKLUM BALAS PESERTA ({pageIdx + 1}/{Math.ceil(Math.max(rawComments.length, rawSuggestions.length) / itemsPerPage)})</Text>
+            
+            <View style={{ flexDirection: 'row', paddingHorizontal: 50, gap: 20 }}>
+              {/* Left Column: Comments (Lime Theme) */}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: '#ECFCCB', padding: 5, borderRadius: 4 }}>
+                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#3F6212' }}>SENARAI KOMEN</Text>
+                </View>
+                <View style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingVertical: 8, paddingHorizontal: 8 }}>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>KOMEN</Text>
+                  </View>
+                  {currentComments.map((comment, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 }}>
+                      <Text style={{ fontSize: 9, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
+                      <Text style={{ fontSize: 9, color: '#374151', flex: 1, lineHeight: 1.3 }}>"{comment}"</Text>
+                    </View>
+                  ))}
+                  {currentComments.length === 0 && (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 9, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada komen di halaman ini.</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            ))}
-          </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Dijana oleh Sistem e-Penilaian JAIS</Text>
-            <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
-              `Muka Surat ${pageNumber} / ${totalPages}`
-            )} fixed />
-          </View>
-        </Page>
-      ))}
-
-      {/* Subsequent Pages: Raw Suggestions Table */}
-      {suggestionChunks.map((chunk, pageIdx) => (
-        <Page key={`suggestion-page-${pageIdx}`} size="A4" style={styles.page}>
-          <View style={styles.topBar} />
-          <Text style={styles.gridPageTitle}>LAMPIRAN: CADANGAN PESERTA ({pageIdx + 1}/{suggestionChunks.length})</Text>
-          
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeaderRow}>
-              <Text style={styles.tableHeaderTextSmall}>NO.</Text>
-              <Text style={styles.tableHeaderTextLarge}>CADANGAN PENAMBAHBAIKAN</Text>
-            </View>
-            {chunk.map((suggestion, itemIdx) => (
-              <View key={itemIdx} style={[styles.tableDataRow, itemIdx === chunk.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={styles.tableCellNo}>{pageIdx * itemsPerPage + itemIdx + 1}.</Text>
-                <Text style={styles.tableCellText}>{suggestion}</Text>
+              {/* Right Column: Suggestions (Orange Theme) */}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: '#FFF7ED', padding: 5, borderRadius: 4 }}>
+                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#9A3412' }}>SENARAI CADANGAN</Text>
+                </View>
+                <View style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingVertical: 8, paddingHorizontal: 8 }}>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>CADANGAN</Text>
+                  </View>
+                  {currentSuggestions.map((suggestion, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 }}>
+                      <Text style={{ fontSize: 9, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
+                      <Text style={{ fontSize: 9, color: '#374151', flex: 1, lineHeight: 1.3 }}>{suggestion}</Text>
+                    </View>
+                  ))}
+                  {currentSuggestions.length === 0 && (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 9, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada cadangan di halaman ini.</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            ))}
-          </View>
+            </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Dijana oleh Sistem e-Penilaian JAIS</Text>
-            <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
-              `Muka Surat ${pageNumber} / ${totalPages}`
-            )} fixed />
-          </View>
-        </Page>
-      ))}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Dijana oleh Sistem e-Penilaian JAIS</Text>
+              <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
+                `Muka Surat ${pageNumber} / ${totalPages}`
+              )} fixed />
+            </View>
+          </Page>
+        );
+      })}
     </Document>
   );
 };

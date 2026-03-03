@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Lock, ArrowRight, ShieldCheck, Beaker } from 'lucide-react';
+import { Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Input } from '../components/Input';
 
 interface AdminLoginProps {
-  onLogin: (isSandbox?: boolean) => void;
+  onLogin: () => void;
   onBack: () => void;
 }
 
@@ -14,7 +14,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') { // Simple mock auth
+    if (password === 'bpnpj@is2026') { // Simple mock auth
       onLogin();
     } else {
       setError('Kata laluan tidak sah');
@@ -62,24 +62,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
               >
                 LOG MASUK
                 <ArrowRight size={18} />
-              </button>
-
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-100"></div>
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-400 font-bold tracking-widest">ATAU</span>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={() => onLogin(true)}
-                className="w-full bg-gray-50 text-gray-500 font-bold py-4 rounded-2xl hover:bg-gray-100 hover:text-dark transition-all flex items-center justify-center gap-2 border border-gray-100 active:scale-95 group"
-              >
-                <Beaker size={18} className="group-hover:text-lime-600 transition-colors" />
-                MOD SANDBOX (DEMO)
               </button>
             </div>
           </form>

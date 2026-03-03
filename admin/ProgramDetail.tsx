@@ -1,12 +1,13 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
 } from 'recharts';
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle, PenLine
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Layers, Image as ImageIcon, XCircle
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
 import { GoogleGenAI } from "@google/genai";
@@ -69,10 +70,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const [editableAnalysis, setEditableAnalysis] = useState<string | null>(null);
   const [editableComments, setEditableComments] = useState<string[]>([]);
   const [editableSuggestions, setEditableSuggestions] = useState<string[]>([]);
-  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
-    setEditableProgramName(programName);
+    // Handle "UNKNOWN" case: Set to empty string to trigger fallback text
+    setEditableProgramName(programName === 'UNKNOWN' ? '' : programName);
   }, [programName]);
 
   useEffect(() => {
@@ -84,7 +85,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // Filter States
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
   const [selectedBahagian, setSelectedBahagian] = useState<string>('SEMUA');
-  // Removed selectedTempat state as requested
+  const [selectedLocation, setSelectedLocation] = useState<string>('SEMUA');
+  const [selectedPenganjur, setSelectedPenganjur] = useState<string>('SEMUA');
 
   // --- FONT SIZE LOGIC ---
   const fontSizes = {
@@ -109,7 +111,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // 1. RAW DATA (Base Set for this Program)
   const allProgramData = useMemo(() => {
     return data.filter(d => {
-      const isProgramMatch = d.programName === programName;
+      // Handle "UNKNOWN" case from Dashboard to match empty/null data
+      const dataName = d.programName || "UNKNOWN";
+      const isProgramMatch = dataName === programName;
+      
       const isNotHeader = d.programName !== 'NAMA PROGRAM' && d.tarafPendidikan !== 'TARAF PENDIDIKAN TERTINGGI';
       return isProgramMatch && isNotHeader;
     });
@@ -145,35 +150,81 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort();
   }, [allProgramData, selectedDate]);
 
+  // C. Unique Locations (Level 3 - Depends on Date & Bahagian)
+  const uniqueLocations = useMemo(() => {
+    let source = allProgramData;
+    if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
+    if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
+    
+    const set = new Set(source.map(d => d.tempat).filter(Boolean));
+    return Array.from(set).sort();
+  }, [allProgramData, selectedDate, selectedBahagian]);
+
+  // D. Unique Penganjur (Level 4 - Depends on Date, Bahagian & Location)
+  const uniquePenganjur = useMemo(() => {
+    let source = allProgramData;
+    if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
+    if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
+    if (selectedLocation !== 'SEMUA') source = source.filter(d => d.tempat === selectedLocation);
+
+    const set = new Set(source.map(d => d.penganjur).filter(Boolean));
+    return Array.from(set).sort();
+  }, [allProgramData, selectedDate, selectedBahagian, selectedLocation]);
+
   // Reset Filters logic when parent filter changes
   useEffect(() => {
     if (selectedDate !== 'SEMUA') {
-        // If current bahagian not in new valid list, reset
-        if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) {
-            setSelectedBahagian('SEMUA');
-        }
+        if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) setSelectedBahagian('SEMUA');
+        if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
+        if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
     }
-  }, [selectedDate, uniqueBahagian, selectedBahagian]);
+  }, [selectedDate, uniqueBahagian, selectedBahagian, uniqueLocations, selectedLocation, uniquePenganjur, selectedPenganjur]);
+
+  useEffect(() => {
+      if (selectedBahagian !== 'SEMUA') {
+          if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
+          if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
+      }
+  }, [selectedBahagian, uniqueLocations, selectedLocation, uniquePenganjur, selectedPenganjur]);
+
+  useEffect(() => {
+      if (selectedLocation !== 'SEMUA') {
+          if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
+      }
+  }, [selectedLocation, uniquePenganjur, selectedPenganjur]);
 
 
-  // 3. FINAL FILTERED DATA (Now excludes Tempat filter)
+  // 3. FINAL FILTERED DATA
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
       const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
       const matchBahagian = selectedBahagian === 'SEMUA' || d.bahagian === selectedBahagian;
-      return matchDate && matchBahagian;
+      const matchLocation = selectedLocation === 'SEMUA' || d.tempat === selectedLocation;
+      const matchPenganjur = selectedPenganjur === 'SEMUA' || d.penganjur === selectedPenganjur;
+      return matchDate && matchBahagian && matchLocation && matchPenganjur;
     });
-  }, [allProgramData, selectedDate, selectedBahagian]);
+  }, [allProgramData, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
-  // 4. DERIVE LOCATION AUTOMATICALLY (Based on filteredData)
+  // 4. DERIVE LOCATION & PENGANJUR AUTOMATICALLY (Based on filteredData)
   const displayedLocation = useMemo(() => {
+    if (selectedLocation !== 'SEMUA') return selectedLocation;
     if (filteredData.length === 0) return '-';
     const locations = Array.from(new Set(filteredData.map(d => d.tempat).filter(Boolean)));
     
     if (locations.length === 0) return '-';
     if (locations.length === 1) return locations[0];
-    return `${locations.length} LOKASI BERBEZA`; // Or list them e.g. "LOKASI A, LOKASI B..."
-  }, [filteredData]);
+    return `${locations.length} LOKASI BERBEZA`;
+  }, [filteredData, selectedLocation]);
+
+  const displayedPenganjur = useMemo(() => {
+    if (selectedPenganjur !== 'SEMUA') return selectedPenganjur;
+    if (filteredData.length === 0) return '-';
+    const penganjurs = Array.from(new Set(filteredData.map(d => d.penganjur).filter(Boolean)));
+    
+    if (penganjurs.length === 0) return '-';
+    if (penganjurs.length === 1) return penganjurs[0];
+    return `${penganjurs.length} PENGANJUR BERBEZA`;
+  }, [filteredData, selectedPenganjur]);
 
   // 5. ANALISIS COMPUTATION
   const analysis = useMemo(() => {
@@ -234,9 +285,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // Initialize editable states when data changes
   useEffect(() => {
-    const penganjur = filteredData.length > 0 ? filteredData[0].penganjur : (allProgramData.length > 0 ? allProgramData[0].penganjur : "PENGANJUR TIDAK DINYATAKAN");
-    setEditablePenganjur(penganjur);
-  }, [filteredData, allProgramData]);
+    setEditablePenganjur(displayedPenganjur);
+  }, [displayedPenganjur]);
 
   useEffect(() => {
     setEditableComments(commentList);
@@ -458,50 +508,88 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   return (
     <div className="bg-[#F8F9FA] h-screen flex flex-col font-sans overflow-hidden">
       {/* Top Action Bar - Sticky */}
-      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 sm:px-6 py-3 flex justify-between items-center shadow-sm print:hidden">
-        <div className="flex items-center gap-3">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-dark font-bold text-xs sm:text-sm transition-all hover:bg-gray-100 px-3 py-2 rounded-lg">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-4 sm:px-8 py-4 flex justify-between items-center shadow-sm print:hidden">
+        <div className="flex items-center gap-4">
+            <motion.button 
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onBack} 
+              className="flex items-center gap-2 text-gray-500 hover:text-dark font-bold text-xs sm:text-sm transition-all hover:bg-gray-100 px-4 py-2.5 rounded-xl border border-transparent hover:border-gray-200"
+            >
               <ArrowLeft size={18} /> <span className="hidden sm:inline">KEMBALI</span>
-            </button>
+            </motion.button>
 
-            <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+            <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
 
-            {/* FONT SIZE CONTROLS - Reduced visuals */}
-            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                <button onClick={() => handleFontSizeChange(false)} disabled={fontSizeLevel === 0} className="p-1.5 hover:bg-white rounded disabled:opacity-30"><Minus size={14}/></button>
-                <span className="text-[10px] font-bold w-4 text-center text-gray-500">A</span>
-                <button onClick={() => handleFontSizeChange(true)} disabled={fontSizeLevel === 2} className="p-1.5 hover:bg-white rounded disabled:opacity-30"><Plus size={14}/></button>
+            {/* Program Name Display - Sticky Context */}
+            <div className="hidden lg:flex flex-col max-w-[300px] xl:max-w-[500px]">
+               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">SEDANG DILIHAT</span>
+               <span className="text-xs font-black text-dark uppercase truncate">
+                  {editableProgramName || 'PROGRAM TIDAK DINYATAKAN'}
+               </span>
+            </div>
+
+            <div className="h-8 w-px bg-gray-200 hidden lg:block"></div>
+
+            {/* FONT SIZE CONTROLS */}
+            <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl border border-gray-200">
+                <button 
+                  onClick={() => handleFontSizeChange(false)} 
+                  disabled={fontSizeLevel === 0} 
+                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg disabled:opacity-30 transition-all"
+                >
+                  <Minus size={14}/>
+                </button>
+                <div className="px-2 flex flex-col items-center">
+                  <span className="text-[10px] font-black text-gray-400 leading-none mb-0.5">SAIZ</span>
+                  <span className="text-[10px] font-bold text-dark leading-none">{fontSizeLevel + 1}</span>
+                </div>
+                <button 
+                  onClick={() => handleFontSizeChange(true)} 
+                  disabled={fontSizeLevel === 2} 
+                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg disabled:opacity-30 transition-all"
+                >
+                  <Plus size={14}/>
+                </button>
             </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setIsEditMode(!isEditMode)} 
-            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${isEditMode ? 'bg-lime-400 text-dark shadow-glow' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-white'}`}
+        <div className="flex items-center gap-3">
+          <motion.button 
+            whileHover={{ rotate: 180 }}
+            transition={{ duration: 0.5 }}
+            onClick={onRefresh} 
+            className="p-3 bg-gray-50 hover:bg-lime-50 text-gray-600 hover:text-lime-600 rounded-xl border border-gray-200 transition-all shadow-sm" 
+            title="Refresh"
           >
-            <PenLine size={18} />
-            <span>{isEditMode ? 'MOD WYSIWYG' : 'EDIT LAPORAN'}</span>
-          </button>
-
-          <button onClick={onRefresh} className="p-2.5 bg-gray-50 hover:bg-lime-50 text-gray-600 hover:text-lime-600 rounded-xl border border-gray-200 transition-all" title="Refresh">
              <RefreshCw size={18} />
-          </button>
+          </motion.button>
           
+          <div className="h-8 w-px bg-gray-200 hidden sm:block mx-1"></div>
+
           {/* JPEG Button */}
-          <button 
+          <motion.button 
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleGenerateJPEG} 
             disabled={isDownloadingImage} 
-            className="bg-white border border-gray-200 text-dark px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 hover:border-lime-400 transition-all active:scale-95"
+            className="bg-white border border-gray-200 text-dark px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 hover:border-lime-400 transition-all shadow-sm disabled:opacity-50"
           >
-            {isDownloadingImage ? <Loader2 size={18} className="animate-spin"/> : <ImageIcon size={18} />}
+            {isDownloadingImage ? <Loader2 size={18} className="animate-spin"/> : <ImageIcon size={18} className="text-lime-500" />}
             <span className="hidden sm:inline">JPEG</span>
-          </button>
+          </motion.button>
 
           {/* PDF Button */}
-          <button onClick={handleGeneratePDF} disabled={isDownloading} className="bg-[#1A1C1E] text-lime-400 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all active:scale-95">
+          <motion.button 
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleGeneratePDF} 
+            disabled={isDownloading} 
+            className="bg-dark text-lime-400 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all shadow-lg shadow-lime-900/10 disabled:opacity-50"
+          >
             {isDownloading ? <Loader2 size={18} className="animate-spin"/> : <FileDown size={18} />}
             <span className="hidden sm:inline">PDF</span>
-          </button>
+          </motion.button>
         </div>
       </nav>
 
@@ -511,102 +599,116 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl min-h-[297mm] flex flex-col">
           
           {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
-          <div className="bg-[#1A1C1E] text-white p-10 sm:p-16 relative overflow-hidden">
+          <div className="bg-[#1A1C1E] text-white p-12 sm:p-20 relative overflow-hidden rounded-t-none sm:rounded-t-[2.5rem]">
              {/* Abstract Background */}
-             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-lime-400/10 rounded-full blur-[120px] pointer-events-none -mr-32 -mt-32"></div>
+             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-lime-400/10 rounded-full blur-[150px] pointer-events-none -mr-40 -mt-40"></div>
+             <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-lime-400/5 rounded-full blur-[100px] pointer-events-none -ml-20 -mb-20"></div>
              
-             <div className="relative z-10 flex flex-col gap-8">
+             <div className="relative z-10 flex flex-col gap-10">
                 {/* Meta Tag */}
-                <div className="flex items-center gap-3">
-                  <div className="bg-lime-400 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">
-                     Laporan Program
-                  </div>
-                  <span className="text-gray-500 text-[10px] font-mono tracking-wider">
+                <div className="flex items-center gap-4">
+                  <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="bg-lime-400 text-black text-[11px] font-black px-6 py-2 rounded-full tracking-[0.3em] uppercase shadow-xl shadow-lime-400/30"
+                  >
+                     LAPORAN: {editableProgramName || 'PROGRAM'}
+                  </motion.div>
+                  <div className="h-px w-8 bg-white/20"></div>
+                  <span className="text-gray-500 text-[10px] font-black tracking-[0.2em] uppercase">
                      ID: {filteredData[0]?.id || 'N/A'}
                   </span>
                 </div>
                 
                 {/* Title & Organizer */}
-                <div>
-                  {isEditMode ? (
-                    <textarea
-                      value={editableProgramName}
-                      onChange={(e) => setEditableProgramName(e.target.value.toUpperCase())}
-                      className="w-full bg-white/10 text-white font-black uppercase leading-tight tracking-tight break-words mb-4 p-2 rounded-xl border border-white/20 focus:outline-none focus:border-lime-400 text-3xl sm:text-4xl"
-                      rows={2}
-                    />
-                  ) : (
-                    <h1 className={`${fs('headerTitle')} font-black uppercase leading-tight tracking-tight break-words mb-4 text-white`}>
-                      {editableProgramName}
-                    </h1>
-                  )}
+                <div className="max-w-4xl">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="max-h-[400px] overflow-y-auto custom-scrollbar pr-6 mb-6 group"
+                    >
+                      <textarea
+                        value={editableProgramName}
+                        onChange={(e) => setEditableProgramName(e.target.value)}
+                        className={`${fs('headerTitle')} font-black uppercase leading-[1.1] tracking-tight text-white drop-shadow-2xl w-full bg-transparent border-none focus:ring-0 resize-none p-0 placeholder:text-white/20 selection:bg-lime-400/30`}
+                        placeholder="NAMA PROGRAM TIDAK DINYATAKAN"
+                        spellCheck={false}
+                        rows={1}
+                        onFocus={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = target.scrollHeight + 'px';
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = target.scrollHeight + 'px';
+                        }}
+                        ref={(el) => {
+                          if (el) {
+                            el.style.height = 'auto';
+                            el.style.height = el.scrollHeight + 'px';
+                          }
+                        }}
+                      />
+                    </motion.div>
                   
-                  <div className="flex items-center gap-2 text-lime-400/90 border-l-2 border-lime-400 pl-3">
-                     {isEditMode ? (
-                       <input 
-                        type="text"
-                        value={editablePenganjur}
-                        onChange={(e) => setEditablePenganjur(e.target.value.toUpperCase())}
-                        className="bg-white/10 text-lime-400 font-bold uppercase tracking-wide opacity-90 p-1 rounded border border-white/10 focus:outline-none focus:border-lime-400 w-full"
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center gap-3 text-lime-400 border-l-4 border-lime-400 pl-5 py-1 group"
+                  >
+                       <input
+                         type="text"
+                         value={editablePenganjur}
+                         onChange={(e) => setEditablePenganjur(e.target.value)}
+                         className={`${fs('subHeader')} font-black uppercase tracking-[0.1em] opacity-90 bg-transparent border-none focus:ring-0 p-0 w-full placeholder:text-lime-400/30`}
+                         placeholder="PENGANJUR TIDAK DINYATAKAN"
                        />
-                     ) : (
-                       <p className={`${fs('subHeader')} font-bold uppercase tracking-wide opacity-90`}>
-                         {editablePenganjur}
-                       </p>
-                     )}
-                  </div>
+                  </motion.div>
                 </div>
                 
                 {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-white/10 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-10 border-t border-white/10 mt-4">
                    {/* Date Filter - DYNAMIC */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Tarikh</span>
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tarikh</span>
                        <div className="relative">
                           {uniqueDates.length > 1 ? (
-                            <>
+                            <div className="group">
                                 <select 
                                   value={selectedDate}
                                   onChange={(e) => setSelectedDate(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
+                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
                                 >
                                   <option value="SEMUA" className="text-dark bg-white">SEMUA TARIKH ({uniqueDates.length})</option>
                                   {uniqueDates.map(d => (
                                     <option key={d.label} value={d.label} className="text-dark bg-white">{d.label}</option>
                                   ))}
                                 </select>
-                                <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
+                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
+                            </div>
                           ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
-                                <Calendar size={14} className="text-lime-500" />
-                                {uniqueDates[0]?.label || '-'}
+                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
+                                <Calendar size={16} className="text-lime-400" />
+                                <span className="uppercase tracking-wider">{uniqueDates[0]?.label || '-'}</span>
                              </div>
                           )}
                        </div>
-                   </div>
+                   </motion.div>
 
-                   {/* Location Display - READ ONLY */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Lokasi (Auto)</span>
-                       <div className="relative">
-                          <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
-                            <MapPin size={14} className="text-lime-500 shrink-0" />
-                            <span className="truncate" title={displayedLocation}>{displayedLocation}</span>
-                          </div>
-                       </div>
-                   </div>
-
-                   {/* Division Filter - DYNAMIC */}
-                   <div>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Bahagian</span>
+                   {/* Bahagian Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Bahagian</span>
                        <div className="relative">
                           {uniqueBahagian.length > 1 ? (
                             <>
                               <select 
                                 value={selectedBahagian}
                                 onChange={(e) => setSelectedBahagian(e.target.value)}
-                                className="bg-white/5 text-white border border-white/10 rounded-lg px-2 py-1.5 w-full text-sm font-medium appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-8 truncate"
+                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
                               >
                                 <option value="SEMUA" className="text-dark bg-white">SEMUA BAHAGIAN ({uniqueBahagian.length})</option>
                                 {uniqueBahagian.map(b => (
@@ -622,7 +724,61 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                              </div>
                           )}
                        </div>
-                   </div>
+                   </motion.div>
+
+                   {/* Location Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Lokasi</span>
+                       <div className="relative">
+                          {uniqueLocations.length > 1 ? (
+                            <>
+                              <select 
+                                value={selectedLocation}
+                                onChange={(e) => setSelectedLocation(e.target.value)}
+                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
+                              >
+                                <option value="SEMUA" className="text-dark bg-white">SEMUA LOKASI ({uniqueLocations.length})</option>
+                                {uniqueLocations.map(l => (
+                                  <option key={l} value={l} className="text-dark bg-white">{l}</option>
+                                ))}
+                              </select>
+                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </>
+                          ) : (
+                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
+                                <MapPin size={14} className="text-lime-500 shrink-0" />
+                                <span className="truncate" title={uniqueLocations[0]}>{uniqueLocations[0] || '-'}</span>
+                             </div>
+                          )}
+                       </div>
+                   </motion.div>
+
+                   {/* Penganjur Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Penganjur</span>
+                       <div className="relative">
+                          {uniquePenganjur.length > 1 ? (
+                            <>
+                              <select 
+                                value={selectedPenganjur}
+                                onChange={(e) => setSelectedPenganjur(e.target.value)}
+                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
+                              >
+                                <option value="SEMUA" className="text-dark bg-white">SEMUA PENGANJUR ({uniquePenganjur.length})</option>
+                                {uniquePenganjur.map(p => (
+                                  <option key={p} value={p} className="text-dark bg-white">{p}</option>
+                                ))}
+                              </select>
+                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </>
+                          ) : (
+                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
+                                <Award size={14} className="text-lime-500 shrink-0" />
+                                <span className="truncate" title={uniquePenganjur[0]}>{uniquePenganjur[0] || '-'}</span>
+                             </div>
+                          )}
+                       </div>
+                   </motion.div>
                 </div>
              </div>
           </div>
@@ -637,198 +793,257 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
           ) : (
           <>
             {/* 1. EXECUTIVE SUMMARY (KPIs) - High Visibility */}
-            <div className="border-b border-gray-100 bg-white p-6 sm:p-8">
-               <h3 className="text-xs font-black uppercase text-gray-400 tracking-[0.2em] mb-6">Ringkasan Eksekutif</h3>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-lime-50 rounded-2xl p-6 border border-lime-100 flex items-center justify-between group hover:shadow-md transition-all">
+            <div className="border-b border-gray-100 bg-white p-8 sm:p-10">
+               <div className="flex items-center gap-3 mb-8">
+                  <div className="h-px flex-1 bg-gray-100"></div>
+                  <h3 className="text-[11px] font-black uppercase text-gray-400 tracking-[0.4em] bg-gray-50 px-6 py-2 rounded-full border border-gray-100 shadow-sm">Ringkasan Eksekutif</h3>
+                  <div className="h-px flex-1 bg-gray-100"></div>
+               </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="bg-gradient-to-br from-lime-50 to-white rounded-[2.5rem] p-8 border border-lime-100 flex items-center justify-between group hover:shadow-xl hover:shadow-lime-900/5 transition-all duration-500"
+                  >
                       <div>
-                        <div className={`${fs('kpiLabel')} font-bold text-lime-700 uppercase tracking-wider mb-1`}>Purata Skor</div>
+                        <div className={`${fs('kpiLabel')} font-black text-lime-700 uppercase tracking-widest mb-2 opacity-70`}>Purata Skor</div>
                         <div className="flex items-baseline gap-2">
                            <span className={`${fs('kpiValue')} font-black text-dark tracking-tighter`}>{analysis.avgTotal.toFixed(2)}</span>
-                           <span className="text-gray-400 font-bold text-sm">/ 5.0</span>
+                           <span className="text-gray-400 font-bold text-lg">/ 5.0</span>
                         </div>
                       </div>
-                      <div className="bg-white p-3 rounded-full text-lime-500 shadow-sm">
-                         <Star size={24} fill="currentColor" />
+                      <div className="bg-white p-5 rounded-3xl text-lime-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
+                         <Star size={32} fill="currentColor" />
                       </div>
-                  </div>
+                  </motion.div>
 
-                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex items-center justify-between group hover:shadow-md transition-all">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-gradient-to-br from-gray-50 to-white rounded-[2.5rem] p-8 border border-gray-100 flex items-center justify-between group hover:shadow-xl hover:shadow-gray-900/5 transition-all duration-500"
+                  >
                       <div>
-                        <div className={`${fs('kpiLabel')} font-bold text-gray-500 uppercase tracking-wider mb-1`}>Jumlah Responden</div>
+                        <div className={`${fs('kpiLabel')} font-black text-gray-500 uppercase tracking-widest mb-2 opacity-70`}>Jumlah Responden</div>
                         <div className={`${fs('kpiValue')} font-black text-dark tracking-tighter`}>{analysis.totalRespondents}</div>
                       </div>
-                      <div className="bg-white p-3 rounded-full text-gray-400 shadow-sm">
-                         <Users size={24} />
+                      <div className="bg-white p-5 rounded-3xl text-gray-400 shadow-sm group-hover:scale-110 transition-transform duration-500">
+                         <Users size={32} />
                       </div>
-                  </div>
+                  </motion.div>
                </div>
             </div>
 
             {/* 2. VISUAL ANALYSIS - Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 border-b border-gray-100">
+            <div className="grid grid-cols-1 lg:grid-cols-5 border-b border-gray-100 bg-white">
               
               {/* Radar Chart (3/5 Width) */}
-              <div className="lg:col-span-3 p-8 border-b lg:border-b-0 lg:border-r border-gray-50">
-                  <div className="flex justify-between items-center mb-4">
-                     <h3 className={`${fs('sectionTitle')} font-bold text-dark flex items-center gap-2`}>
-                        <TrendingUp size={20} className="text-lime-500"/> Analisis Radar
+              <div className="lg:col-span-3 p-10 border-b lg:border-b-0 lg:border-r border-gray-100">
+                  <div className="flex justify-between items-center mb-10">
+                     <h3 className={`${fs('sectionTitle')} font-black text-dark flex items-center gap-3`}>
+                        <div className="p-2 bg-lime-100 rounded-xl text-lime-600">
+                           <TrendingUp size={20}/>
+                        </div>
+                        Analisis Radar
                      </h3>
                   </div>
-                  <div className="h-[350px] w-full relative" id="radar-chart">
+                  <div className="h-[400px] w-full relative" id="radar-chart">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={analysis.spiderData} outerRadius={110}>
-                        <PolarGrid stroke="#E5E7EB" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fontWeight: 700, fill: '#374151' }} />
+                      <RadarChart data={analysis.spiderData} outerRadius={130}>
+                        <PolarGrid stroke="#F3F4F6" strokeWidth={2} />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 800, fill: '#6B7280', letterSpacing: '0.05em' }} />
                         <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
-                        <Radar name="Skor" dataKey="A" stroke={COLORS.limeDark} fill={COLORS.lime} fillOpacity={0.5} strokeWidth={3} />
-                        <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '10px 15px'}} itemStyle={{fontWeight: 'bold', color: '#111'}} />
+                        <Radar 
+                          name="Skor" 
+                          dataKey="A" 
+                          stroke={COLORS.limeDark} 
+                          fill={COLORS.lime} 
+                          fillOpacity={0.4} 
+                          strokeWidth={4} 
+                          animationDuration={2000}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            borderRadius: '20px', 
+                            border: '1px solid #F3F4F6', 
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.08)', 
+                            padding: '12px 20px'
+                          }} 
+                          itemStyle={{fontWeight: '900', color: '#111', fontSize: '14px'}} 
+                        />
                       </RadarChart>
                     </ResponsiveContainer>
                   </div>
               </div>
 
               {/* Demographics Summary (2/5 Width) */}
-              <div className="lg:col-span-2 p-8 bg-gray-50/50">
-                  <h3 className={`${fs('sectionTitle')} font-bold text-dark mb-6 flex items-center gap-2`}>
-                     <UserCheck size={20} className="text-lime-500"/> Profil Peserta
+              <div className="lg:col-span-2 p-10 bg-gray-50/30">
+                  <h3 className={`${fs('sectionTitle')} font-black text-dark mb-8 flex items-center gap-3`}>
+                     <div className="p-2 bg-gray-100 rounded-xl text-gray-600">
+                        <UserCheck size={20}/>
+                     </div>
+                     Profil Peserta
                   </h3>
                   
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                      {/* Jantina Section */}
-                     <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Jantina</div>
-                        <div className="space-y-2">
+                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Jantina</div>
+                        <div className="space-y-3">
                             {demographics.jantina.length > 0 ? demographics.jantina.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-3 rounded-xl flex justify-between items-center shadow-sm hover:border-lime-300 transition-colors">
+                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
                                 <span className="font-bold text-sm text-dark">{item.name}</span>
-                                <span className="bg-gray-100 text-gray-600 text-xs font-mono px-2 py-1 rounded-md font-bold">{item.value}</span>
+                                <span className="bg-lime-50 text-lime-700 text-[10px] font-black px-3 py-1.5 rounded-lg border border-lime-100">{item.value}</span>
                                 </div>
                             )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
                         </div>
-                     </div>
+                     </motion.div>
 
                      {/* Umur Section */}
-                     <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Umur</div>
-                        <div className="space-y-2">
+                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Umur</div>
+                        <div className="space-y-3">
                             {demographics.umur.length > 0 ? demographics.umur.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-3 rounded-xl flex justify-between items-center shadow-sm hover:border-lime-300 transition-colors">
+                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
                                 <span className="font-bold text-sm text-dark truncate pr-2">{item.name}</span>
-                                <span className="bg-gray-100 text-gray-600 text-xs font-mono px-2 py-1 rounded-md font-bold">{item.value}</span>
+                                <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-3 py-1.5 rounded-lg border border-gray-200">{item.value}</span>
                                 </div>
                             )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
                         </div>
-                     </div>
+                     </motion.div>
 
                      {/* Pendidikan Section */}
-                     <div>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Taraf Pendidikan</div>
-                         <div className="space-y-2">
+                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Taraf Pendidikan</div>
+                         <div className="space-y-3">
                             {demographics.pendidikan.length > 0 ? demographics.pendidikan.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-3 rounded-xl flex justify-between items-center shadow-sm hover:border-lime-300 transition-colors">
+                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
                                 <span className="font-bold text-sm text-dark truncate pr-2">{item.name}</span>
-                                <span className="bg-gray-100 text-gray-600 text-xs font-mono px-2 py-1 rounded-md font-bold">{item.value}</span>
+                                <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-3 py-1.5 rounded-lg border border-gray-200">{item.value}</span>
                                 </div>
                             )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
                         </div>
-                     </div>
+                     </motion.div>
                   </div>
               </div>
             </div>
 
             {/* 3. AI PREMIUM ANALYSIS CARD - Light Mode */}
             <div className="p-8 sm:p-12 bg-white">
-              <div className="bg-white rounded-3xl overflow-hidden relative shadow-xl shadow-gray-100 border border-gray-200">
-                  {/* Decorative Gradient - Lighter for white bg */}
-                  <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-gray-50 to-transparent"></div>
-                  <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-lime-100 rounded-full blur-[80px] opacity-60"></div>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.98 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-[3rem] overflow-hidden relative shadow-2xl shadow-gray-200/50 border border-gray-100"
+              >
+                  {/* Decorative Gradient */}
+                  <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-lime-50/50 to-transparent"></div>
+                  <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-lime-100/40 rounded-full blur-[100px]"></div>
 
-                  <div className="relative z-10 p-8 sm:p-10">
-                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                  <div className="relative z-10 p-10 sm:p-14">
+                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-10">
                         <div>
-                           <div className="flex items-center gap-2 mb-2">
-                              <Sparkles size={16} className="text-lime-500 fill-lime-500 animate-pulse" />
-                              <span className="text-lime-600 font-bold text-xs uppercase tracking-widest">Gemini AI Intelligence</span>
+                           <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 bg-lime-400 rounded-lg shadow-lg shadow-lime-400/20">
+                                 <Sparkles size={16} className="text-black fill-black animate-pulse" />
+                              </div>
+                              <span className="text-lime-600 font-black text-[10px] uppercase tracking-[0.2em]">Gemini AI Intelligence</span>
                            </div>
-                           <h3 className="text-2xl font-black text-gray-900">Analisis Pintar Program</h3>
-                           <p className="text-gray-500 text-sm mt-1 max-w-lg">
-                              Dapatkan rumusan automatik mengenai kekuatan, kelemahan, dan cadangan penambahbaikan berdasarkan data.
+                           <h3 className="text-3xl font-black text-gray-900 tracking-tight">Analisis Pintar Program</h3>
+                           <p className="text-gray-500 text-sm mt-2 max-w-xl font-medium leading-relaxed">
+                              Rumusan automatik mengenai kekuatan, kelemahan, dan cadangan penambahbaikan yang dijana secara pintar daripada maklum balas peserta.
                            </p>
                         </div>
 
                         {!aiAnalysisResult && !isAnalyzing && (
-                           <button 
+                           <motion.button 
+                              whileHover={{ scale: 1.02, y: -2 }}
+                              whileTap={{ scale: 0.98 }}
                               onClick={handleGenerateAI}
-                              className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:bg-gray-800"
+                              className="bg-black text-white px-8 py-4 rounded-2xl font-black text-sm flex items-center gap-3 transition-all shadow-xl hover:bg-gray-800"
                            >
-                              <Bot size={18} /> JANA ANALISIS (TL;DR)
-                           </button>
+                              <Bot size={20} className="text-lime-400" /> JANA ANALISIS (TL;DR)
+                           </motion.button>
                         )}
                      </div>
 
                      {isAnalyzing && (
-                        <div className="py-12 flex flex-col items-center justify-center text-center border border-dashed border-gray-200 rounded-2xl bg-gray-50">
-                           <Loader2 size={32} className="text-lime-500 animate-spin mb-3" />
-                           <p className="text-gray-500 font-medium">Sedang memproses data...</p>
+                        <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-100 rounded-[2.5rem] bg-gray-50/50">
+                           <div className="relative">
+                              <Loader2 size={48} className="text-lime-500 animate-spin mb-4" />
+                              <Sparkles size={16} className="absolute top-0 right-0 text-lime-400 animate-bounce" />
+                           </div>
+                           <p className="text-gray-500 font-black text-xs uppercase tracking-widest">Sedang memproses data...</p>
                         </div>
                      )}
 
                       {aiAnalysisResult && (
-                        <div className="bg-white rounded-2xl p-6 border border-gray-100 animate-in fade-in slide-in-from-bottom-2 shadow-sm">
-                           {isEditMode ? (
-                             <textarea 
-                                value={editableAnalysis || ''}
-                                onChange={(e) => setEditableAnalysis(e.target.value)}
-                                className="w-full min-h-[300px] p-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-lime-400 font-medium text-gray-700 leading-relaxed"
-                             />
-                           ) : (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-white rounded-[2rem] p-8 sm:p-10 border border-gray-100 shadow-sm relative group"
+                        >
                              <div className={`prose prose-stone max-w-none prose-p:text-gray-600 prose-headings:text-gray-900 prose-strong:text-gray-900 ${fs('body')}`}>
                                 {(editableAnalysis || aiAnalysisResult).split('\n').map((line, idx) => {
                                    if (line.trim().startsWith('**') || line.trim().startsWith('#')) 
-                                      return <h4 key={idx} className="text-lime-600 font-bold text-lg mt-4 mb-2 uppercase tracking-wide">{line.replace(/\*\*/g, '').replace(/#/g, '')}</h4>;
+                                      return <h4 key={idx} className="text-lime-600 font-black text-lg mt-8 mb-4 uppercase tracking-wide flex items-center gap-2">
+                                         <span className="w-1.5 h-6 bg-lime-400 rounded-full"></span>
+                                         {line.replace(/\*\*/g, '').replace(/#/g, '')}
+                                      </h4>;
                                    if (line.trim().startsWith('-')) 
-                                      return <li key={idx} className="ml-4 text-gray-700 mb-1 list-disc marker:text-lime-500">{line.replace('-', '')}</li>;
-                                   return <p key={idx} className="mb-2 leading-relaxed">{line}</p>;
+                                      return <li key={idx} className="ml-6 text-gray-700 mb-2 list-disc marker:text-lime-500 font-medium">{line.replace('-', '')}</li>;
+                                   return <p key={idx} className="mb-4 leading-relaxed font-medium">{line}</p>;
                                 })}
                              </div>
-                           )}
-                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-100" data-html2canvas-ignore>
-                              <button onClick={handleGenerateAI} className="text-xs font-bold text-gray-400 hover:text-dark flex items-center gap-1 transition-colors"><RefreshCw size={12}/> JANA SEMULA</button>
+                            <div className="flex justify-end mt-8 pt-6 border-t border-gray-50" data-html2canvas-ignore>
+                              <button 
+                                onClick={handleGenerateAI} 
+                                className="text-[10px] font-black text-gray-400 hover:text-lime-600 flex items-center gap-2 transition-all uppercase tracking-widest"
+                              >
+                                <RefreshCw size={14}/> Jana Semula Analisis
+                              </button>
                            </div>
-                        </div>
-                     )}
+                        </motion.div>
+                      )}
                   </div>
-              </div>
+              </motion.div>
             </div>
 
-            {/* 4. FEEDBACK SECTION (REMOVED SCROLLABLE LISTS, KEPT AI GROUPING ONLY) */}
-            <div className="p-8 sm:p-12 bg-[#F9FAFB] border-t border-gray-100">
-               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                  <h3 className={`${fs('sectionTitle')} font-black text-dark`}>Analisis Isu Berbangkit</h3>
+            {/* 4. FEEDBACK SECTION */}
+            <div className="p-10 sm:p-16 bg-gray-50/50 border-t border-gray-100">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12">
+                  <div>
+                     <h3 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Analisis Isu Berbangkit</h3>
+                     <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Tema & Kategori Maklum Balas</p>
+                  </div>
                   
-                  <div className="flex items-center gap-2" data-html2canvas-ignore>
+                  <div className="flex items-center gap-3" data-html2canvas-ignore>
                     {groupedFeedback && (
                          <button 
                             onClick={() => setGroupedFeedback(null)}
-                            className="text-red-500 hover:text-red-700 px-3 py-2 text-xs font-bold flex items-center gap-2 transition-all"
+                            className="bg-white border border-gray-200 text-gray-500 hover:text-red-500 px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-sm"
                         >
-                            <XCircle size={14}/> Kembali
+                            <XCircle size={16}/> RESET
                         </button>
                     )}
                     
                     {!groupedFeedback && !isGrouping && (commentList.length > 0 || suggestionList.length > 0) && (
-                        <button 
+                        <motion.button 
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={handleGroupFeedbackWithAI}
-                            className="bg-white border border-gray-200 text-dark hover:border-lime-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+                            className="bg-white border border-gray-200 text-dark hover:border-lime-400 px-5 py-3 rounded-xl text-xs font-black flex items-center gap-2 shadow-sm transition-all"
                         >
-                            <Layers size={14} className="text-lime-600"/> Kelompokkan Isu (AI)
-                        </button>
+                            <Layers size={16} className="text-lime-600"/> KELOMPOKKAN ISU (AI)
+                        </motion.button>
                     )}
                     
                     {isGrouping && (
-                        <div className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm text-lime-600">
-                             <Loader2 size={14} className="animate-spin"/> Mengelompokkan...
+                        <div className="bg-white border border-gray-200 px-5 py-3 rounded-xl text-xs font-black flex items-center gap-2 shadow-sm text-lime-600">
+                             <Loader2 size={16} className="animate-spin"/> MENGANALISIS TEMA...
                         </div>
                     )}
                   </div>
@@ -836,149 +1051,109 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                
                {/* AI Grouped Feedback Display */}
                {groupedFeedback ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-500">
                     {groupedFeedback.map((group, idx) => (
-                        <div key={idx} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-lime-300 transition-all">
-                            <h4 className="font-black text-lime-700 uppercase text-xs tracking-wider border-b border-gray-100 pb-3 mb-3 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-lime-400"></span>
+                        <motion.div 
+                          key={idx} 
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:border-lime-300 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 group"
+                        >
+                            <h4 className="font-black text-lime-700 uppercase text-[10px] tracking-[0.2em] border-b border-gray-50 pb-4 mb-5 flex items-center gap-3">
+                                <span className="w-2.5 h-2.5 rounded-full bg-lime-400 shadow-lg shadow-lime-400/50 group-hover:scale-125 transition-transform"></span>
                                 {group.category}
                             </h4>
-                            <ul className="space-y-3">
+                            <ul className="space-y-4">
                                 {group.items.map((item, i) => (
-                                    <li key={i} className="text-sm text-gray-600 leading-relaxed pl-3 border-l-2 border-gray-100 text-xs sm:text-sm">
+                                    <li key={i} className="text-sm text-gray-600 leading-relaxed pl-4 border-l-2 border-gray-100 group-hover:border-lime-200 transition-colors font-medium">
                                         {item}
                                     </li>
                                 ))}
                             </ul>
-                        </div>
+                        </motion.div>
                     ))}
                  </div>
                ) : (
-                 <div className="text-center py-12 text-gray-400 italic text-sm border-2 border-dashed border-gray-200 rounded-2xl">
-                    Klik "Kelompokkan Isu (AI)" untuk melihat analisis tema maklum balas, atau rujuk Lampiran di bawah untuk senarai penuh.
-                 </div>
+                 <motion.div 
+                   initial={{ opacity: 0 }}
+                   whileInView={{ opacity: 1 }}
+                   className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-[3rem] flex flex-col items-center gap-4"
+                 >
+                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+                       <Bot size={32} />
+                    </div>
+                    <div className="max-w-sm">
+                       <p className="text-gray-500 font-black text-xs uppercase tracking-widest mb-2">Analisis Tema Pintar</p>
+                       <p className="text-gray-400 text-sm font-medium leading-relaxed">
+                          Klik butang di atas untuk mengelompokkan maklum balas peserta ke dalam kategori tema secara automatik menggunakan AI.
+                       </p>
+                    </div>
+                 </motion.div>
                )}
             </div>
 
             {/* 5. APPENDIX - RAW DATA TABLES (SIDE BY SIDE) */}
-            <div className="p-8 sm:p-12 bg-white border-t border-gray-100 break-before-page">
-               <div className="mb-8 border-b border-gray-100 pb-6">
-                  <h3 className="text-xs font-black uppercase text-gray-400 tracking-[0.2em] mb-2">Lampiran Maklum Balas</h3>
-                  <h2 className={`${fs('sectionTitle')} font-black text-dark`}>Senarai Penuh Komen & Cadangan</h2>
+            <div className="p-10 sm:p-16 bg-white border-t border-gray-100 break-before-page">
+               <div className="mb-12 border-b border-gray-100 pb-8">
+                  <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-3">Lampiran Maklum Balas</h3>
+                  <h2 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Senarai Penuh Komen & Cadangan</h2>
                </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {/* Raw Comments Column */}
                   <div className="flex flex-col h-full">
-                     <div className="flex items-center gap-2 mb-4 p-3 bg-lime-50 rounded-t-xl border-b border-lime-100">
-                        <MessageSquare size={16} className="text-lime-600"/>
-                        <span className="font-black text-xs uppercase tracking-wider text-lime-800">Komen Peserta</span>
+                     <div className="flex items-center gap-3 mb-6 p-4 bg-lime-50 rounded-2xl border border-lime-100">
+                        <div className="p-2 bg-white rounded-lg text-lime-600 shadow-sm">
+                           <MessageSquare size={18} />
+                        </div>
+                        <span className="font-black text-xs uppercase tracking-widest text-lime-800">Komen Peserta</span>
                      </div>
-                     <div className="border border-gray-200 rounded-b-xl overflow-hidden shadow-sm flex-1 bg-white">
+                     <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
                         <table className="w-full text-left border-collapse">
-                           <tbody className="divide-y divide-gray-100">
+                           <tbody className="divide-y divide-gray-50">
                               {editableComments.length > 0 ? editableComments.map((c, i) => (
-                                 <tr key={i} className="hover:bg-gray-50 transition-colors group">
-                                    <td className="px-4 py-3 text-[10px] font-mono text-gray-400 w-8 align-top pt-4">{i + 1}.</td>
-                                    <td className="px-4 py-3 text-xs sm:text-sm text-gray-600 italic leading-relaxed align-top">
-                                        {isEditMode ? (
-                                            <div className="relative">
-                                                <textarea 
-                                                    value={c}
-                                                    onChange={(e) => {
-                                                        const newComments = [...editableComments];
-                                                        newComments[i] = e.target.value;
-                                                        setEditableComments(newComments);
-                                                    }}
-                                                    className="w-full bg-gray-50 p-2 rounded border border-gray-200 text-xs focus:outline-none focus:border-lime-400"
-                                                    rows={3}
-                                                />
-                                                <button 
-                                                    onClick={() => setEditableComments(editableComments.filter((_, idx) => idx !== i))}
-                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                                >
-                                                    <XCircle size={10}/>
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            `"${c}"`
-                                        )}
+                                 <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
+                                    <td className="px-6 py-4 text-[10px] font-black text-gray-300 w-12 align-top pt-5">{String(i + 1).padStart(2, '0')}</td>
+                                    <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 italic leading-relaxed align-top font-medium">
+                                        "{c}"
                                     </td>
                                  </tr>
                               )) : (
                                  <tr>
-                                    <td colSpan={2} className="px-6 py-12 text-center text-gray-400 text-xs italic">Tiada komen direkodkan.</td>
+                                    <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada komen direkodkan.</td>
                                  </tr>
                               )}
                            </tbody>
                         </table>
-                        {isEditMode && (
-                            <div className="p-3 border-t border-gray-100 bg-gray-50">
-                                <button 
-                                    onClick={() => setEditableComments([...editableComments, ''])}
-                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-lime-600 hover:border-lime-400 transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase"
-                                >
-                                    <Plus size={12}/> Tambah Komen
-                                </button>
-                            </div>
-                        )}
                      </div>
                   </div>
 
                   {/* Raw Suggestions Column */}
                   <div className="flex flex-col h-full">
-                     <div className="flex items-center gap-2 mb-4 p-3 bg-orange-50 rounded-t-xl border-b border-orange-100">
-                        <Lightbulb size={16} className="text-orange-600"/>
-                        <span className="font-black text-xs uppercase tracking-wider text-orange-800">Cadangan Peserta</span>
+                     <div className="flex items-center gap-3 mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                        <div className="p-2 bg-white rounded-lg text-orange-600 shadow-sm">
+                           <Lightbulb size={18} />
+                        </div>
+                        <span className="font-black text-xs uppercase tracking-widest text-orange-800">Cadangan Peserta</span>
                      </div>
-                     <div className="border border-gray-200 rounded-b-xl overflow-hidden shadow-sm flex-1 bg-white">
+                     <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
                         <table className="w-full text-left border-collapse">
-                           <tbody className="divide-y divide-gray-100">
+                           <tbody className="divide-y divide-gray-50">
                               {editableSuggestions.length > 0 ? editableSuggestions.map((s, i) => (
-                                 <tr key={i} className="hover:bg-gray-50 transition-colors group">
-                                    <td className="px-4 py-3 text-[10px] font-mono text-gray-400 w-8 align-top pt-4">{i + 1}.</td>
-                                    <td className="px-4 py-3 text-xs sm:text-sm text-gray-600 leading-relaxed align-top">
-                                        {isEditMode ? (
-                                            <div className="relative">
-                                                <textarea 
-                                                    value={s}
-                                                    onChange={(e) => {
-                                                        const newSugg = [...editableSuggestions];
-                                                        newSugg[i] = e.target.value;
-                                                        setEditableSuggestions(newSugg);
-                                                    }}
-                                                    className="w-full bg-gray-50 p-2 rounded border border-gray-200 text-xs focus:outline-none focus:border-orange-400"
-                                                    rows={3}
-                                                />
-                                                <button 
-                                                    onClick={() => setEditableSuggestions(editableSuggestions.filter((_, idx) => idx !== i))}
-                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                                >
-                                                    <XCircle size={10}/>
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            s
-                                        )}
+                                 <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
+                                    <td className="px-6 py-4 text-[10px] font-black text-gray-300 w-12 align-top pt-5">{String(i + 1).padStart(2, '0')}</td>
+                                    <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 leading-relaxed align-top font-medium">
+                                        {s}
                                     </td>
                                  </tr>
                               )) : (
                                  <tr>
-                                    <td colSpan={2} className="px-6 py-12 text-center text-gray-400 text-xs italic">Tiada cadangan direkodkan.</td>
+                                    <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada cadangan direkodkan.</td>
                                  </tr>
                               )}
                            </tbody>
                         </table>
-                        {isEditMode && (
-                            <div className="p-3 border-t border-gray-100 bg-gray-50">
-                                <button 
-                                    onClick={() => setEditableSuggestions([...editableSuggestions, ''])}
-                                    className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-orange-600 hover:border-orange-400 transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase"
-                                >
-                                    <Plus size={12}/> Tambah Cadangan
-                                </button>
-                            </div>
-                        )}
                      </div>
                   </div>
                </div>

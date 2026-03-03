@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, Beaker, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
 import { CADANGAN_NAMA_PROGRAM } from './NAMA_PROGRAM_CADANGAN';
@@ -156,30 +156,7 @@ function App() {
     }
   };
 
-  // --- SANDBOX MODE (FOR TESTING) ---
-  const activateSandboxMode = () => {
-    setFormData({
-      namaProgram: 'DAURAH KITAB TURATH SIRI 1',
-      bahagianProgram: 'KUCHING',
-      tempatProgram: 'MASJID JAMEK NEGERI SARAWAK',
-      tarikhMula: new Date().toISOString().split('T')[0],
-      tempohProgram: '1 HARI',
-      penganjurUtama: 'BAHAGIAN DAKWAH (HQ)',
-      namaPenuh: 'SANDBOX USER',
-      jantina: 'LELAKI',
-      umur: '31-40 TAHUN',
-      tarafPendidikan: 'IJAZAH SARJANA MUDA',
-      ratingTarikhMasa: 5,
-      ratingPengisian: 5,
-      ratingJamuan: 5,
-      ratingFasilitator: 5,
-      ratingUrusetia: 5,
-      ratingKeseluruhan: 5,
-      komenProgram: 'Sandbox Test Data',
-      cadanganProgram: 'Sandbox Test Data',
-    });
-    setSubmitted(true);
-  };
+
 
   // --- SOCIAL SHARE LOGIC ---
   const handleSharePoster = async () => {
@@ -630,7 +607,6 @@ function App() {
 
             {/* Admin & Font Controls (Mobile: Show on right of logo) */}
             <div className="flex items-center gap-2 sm:hidden">
-               <button onClick={activateSandboxMode} className="p-2 text-gray-400" title="Sandbox"><Beaker size={16}/></button>
                <button onClick={() => setView('adminLogin')} className="p-2 text-gray-400"><Lock size={16}/></button>
             </div>
           </div>
@@ -653,7 +629,6 @@ function App() {
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
-             <button onClick={activateSandboxMode} className="p-2 text-gray-400 hover:text-dark transition-colors" title="Sandbox Mode"><Beaker size={16}/></button>
              <button
                onClick={() => setView('adminLogin')}
                className="p-2 text-gray-400 hover:text-dark transition-colors"

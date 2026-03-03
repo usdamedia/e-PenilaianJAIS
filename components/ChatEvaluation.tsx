@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, Beaker, X, User } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES } from '../constants';
@@ -22,7 +22,7 @@ type Message = {
 type QuestionStep = {
   field: keyof EvaluationFormData;
   question: string;
-  type: 'text' | 'options' | 'date' | 'rating' | 'textarea' | 'select';
+  type: 'text' | 'options' | 'date' | 'rating' | 'textarea' | 'select' | 'netflix-profile';
   options?: string[];
   uppercase?: boolean;
   prefill?: string;
@@ -30,6 +30,12 @@ type QuestionStep = {
 };
 
 const STEPS: QuestionStep[] = [
+  { 
+    field: 'adaSijil', 
+    question: "Adakah program ini menyediakan sijil penyertaan?", 
+    type: 'netflix-profile', 
+    options: ['ADA', 'TIADA'] 
+  },
   { 
     field: 'namaProgram', 
     question: "Assalamualaikum & Hai! Saya AI JAIS. Jom mulakan. Boleh berikan NAMA PROGRAM yang anda hadiri? (Ringkas & Huruf Besar)", 
@@ -146,7 +152,16 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
 
     // 4. Move to next or Trigger Submit Confirmation
     if (currentStepIndex < steps.length - 1) {
-      const nextIndex = currentStepIndex + 1;
+      let nextIndex = currentStepIndex + 1;
+      
+      // Logic to skip namaPenuh if adaSijil is TIADA
+      // We check if the NEXT step is 'namaPenuh' and if the user previously selected 'TIADA' for 'adaSijil'
+      if (steps[nextIndex].field === 'namaPenuh' && formData.adaSijil === 'TIADA') {
+         // Skip namaPenuh by setting a default value and incrementing the index
+         setFormData(prev => ({ ...prev, namaPenuh: '-' }));
+         nextIndex++;
+      }
+
       setCurrentStepIndex(nextIndex);
       
       // Simulate Typing
@@ -199,32 +214,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
     setInputText('');
   };
 
-  // --- SANDBOX MODE (FOR TESTING) ---
-  const activateSandboxMode = () => {
-    const sandboxData: EvaluationFormData = {
-      namaProgram: 'DAURAH KITAB TURATH SIRI 1',
-      bahagianProgram: 'KUCHING',
-      tempatProgram: 'MASJID JAMEK NEGERI SARAWAK',
-      tarikhMula: new Date().toISOString().split('T')[0],
-      tempohProgram: '1 HARI',
-      penganjurUtama: 'BAHAGIAN DAKWAH (HQ)',
-      namaPenuh: 'AHMAD BIN ABDULLAH',
-      jantina: 'LELAKI',
-      umur: '31-40 TAHUN',
-      tarafPendidikan: 'IJAZAH SARJANA MUDA',
-      ratingTarikhMasa: 5,
-      ratingPengisian: 5,
-      ratingJamuan: 5,
-      ratingFasilitator: 5,
-      ratingUrusetia: 5,
-      ratingKeseluruhan: 5,
-      komenProgram: 'Sandbox Test Data',
-      cadanganProgram: 'Sandbox Test Data',
-    };
-    setFormData(sandboxData);
-    setReadyToSubmit(true);
-    addMessage('bot', "SANDBOX MODE: Data dummy dimuatkan. Sila tekan HANTAR.");
-  };
+
 
   // --- SOCIAL SHARE LOGIC ---
   const handleSharePoster = async () => {
@@ -592,6 +582,43 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
 
     // 4. NORMAL INPUTS
     switch (currentStep.type) {
+      case 'netflix-profile':
+        return (
+          <div className="bg-white border-t border-gray-100 p-6">
+             <div className="flex items-center justify-center gap-2 mb-6">
+               <Sparkles size={16} className="text-lime-600" />
+               <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Sila Pilih Status Sijil</span>
+             </div>
+             <div className="flex justify-center gap-4 sm:gap-8">
+                {/* ADA Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleNextStep('ADA')}
+                  className="w-32 h-32 sm:w-40 sm:h-40 bg-gray-50 rounded-2xl border-2 border-gray-200 hover:border-lime-400 hover:bg-lime-50 flex flex-col items-center justify-center gap-3 transition-all group shadow-sm"
+                >
+                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                      <CheckCircle2 size={24} className="text-lime-600 sm:w-8 sm:h-8" />
+                   </div>
+                   <span className="text-sm sm:text-base font-black text-dark uppercase tracking-wide group-hover:text-lime-700">ADA</span>
+                </motion.button>
+
+                {/* TIADA Option */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleNextStep('TIADA')}
+                  className="w-32 h-32 sm:w-40 sm:h-40 bg-gray-50 rounded-2xl border-2 border-gray-200 hover:border-red-400 hover:bg-red-50 flex flex-col items-center justify-center gap-3 transition-all group shadow-sm"
+                >
+                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                      <X size={24} className="text-red-500 sm:w-8 sm:h-8" />
+                   </div>
+                   <span className="text-sm sm:text-base font-black text-dark uppercase tracking-wide group-hover:text-red-600">TIADA</span>
+                </motion.button>
+             </div>
+          </div>
+        );
+
       case 'select':
         return (
           <div className="bg-white border-t border-gray-100 p-4 space-y-3">
@@ -885,17 +912,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           </div>
         </div>
         <div className="flex items-center gap-1">
-            {!isCompleted && !readyToSubmit && (
-              <motion.button 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={activateSandboxMode} 
-                className="p-2.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-lime-600 transition-all" 
-                title="Sandbox Mode"
-              >
-                <Beaker size={18}/>
-              </motion.button>
-            )}
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}

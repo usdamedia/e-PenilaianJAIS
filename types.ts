@@ -1,4 +1,7 @@
 export interface EvaluationFormData {
+  // New Field for Logic
+  adaSijil?: 'ADA' | 'TIADA';
+
   // Section A
   namaProgram: string;
   bahagianProgram: string;

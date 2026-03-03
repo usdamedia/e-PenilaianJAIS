@@ -4,11 +4,20 @@ import App from './App';
 
 // Suppress Recharts defaultProps warnings (React 18.3+ known issue)
 const originalWarn = console.warn;
+const originalError = console.error;
+
 console.warn = (...args) => {
   if (typeof args[0] === 'string' && args[0].includes('Support for defaultProps will be removed from function components')) {
     return;
   }
   originalWarn(...args);
+};
+
+console.error = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('Support for defaultProps will be removed from function components')) {
+    return;
+  }
+  originalError(...args);
 };
 
 const rootElement = document.getElementById('root');
