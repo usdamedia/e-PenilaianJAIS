@@ -322,6 +322,7 @@ interface ProgramReportPDFProps {
   programName: string;
   penganjur: string;
   location: string;
+  bahagian: string;
   date: string;
   totalRespondents: number;
   avgScore: number;
@@ -342,6 +343,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
   programName,
   penganjur,
   location,
+  bahagian,
   date,
   totalRespondents,
   avgScore,
@@ -390,7 +392,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
           </View>
           <View style={styles.infoCol}>
             <Text style={styles.infoLabel}>BAHAGIAN</Text>
-            <Text style={styles.infoValue}>KUCHING</Text>
+            <Text style={styles.infoValue}>{bahagian}</Text>
           </View>
         </View>
 

@@ -408,7 +408,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         programName: editableProgramName,
         penganjur: editablePenganjur,
         location: displayedLocation,
-        date: selectedDate === 'SEMUA' ? (uniqueDates[0]?.label || '-') : selectedDate,
+        bahagian: selectedBahagian !== 'SEMUA' ? selectedBahagian : (uniqueBahagian.length > 1 ? `PELBAGAI BAHAGIAN (${uniqueBahagian.length})` : (uniqueBahagian[0] || '-')),
+        date: selectedDate === 'SEMUA' ? (uniqueDates.length > 1 ? `PELBAGAI TARIKH (${uniqueDates.length})` : (uniqueDates[0]?.label || '-')) : selectedDate,
         totalRespondents: analysis?.totalRespondents || 0,
         avgScore: Number(analysis?.avgTotal.toFixed(2)) || 0,
         radarData: analysis?.spiderData || [],
@@ -620,8 +621,16 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                   </motion.div>
                 </div>
                 
+                {/* Filter Section Header - Principle: Interactive Analysis */}
+                <div className="flex items-center gap-3 mt-12 mb-6">
+                   <div className="p-1.5 bg-lime-400/10 rounded-lg">
+                      <Filter size={14} className="text-lime-400" />
+                   </div>
+                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Tapis Mengikut Keperluan</span>
+                </div>
+
                 {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-10 border-t border-white/10 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-10 border-b border-white/10">
                    {/* Date Filter - DYNAMIC */}
                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tarikh</span>

@@ -616,6 +616,11 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    <span className="text-sm sm:text-base font-black text-dark uppercase tracking-wide group-hover:text-red-600">TIADA</span>
                 </motion.button>
              </div>
+             <div className="mt-6 text-center">
+                <p className="text-[10px] font-bold text-gray-400 italic">
+                   *Sila Rujuk Kaunter Urussetia Program
+                </p>
+             </div>
           </div>
         );
 
