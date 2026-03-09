@@ -337,7 +337,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
                    transition={{ delay: 0.4 }}
-                   className="text-3xl font-black text-dark tracking-tight mb-2"
+                   className="text-[22px] font-black text-dark tracking-tight mb-2"
                  >
                    Terima Kasih!
                  </motion.h2>
@@ -345,7 +345,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    initial={{ opacity: 0 }}
                    animate={{ opacity: 1 }}
                    transition={{ delay: 0.6 }}
-                   className="text-dark/80 font-bold text-sm max-w-xs leading-relaxed"
+                   className="text-dark/80 font-bold text-[14px] max-w-xs leading-relaxed"
                  >
                    Kerana memberikan penilaian kepada Program Jabatan Agama Islam Sarawak.
                  </motion.p>
@@ -367,8 +367,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                                 <Sparkles size={16} fill="currentColor"/>
                             </div>
                             <div>
-                               <p className="text-xs font-black text-dark uppercase tracking-wide">Kongsikan</p>
-                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Media Sosial</p>
+                               <p className="text-[14px] font-black text-dark uppercase tracking-wide">Kongsikan</p>
+                               <p className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">Media Sosial</p>
                             </div>
                         </div>
                         {/* Ratio Toggles */}
@@ -393,28 +393,28 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                             <div className="absolute bottom-0 left-0 w-20 h-20 bg-lime-400/10 rounded-full blur-2xl -ml-6 -mb-6"></div>
                             
                             <div className="relative z-10">
-                                <div className="bg-lime-400 text-black text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-2">
+                                <div className="bg-lime-400 text-black text-[14px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-2">
                                     Tamat Program
                                 </div>
                                 <div className="flex items-center gap-1.5 text-lime-400 mb-1 opacity-90">
                                     <Building2 size={10} className="shrink-0"/>
-                                    <span className="text-[9px] font-bold uppercase tracking-wider line-clamp-1">
+                                    <span className="text-[14px] font-bold uppercase tracking-wider line-clamp-1">
                                     {formData.penganjurUtama || "PENGANJUR"}
                                     </span>
                                 </div>
-                                <h2 className={`text-white font-black uppercase leading-none tracking-tighter mb-2 break-words ${posterRatio === 'story' ? 'text-xl' : 'text-lg'}`}>
+                                <h2 className="text-white font-black uppercase leading-none tracking-tighter mb-2 break-words text-[22px]">
                                 {formData.namaProgram || "PROGRAM"}
                                 </h2>
                                 <div className="space-y-1.5 mt-2 border-l-2 border-white/20 pl-2">
                                     <div className="flex items-center gap-1.5 text-gray-300">
                                         <MapPin size={10} className="text-white shrink-0"/>
-                                        <span className="text-[9px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
+                                        <span className="text-[14px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
                                             {formData.tempatProgram || "LOKASI"}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1.5 text-gray-300">
                                         <Clock size={10} className="text-white shrink-0"/>
-                                        <span className="text-[9px] font-bold uppercase tracking-wide">
+                                        <span className="text-[14px] font-bold uppercase tracking-wide">
                                             {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </span>
                                     </div>
@@ -426,8 +426,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                                     <LayoutDashboard size={12} className="text-[#0F0F0F]"/>
                                     </div>
                                     <div>
-                                    <div className="text-white font-bold text-[10px] leading-none mb-0.5">e-Penilaian JAIS</div>
-                                    <div className="text-gray-500 text-[6px] uppercase tracking-widest font-bold">Sarawak</div>
+                                    <div className="text-white font-bold text-[14px] leading-none mb-0.5">e-Penilaian JAIS</div>
+                                    <div className="text-gray-500 text-[14px] uppercase tracking-widest font-bold">Sarawak</div>
                                     </div>
                                 </div>
                             </div>
@@ -439,7 +439,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                          <button 
                             onClick={handleSharePoster}
                             disabled={isSharing}
-                            className="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
+                            className="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold text-[14px] shadow-md flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
                          >
                             {isSharing ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
                             Share WhatsApp Status
@@ -447,7 +447,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                          <button 
                             onClick={handleSaveToAlbum}
                             disabled={isSaving}
-                            className="w-full bg-dark text-white py-3.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all"
+                            className="w-full bg-dark text-white py-3.5 rounded-xl font-bold text-[14px] shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all"
                          >
                              {isSaving ? <Loader2 className="animate-spin text-lime-400" size={18} /> : <ImageIcon size={18} className="text-lime-400" />}
                             Simpan ke Album
@@ -457,7 +457,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
 
                   <button 
                     onClick={onBack} 
-                    className="w-full mt-8 text-gray-400 hover:text-dark font-bold text-xs py-2 flex items-center justify-center gap-2 transition-colors"
+                    className="w-full mt-8 text-gray-400 hover:text-dark font-bold text-[14px] py-2 flex items-center justify-center gap-2 transition-colors"
                   >
                      <RefreshCw size={14}/> Kembali ke Menu Utama
                   </button>
@@ -505,10 +505,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     className="group bg-white rounded-2xl p-4 border border-gray-100 hover:border-lime-400 transition-colors relative shadow-sm"
                   >
                     <div className="pr-10">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      <p className="text-[14px] font-black text-gray-400 uppercase tracking-widest mb-1">
                         {step.field.replace(/([A-Z])/g, ' $1').trim()}
                       </p>
-                      <p className="text-sm font-bold text-dark leading-snug">
+                      <p className="text-[14px] font-bold text-dark leading-snug">
                         {formData[step.field]?.toString() || <span className="text-gray-300 italic">Tiada jawapan</span>}
                       </p>
                     </div>
@@ -523,7 +523,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                       className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-gray-50 rounded-xl text-lime-600 hover:bg-lime-600 hover:text-white transition-all active:scale-95 flex items-center gap-2 border border-gray-100"
                     >
                       <PenLine size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
+                      <span className="text-[14px] font-black uppercase tracking-wider">Edit</span>
                     </button>
                   </motion.div>
                 ))}
@@ -533,7 +533,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
            <div className="p-6 bg-white border-t border-gray-100">
               <button
                 onClick={() => setIsReviewing(false)}
-                className="w-full bg-dark text-white py-4 rounded-2xl font-black text-lg shadow-xl hover:bg-black active:scale-95 transition-all"
+                className="w-full bg-dark text-white py-4 rounded-2xl font-black text-[22px] shadow-xl hover:bg-black active:scale-95 transition-all"
               >
                 SELESAI SEMAK
               </button>
@@ -546,20 +546,20 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
     if (readyToSubmit) {
        return (
          <div className="p-4 bg-white border-t border-gray-100 space-y-3">
-             <div className="bg-lime-50 border border-lime-200 rounded-xl p-3 text-xs text-lime-800 font-medium text-center">
+             <div className="bg-lime-50 border border-lime-200 rounded-xl p-3 text-[14px] text-lime-800 font-medium text-center">
                 Semua soalan telah dijawab. Sila semak jawapan anda sebelum menghantar.
              </div>
              <div className="flex gap-2">
                 <button
                   onClick={() => setIsReviewing(true)}
-                  className="flex-1 bg-gray-100 text-dark py-4 rounded-2xl font-bold text-sm hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 bg-gray-100 text-dark py-4 rounded-2xl font-bold text-[14px] hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                    <PenLine size={18} /> SEMAK & EDIT
                 </button>
                 <button
                   onClick={handleFinalSubmit}
                   disabled={isSubmitting}
-                  className="flex-[2] bg-lime-400 text-dark py-4 rounded-2xl font-black text-lg shadow-glow hover:bg-lime-500 active:scale-95 transition-all flex items-center justify-center gap-3"
+                  className="flex-[2] bg-lime-400 text-dark py-4 rounded-2xl font-black text-[22px] shadow-glow hover:bg-lime-500 active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
                    {isSubmitting ? (
                       <>
@@ -587,7 +587,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           <div className="p-4 sm:p-6">
              <div className="flex items-center justify-center gap-2 mb-6">
                <Sparkles size={16} className="text-green-600" />
-               <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Sila Pilih Status Sijil</span>
+               <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Status Sijil</span>
              </div>
              <div className="flex justify-center gap-4 sm:gap-8">
                 {/* ADA Option */}
@@ -600,7 +600,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-50 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                       <CheckCircle2 size={24} className="text-green-600 sm:w-8 sm:h-8" />
                    </div>
-                   <span className="text-sm sm:text-base font-black text-dark uppercase tracking-wide group-hover:text-green-700">ADA</span>
+                   <span className="text-[14px] sm:text-[14px] font-black text-dark uppercase tracking-wide group-hover:text-green-700">ADA</span>
                 </motion.button>
 
                 {/* TIADA Option */}
@@ -613,11 +613,11 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                       <X size={24} className="text-red-500 sm:w-8 sm:h-8" />
                    </div>
-                   <span className="text-sm sm:text-base font-black text-dark uppercase tracking-wide group-hover:text-red-600">TIADA</span>
+                   <span className="text-[14px] sm:text-[14px] font-black text-dark uppercase tracking-wide group-hover:text-red-600">TIADA</span>
                 </motion.button>
              </div>
              <div className="mt-6 text-center">
-                <p className="text-[10px] font-bold text-gray-400 italic">
+                <p className="text-[14px] font-bold text-gray-400 italic">
                    *Sila Rujuk Kaunter Urussetia Program
                 </p>
              </div>
@@ -629,11 +629,11 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           <div className="p-2 sm:p-3 space-y-3">
             <div className="flex items-center gap-2 px-1">
               <Sparkles size={12} className="text-green-600" />
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Dari Senarai</span>
+              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Dari Senarai</span>
             </div>
             <div className="relative group">
               <select
-                className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-sm appearance-none cursor-pointer shadow-sm"
+                className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-[14px] appearance-none cursor-pointer shadow-sm"
                 onChange={(e) => {
                   if (e.target.value) {
                     handleNextStep(e.target.value);
@@ -658,7 +658,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           <div className="p-2">
             <div className="flex items-center gap-2 px-3 py-1.5">
               <Sparkles size={12} className="text-green-600" />
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Satu</span>
+              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Satu</span>
             </div>
             <div className="p-2 overflow-x-auto whitespace-nowrap flex gap-2 no-scrollbar">
               {currentStep.options?.map((opt, idx) => (
@@ -668,7 +668,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.05 }}
                   onClick={() => handleNextStep(opt)}
-                  className="shrink-0 px-5 py-3 bg-white border border-gray-200 rounded-full text-dark text-xs sm:text-sm font-bold shadow-sm hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 flex items-center gap-2 group"
+                  className="shrink-0 px-5 py-3 bg-white border border-gray-200 rounded-full text-dark text-[14px] sm:text-[14px] font-bold shadow-sm hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 flex items-center gap-2 group"
                 >
                   {opt}
                 </motion.button>
@@ -681,7 +681,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
         return (
           <div className="p-3">
             <div className="flex items-center justify-center gap-2 py-1.5 mb-2">
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Skala Penilaian (1-5)</span>
+              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Skala Penilaian (1-5)</span>
             </div>
             <div className="flex justify-center gap-2 sm:gap-3">
               {[1, 2, 3, 4, 5].map((num, idx) => (
@@ -691,7 +691,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   onClick={() => handleNextStep(num)}
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-gray-200 text-lg sm:text-xl font-black text-dark hover:bg-green-500 hover:border-green-500 hover:text-white transition-all shadow-sm active:scale-90 flex items-center justify-center group"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-gray-200 text-[22px] sm:text-[22px] font-black text-dark hover:bg-green-500 hover:border-green-500 hover:text-white transition-all shadow-sm active:scale-90 flex items-center justify-center group"
                 >
                   {num}
                 </motion.button>
@@ -712,7 +712,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
               <input 
                 type="date" 
                 required
-                className="flex-1 bg-white border border-gray-200 rounded-full px-5 py-3 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-sm shadow-sm"
+                className="flex-1 bg-white border border-gray-200 rounded-full px-5 py-3 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-[14px] shadow-sm"
                 onChange={(e) => setInputText(e.target.value)}
               />
               <motion.button 
@@ -739,12 +739,12 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                        animate={{ opacity: 1, x: 0 }}
                        transition={{ delay: idx * 0.05 }}
                        onClick={() => handleNextStep(opt)}
-                       className="shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-[11px] font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[240px] truncate"
+                       className="shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-[14px] font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[240px] truncate"
                      >
                        {opt}
                      </motion.button>
                   ))}
-                  <button onClick={() => handleNextStep('TIADA')} className="shrink-0 px-4 py-2 bg-gray-200 rounded-full text-[11px] font-black text-gray-600">TIADA</button>
+                  <button onClick={() => handleNextStep('TIADA')} className="shrink-0 px-4 py-2 bg-gray-200 rounded-full text-[14px] font-black text-gray-600">TIADA</button>
                </div>
              )}
              <form onSubmit={handleTextSubmit} className="flex gap-2 items-end">
@@ -754,7 +754,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value.toUpperCase())}
                     placeholder="Taip komen anda..."
-                    className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-dark font-bold focus:ring-2 focus:ring-green-400/50 resize-none text-sm transition-all min-h-[46px] max-h-32 shadow-sm"
+                    className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-dark font-bold focus:ring-2 focus:ring-green-400/50 resize-none text-[14px] transition-all min-h-[46px] max-h-32 shadow-sm"
                     style={{ fieldSizing: 'content' } as any}
                   />
                   {inputText && (
@@ -795,7 +795,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     }}
                     className="w-full text-left p-3 hover:bg-green-50 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-3"
                   >
-                    <div className="text-xs font-bold text-dark leading-snug truncate">{opt}</div>
+                    <div className="text-[14px] font-bold text-dark leading-snug truncate">{opt}</div>
                   </button>
                 ))}
               </div>
@@ -809,7 +809,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     key={opt}
                     type="button"
                     onClick={() => handleNextStep(opt)}
-                    className="shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-[11px] font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[200px] truncate"
+                    className="shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-[14px] font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[200px] truncate"
                   >
                     {opt}
                   </button>
@@ -824,7 +824,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value.toUpperCase())}
                   placeholder="Taip jawapan anda..."
-                  className="w-full bg-white border border-gray-200 rounded-full px-5 py-3 pr-10 text-dark font-bold focus:ring-2 focus:ring-green-400/50 text-sm transition-all shadow-sm"
+                  className="w-full bg-white border border-gray-200 rounded-full px-5 py-3 pr-10 text-dark font-bold focus:ring-2 focus:ring-green-400/50 text-[14px] transition-all shadow-sm"
                   autoFocus
                 />
                 {inputText && (
@@ -867,10 +867,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
             </span>
           </motion.div>
           <div>
-            <h3 className="font-black text-dark text-sm tracking-tight leading-none uppercase">AI JAIS</h3>
+            <h3 className="font-black text-dark text-[14px] tracking-tight leading-none uppercase">AI JAIS</h3>
             <div className="flex items-center gap-1 mt-1 sm:mt-1">
                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-               <p className="text-[8px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wider">Aktif</p>
+               <p className="text-[14px] sm:text-[14px] text-gray-400 font-bold uppercase tracking-wider">Aktif</p>
             </div>
           </div>
         </div>
@@ -889,7 +889,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
       {/* Messages Area */}
       <div 
         ref={scrollRef} 
-        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-[#F8F9FA] dark:bg-[#0b141a] scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-[#F3F4F6] dark:bg-[#0b141a] scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -902,10 +902,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
             >
               <div
                 className={`
-                  max-w-[85%] px-3 py-2 sm:px-4 sm:py-2.5 text-sm leading-relaxed shadow-sm relative group transition-all
+                  max-w-[85%] px-3 py-2 sm:px-4 sm:py-2.5 text-[14px] leading-relaxed shadow-sm relative group transition-all
                   ${msg.sender === 'user' 
-                    ? 'bg-dark text-white rounded-2xl rounded-tr-none' 
-                    : 'bg-white text-dark rounded-2xl rounded-tl-none border border-gray-100'
+                    ? 'bg-white text-dark rounded-2xl rounded-tr-none border border-gray-200' 
+                    : 'bg-white text-dark rounded-2xl rounded-tl-none border border-gray-200'
                   }
                 `}
               >
@@ -916,11 +916,11 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }} className="w-1 h-1 bg-gray-400 rounded-full" />
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap font-medium text-[13px] sm:text-sm">{msg.text}</div>
+                  <div className="whitespace-pre-wrap font-medium text-[14px] sm:text-[14px]">{msg.text}</div>
                 )}
                 
                 <div className="flex justify-end mt-1">
-                  <span className={`text-[9px] font-medium ${msg.sender === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
+                  <span className={`text-[14px] font-medium ${msg.sender === 'user' ? 'text-gray-400' : 'text-gray-400'}`}>
                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
@@ -941,7 +941,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     />
                   ))}
                </div>
-               <span className="text-[9px] font-black text-gray-400 ml-1 border-l border-gray-200 pl-1">
+               <span className="text-[14px] font-black text-gray-400 ml-1 border-l border-gray-200 pl-1">
                  {Math.round(((currentStepIndex + 1) / STEPS.length) * 100)}%
                </span>
              </div>
