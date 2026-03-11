@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
 import { CADANGAN_NAMA_PROGRAM } from './NAMA_PROGRAM_CADANGAN';
@@ -12,7 +12,6 @@ import { submitEvaluation } from './services/api';
 import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
-import Tesseract from 'tesseract.js';
 import html2canvas from 'html2canvas';
 
 const INITIAL_DATA: EvaluationFormData = {
@@ -41,7 +40,7 @@ function App() {
   const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
   
   // NEW: Flow Step State
-  const [flowStep, setFlowStep] = useState<'modeSelection' | 'scanSelection' | 'filling'>('modeSelection');
+  const [flowStep, setFlowStep] = useState<'modeSelection' | 'filling'>('modeSelection');
   
   // NEW: Input Mode State ('standard' | 'chat')
   const [inputMode, setInputMode] = useState<'standard' | 'chat'>('chat');
@@ -51,12 +50,6 @@ function App() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // OCR / Camera States
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Social Flex Poster Ref & State
   const posterRef = useRef<HTMLDivElement>(null);
@@ -242,146 +235,6 @@ function App() {
       alert("Gagal menyimpan gambar.");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // --- CAMERA & OCR LOGIC ---
-
-  const startCamera = async () => {
-    setIsCameraOpen(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Prefer rear camera
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Camera Error:", err);
-      alert("Gagal membuka kamera. Sila pastikan anda memberi kebenaran kamera.");
-      setIsCameraOpen(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOpen(false);
-    setIsProcessingOCR(false);
-  };
-
-  const captureAndScan = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    setIsProcessingOCR(true);
-
-    // 1. Capture Image Frame
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-    try {
-      // 2. OCR using Tesseract.js (Native Client-side)
-      const { data: { text } } = await Tesseract.recognize(
-        imageData,
-        'msa+eng', // Malay and English
-        { 
-          logger: m => console.log(m),
-          errorHandler: err => console.error(err)
-        }
-      );
-
-      console.log("OCR Raw Text:", text);
-
-      if (text) {
-        // 3. Heuristic Parsing of Raw Text
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-        
-        let foundName = '';
-        let foundVenue = '';
-        let foundOrganizer = '';
-        let foundDate = '';
-
-        // Heuristic: Program name is usually one of the first few lines with significant length
-        for (let i = 0; i < Math.min(lines.length, 10); i++) {
-          const line = lines[i].toUpperCase();
-          if (line.includes('PROGRAM') || line.includes('KURSUS') || line.includes('BENGKEL') || line.includes('SEMINAR')) {
-            foundName = line;
-            break;
-          }
-        }
-        if (!foundName && lines.length > 0) foundName = lines[0].toUpperCase();
-
-        // Match Venue
-        for (const venue of PROGRAM_VENUES) {
-          if (text.toUpperCase().includes(venue.toUpperCase())) {
-            foundVenue = venue;
-            break;
-          }
-        }
-
-        // Match Organizer
-        for (const org of ORGANIZERS) {
-          if (text.toUpperCase().includes(org.toUpperCase())) {
-            foundOrganizer = org;
-            break;
-          }
-        }
-
-        // Match Date (Simple DD/MM/YYYY or DD MONTH YYYY)
-        const dateRegex = /(\d{1,2})[\/\-\s](JANUARI|FEBRUARI|MAC|APRIL|MEI|JUN|JULAI|OGOS|SEPTEMBER|OKTOBER|NOVEMBER|DISEMBER|\d{1,2})[\/\-\s](\d{4})/i;
-        const dateMatch = text.toUpperCase().match(dateRegex);
-        if (dateMatch) {
-          const day = dateMatch[1].padStart(2, '0');
-          let month = dateMatch[2];
-          const year = dateMatch[3];
-
-          // Convert month name to number if needed
-          const monthIdx = MONTHS.indexOf(month);
-          if (monthIdx !== -1) {
-            month = (monthIdx + 1).toString().padStart(2, '0');
-          } else {
-            month = month.padStart(2, '0');
-          }
-          
-          foundDate = `${year}-${month}-${day}`;
-        }
-
-        // 4. Auto-fill Form
-        setFormData(prev => ({
-          ...prev,
-          namaProgram: foundName || prev.namaProgram,
-          tempatProgram: foundVenue || prev.tempatProgram,
-          penganjurUtama: foundOrganizer || prev.penganjurUtama,
-          tarikhMula: foundDate || prev.tarikhMula
-        }));
-
-        // Update date parts if date found
-        if (foundDate) {
-          const [y, m, d] = foundDate.split('-');
-          setDateParts({ d, m, y });
-        }
-
-        stopCamera();
-      } else {
-        alert("Gagal mengimbas maklumat. Sila cuba lagi.");
-        setIsProcessingOCR(false);
-      }
-
-    } catch (error) {
-      console.error("OCR Error:", error);
-      alert("Ralat semasa memproses imej. Sila isi secara manual.");
-      setIsProcessingOCR(false);
     }
   };
 
@@ -587,62 +440,6 @@ function App() {
   // ROUTE: MAIN FORM
   return (
     <div className={`min-h-screen bg-[#F2F2F2] font-sans selection:bg-lime-400 selection:text-black pb-32 sm:pb-20`}>
-      {/* CAMERA OVERLAY */}
-      {isCameraOpen && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-          {/* Top Bar */}
-          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/70 to-transparent">
-             <h3 className="text-white font-bold text-lg">Imbas Info Program</h3>
-             <button onClick={stopCamera} className="p-2 bg-white/20 rounded-full text-white backdrop-blur-md">
-               <X size={24} />
-             </button>
-          </div>
-
-          {/* Camera View */}
-          <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-            {/* Guide Frame */}
-            <div className="absolute inset-8 border-2 border-lime-400/50 rounded-3xl pointer-events-none flex flex-col justify-between p-4">
-               <div className="flex justify-between">
-                  <div className="w-8 h-8 border-t-4 border-l-4 border-lime-400 rounded-tl-xl"></div>
-                  <div className="w-8 h-8 border-t-4 border-r-4 border-lime-400 rounded-tr-xl"></div>
-               </div>
-               <div className="text-center">
-                  {isProcessingOCR && (
-                    <div className="bg-black/60 text-white px-4 py-2 rounded-xl backdrop-blur-md inline-flex items-center gap-2">
-                       <Loader2 className="animate-spin text-lime-400" size={20}/> Memproses...
-                    </div>
-                  )}
-               </div>
-               <div className="flex justify-between">
-                  <div className="w-8 h-8 border-b-4 border-l-4 border-lime-400 rounded-bl-xl"></div>
-                  <div className="w-8 h-8 border-b-4 border-r-4 border-lime-400 rounded-br-xl"></div>
-               </div>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="p-8 bg-black flex justify-center items-center pb-12">
-             <button 
-               onClick={captureAndScan}
-               disabled={isProcessingOCR}
-               className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/10 active:scale-95 transition-all"
-             >
-                <div className="w-16 h-16 rounded-full bg-white"></div>
-             </button>
-          </div>
-          
-          {/* Hidden Canvas for capture */}
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-      )}
-
-
       {/* Mobile-First Sticky Header */}
       <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' || flowStep !== 'filling' ? 'hidden sm:block' : 'block'}`}>
         <div className="max-w-4xl mx-auto px-4 py-3 sm:bg-white/80 sm:backdrop-blur-xl sm:rounded-full sm:shadow-soft sm:px-6 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:border sm:border-white/50">
@@ -719,7 +516,7 @@ function App() {
               
               <div className="space-y-4">
                 <button 
-                  onClick={() => { setInputMode('chat'); setFlowStep('scanSelection'); }}
+                  onClick={() => { setInputMode('chat'); setFlowStep('filling'); }}
                   className="w-full bg-dark text-white p-6 rounded-2xl flex items-center justify-between group hover:bg-black transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -735,7 +532,7 @@ function App() {
                 </button>
 
                 <button 
-                  onClick={() => { setInputMode('standard'); setFlowStep('scanSelection'); }}
+                  onClick={() => { setInputMode('standard'); setFlowStep('filling'); }}
                   className="w-full bg-white border-2 border-gray-100 text-dark p-6 rounded-2xl flex items-center justify-between group hover:border-lime-400 transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -748,61 +545,6 @@ function App() {
                     </div>
                   </div>
                   <ArrowRight size={20} className="text-gray-300 group-hover:text-lime-500" />
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        ) : flowStep === 'scanSelection' ? (
-          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
-            >
-              <div className="w-20 h-20 bg-dark rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl">
-                <Camera size={40} className="text-lime-400" />
-              </div>
-              <h2 className="text-3xl font-black text-dark mb-4 tracking-tight">Imbas Poster?</h2>
-              <p className="text-gray-500 font-medium mb-10">Gunakan AI untuk mengisi maklumat program secara automatik daripada poster.</p>
-              
-              <div className="space-y-4">
-                <button 
-                  onClick={startCamera}
-                  className="w-full bg-lime-400 text-dark p-6 rounded-2xl flex items-center justify-between group hover:bg-lime-500 transition-all shadow-lg shadow-lime-400/20"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-dark rounded-xl text-lime-400">
-                      <Aperture size={24} />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-black text-lg leading-none mb-1">Imbas Poster</div>
-                      <div className="text-[10px] text-dark/50 uppercase tracking-widest font-bold">Bantuan AI</div>
-                    </div>
-                  </div>
-                  <ArrowRight size={20} />
-                </button>
-
-                <button 
-                  onClick={() => { setFlowStep('filling'); setIsLocked(false); }}
-                  className="w-full bg-white border-2 border-gray-100 text-dark p-6 rounded-2xl flex items-center justify-between group hover:border-gray-300 transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-100 rounded-xl text-dark">
-                      <PenLine size={24} />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-black text-lg leading-none mb-1">Isi Sendiri</div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Tanpa Imbasan</div>
-                    </div>
-                  </div>
-                  <ArrowRight size={20} className="text-gray-300" />
-                </button>
-
-                <button 
-                  onClick={() => setFlowStep('modeSelection')}
-                  className="text-xs font-bold text-gray-400 hover:text-dark transition-colors uppercase tracking-widest mt-4"
-                >
-                  Kembali ke pilihan borang
                 </button>
               </div>
             </motion.div>
@@ -848,16 +590,6 @@ function App() {
                   Maklumat Program
                 </h2>
               </div>
-              
-              {/* Scan Button */}
-              <button
-                type="button"
-                onClick={startCamera}
-                className="flex items-center gap-2 bg-dark text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-lime-400/10 hover:bg-black transition-all active:scale-95 self-start sm:self-auto"
-              >
-                <Camera size={16} className="text-lime-400" />
-                Imbas info (AI)
-              </button>
             </div>
             
             <div className="space-y-6 sm:space-y-8">

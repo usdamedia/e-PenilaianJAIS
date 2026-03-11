@@ -6,7 +6,6 @@ import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE
 import { CADANGAN_NAMA_PROGRAM } from '../NAMA_PROGRAM_CADANGAN';
 import { submitEvaluation } from '../services/api';
 import html2canvas from 'html2canvas';
-import Tesseract from 'tesseract.js';
 
 interface ChatEvaluationProps {
   onBack: () => void;
@@ -82,14 +81,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   initialData = {},
   isLocked = false
 }) => {
-  const [showInitialChoice, setShowInitialChoice] = useState(true);
+  const [showInitialChoice, setShowInitialChoice] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  
-  // OCR / Camera States
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Dynamic Steps based on suggestions
   const steps = useMemo(() => {
@@ -354,138 +347,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   };
 
   // --- CAMERA & OCR LOGIC ---
-  const startCamera = async () => {
-    setIsCameraOpen(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Camera Error:", err);
-      alert("Gagal membuka kamera. Sila pastikan anda memberi kebenaran kamera.");
-      setIsCameraOpen(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOpen(false);
-    setIsProcessingOCR(false);
-  };
-
-  const captureAndScan = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    setIsProcessingOCR(true);
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-    try {
-      // 2. OCR using Tesseract.js (Native Client-side)
-      const { data: { text } } = await Tesseract.recognize(
-        imageData,
-        'msa+eng', // Malay and English
-        { 
-          logger: m => console.log(m)
-        }
-      );
-
-      console.log("OCR Raw Text:", text);
-
-      if (text) {
-        // 3. Heuristic Parsing of Raw Text
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-        
-        let foundName = '';
-        let foundVenue = '';
-        let foundOrganizer = '';
-        let foundDate = '';
-
-        // Heuristic: Program name is usually one of the first few lines with significant length
-        for (let i = 0; i < Math.min(lines.length, 10); i++) {
-          const line = lines[i].toUpperCase();
-          if (line.includes('PROGRAM') || line.includes('KURSUS') || line.includes('BENGKEL') || line.includes('SEMINAR')) {
-            foundName = line;
-            break;
-          }
-        }
-        if (!foundName && lines.length > 0) foundName = lines[0].toUpperCase();
-
-        // Match Venue
-        for (const venue of PROGRAM_VENUES) {
-          if (text.toUpperCase().includes(venue.toUpperCase())) {
-            foundVenue = venue;
-            break;
-          }
-        }
-
-        // Match Organizer
-        for (const org of ORGANIZERS) {
-          if (text.toUpperCase().includes(org.toUpperCase())) {
-            foundOrganizer = org;
-            break;
-          }
-        }
-
-        // Match Date (Simple DD/MM/YYYY or DD MONTH YYYY)
-        const dateRegex = /(\d{1,2})[\/\-\s](JANUARI|FEBRUARI|MAC|APRIL|MEI|JUN|JULAI|OGOS|SEPTEMBER|OKTOBER|NOVEMBER|DISEMBER|\d{1,2})[\/\-\s](\d{4})/i;
-        const dateMatch = text.toUpperCase().match(dateRegex);
-        if (dateMatch) {
-          const day = dateMatch[1].padStart(2, '0');
-          let month = dateMatch[2];
-          const year = dateMatch[3];
-
-          // Convert month name to number if needed
-          const monthIdx = MONTHS.indexOf(month);
-          if (monthIdx !== -1) {
-            month = (monthIdx + 1).toString().padStart(2, '0');
-          } else {
-            month = month.padStart(2, '0');
-          }
-          
-          foundDate = `${year}-${month}-${day}`;
-        }
-
-        // 4. Auto-fill Form Data
-        const newFormData = {
-          ...formData,
-          namaProgram: foundName || formData.namaProgram,
-          tempatProgram: foundVenue || formData.tempatProgram,
-          penganjurUtama: foundOrganizer || formData.penganjurUtama,
-          tarikhMula: foundDate || formData.tarikhMula
-        };
-        setFormData(newFormData);
-        
-        // Add a message about pre-filling
-        addMessage('bot', `Saya telah mengimbas maklumat program! ✨\n\nNama: ${foundName || '-'}\nTempat: ${foundVenue || '-'}\nTarikh: ${foundDate || '-'}\n\nMaklumat ini akan digunakan secara automatik.`);
-        
-        stopCamera();
-      } else {
-        alert("Gagal mengimbas maklumat. Sila cuba lagi.");
-        setIsProcessingOCR(false);
-      }
-    } catch (error) {
-      console.error("OCR Error:", error);
-      alert("Ralat semasa memproses imej. Sila isi secara manual.");
-      setIsProcessingOCR(false);
-    }
-  };
-
   const getTitleFontSize = (text: string) => {
     const length = text?.length || 0;
     if (length > 50) return 'text-[12px]';
@@ -497,35 +358,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   // --- UI RENDERERS ---
 
   const renderInputArea = () => {
-    // 0. INITIAL CHOICE VIEW
-    if (showInitialChoice) {
-      return (
-        <div className="p-6 bg-white border-t border-gray-100">
-           <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-lime-100 rounded-full flex items-center justify-center text-lime-600 mx-auto mb-3">
-                 <Bot size={32} />
-              </div>
-              <h3 className="text-lg font-black text-dark tracking-tight">Pilih Kaedah Penilaian</h3>
-              <p className="text-sm text-gray-500 font-medium">Bagaimana anda mahu mengisi borang ini?</p>
-           </div>
-           <div className="grid gap-3">
-              <button
-                onClick={() => setShowInitialChoice(false)}
-                className="w-full bg-dark text-white py-4 rounded-2xl font-black text-[14px] shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                <Bot size={20} className="text-lime-400" /> Chatbot AI JAIS
-              </button>
-              <button
-                onClick={onBack}
-                className="w-full bg-gray-100 text-dark py-4 rounded-2xl font-black text-[14px] hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                <PenLine size={20} /> Borang klasik
-              </button>
-           </div>
-        </div>
-      );
-    }
-
     // 1. SUCCESS VIEW (Finished)
     if (isCompleted) {
       return (
@@ -973,13 +805,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                </div>
              )}
              <form onSubmit={handleTextSubmit} className="flex gap-2 items-end">
-                <button 
-                  type="button"
-                  onClick={startCamera}
-                  className="bg-dark text-white w-12 h-12 rounded-full shadow-md flex items-center justify-center shrink-0 hover:bg-black transition-all active:scale-95"
-                >
-                  <Camera size={20} className="text-lime-400" />
-                </button>
                 <div className="flex-1 relative">
                   <textarea
                     rows={1}
@@ -1050,13 +875,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
             )}
 
             <form onSubmit={handleTextSubmit} className="flex gap-2 items-center">
-              <button 
-                type="button"
-                onClick={startCamera}
-                className="bg-dark text-white w-12 h-12 rounded-full shadow-md flex items-center justify-center shrink-0 hover:bg-black transition-all active:scale-95"
-              >
-                <Camera size={20} className="text-lime-400" />
-              </button>
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -1089,48 +907,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
 
   return (
     <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative transition-all duration-500">
-        {/* CAMERA OVERLAY */}
-        {isCameraOpen && (
-          <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-            <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/70 to-transparent">
-               <h3 className="text-white font-bold text-lg">Imbas Info Program</h3>
-               <button onClick={stopCamera} className="p-2 bg-white/20 rounded-full text-white backdrop-blur-md">
-                 <X size={24} />
-               </button>
-            </div>
-            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-              <div className="absolute inset-8 border-2 border-lime-400/50 rounded-3xl pointer-events-none flex flex-col justify-between p-4">
-                 <div className="flex justify-between">
-                    <div className="w-8 h-8 border-t-4 border-l-4 border-lime-400 rounded-tl-xl"></div>
-                    <div className="w-8 h-8 border-t-4 border-r-4 border-lime-400 rounded-tr-xl"></div>
-                 </div>
-                 <div className="text-center">
-                    {isProcessingOCR && (
-                      <div className="bg-black/60 text-white px-4 py-2 rounded-xl backdrop-blur-md inline-flex items-center gap-2">
-                         <Loader2 className="animate-spin text-lime-400" size={20}/> Memproses...
-                      </div>
-                    )}
-                 </div>
-                 <div className="flex justify-between">
-                    <div className="w-8 h-8 border-b-4 border-l-4 border-lime-400 rounded-bl-xl"></div>
-                    <div className="w-8 h-8 border-b-4 border-r-4 border-lime-400 rounded-br-xl"></div>
-                 </div>
-              </div>
-            </div>
-            <div className="p-8 bg-black flex justify-center items-center pb-12">
-               <button 
-                 onClick={captureAndScan}
-                 disabled={isProcessingOCR}
-                 className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/10 active:scale-95 transition-all"
-               >
-                  <div className="w-16 h-16 rounded-full bg-white"></div>
-               </button>
-            </div>
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-        )}
-
       {/* Chat Header */}
       <div className="bg-white/90 backdrop-blur-xl p-3 sm:p-4 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -1170,7 +946,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       {/* Messages Area */}
       <div 
         ref={scrollRef} 
-        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-[#F3F4F6] dark:bg-[#0b141a] scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-white scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -1185,8 +961,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                 className={`
                   max-w-[85%] px-3 py-2 sm:px-4 sm:py-2.5 text-[14px] leading-relaxed shadow-sm relative group transition-all
                   ${msg.sender === 'user' 
-                    ? 'bg-white text-dark rounded-2xl rounded-tr-none border border-gray-200' 
-                    : 'bg-white text-dark rounded-2xl rounded-tl-none border border-gray-200'
+                    ? 'bg-lime-400 text-dark rounded-2xl rounded-tr-none' 
+                    : 'bg-gray-100 text-dark rounded-2xl rounded-tl-none'
                   }
                 `}
               >
