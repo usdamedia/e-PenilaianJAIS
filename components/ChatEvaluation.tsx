@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, X, User } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, X, User, Camera, Aperture } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
-import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES } from '../constants';
+import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES, MONTHS } from '../constants';
 import { CADANGAN_NAMA_PROGRAM } from '../NAMA_PROGRAM_CADANGAN';
 import { submitEvaluation } from '../services/api';
 import html2canvas from 'html2canvas';
+import Tesseract from 'tesseract.js';
 
 interface ChatEvaluationProps {
   onBack: () => void;
   programSuggestions?: string[];
+  initialData?: Partial<EvaluationFormData>;
+  isLocked?: boolean;
 }
 
 type Message = {
@@ -38,43 +41,55 @@ const STEPS: QuestionStep[] = [
   },
   { 
     field: 'namaProgram', 
-    question: "Assalamualaikum & Hai! Saya AI JAIS. Jom mulakan. Boleh berikan NAMA PROGRAM yang anda hadiri? (Ringkas & Huruf Besar)", 
+    question: "Assalamualaikum & hai! Saya AI JAIS. Jom mulakan. Boleh berikan nama program yang anda hadiri? (Ringkas & huruf besar)", 
     type: 'text', 
     uppercase: true,
     options: CADANGAN_NAMA_PROGRAM
   },
-  { field: 'bahagianProgram', question: "Di BAHAGIAN mana program ini diadakan?", type: 'options', options: LOCATIONS },
+  { field: 'bahagianProgram', question: "Di bahagian mana program ini diadakan?", type: 'options', options: LOCATIONS },
   { 
     field: 'tempatProgram', 
-    question: "Sila nyatakan TEMPAT spesifik program (Contoh: Dewan Hikmah).", 
+    question: "Sila nyatakan tempat spesifik program (contoh: Dewan Hikmah).", 
     type: 'text', 
     uppercase: true,
     options: PROGRAM_VENUES 
   },
-  { field: 'tarikhMula', question: "Bilakah TARIKH MULA program ini?", type: 'date' },
-  { field: 'tempohProgram', question: "Berapa lama TEMPOH program berjalan?", type: 'options', options: DURATIONS },
-  { field: 'penganjurUtama', question: "Siapakah PENGANJUR UTAMA program ini?", type: 'select', options: ORGANIZERS },
+  { field: 'tarikhMula', question: "Bilakah tarikh mula program ini?", type: 'date' },
+  { field: 'tempohProgram', question: "Berapa lama tempoh program berjalan?", type: 'options', options: DURATIONS },
+  { field: 'penganjurUtama', question: "Siapakah penganjur utama program ini?", type: 'select', options: ORGANIZERS },
   { 
     field: 'namaPenuh', 
-    question: "Boleh berikan NAMA PENUH ANDA? (Sila Rujuk - Jika Penganjur Menyediakan Sijil)", 
+    question: "Boleh berikan nama penuh anda? (Sila rujuk - jika penganjur menyediakan sijil)", 
     type: 'text', 
     uppercase: true 
   },
-  { field: 'jantina', question: "Terima kasih. Sedikit info diri. JANTINA anda?", type: 'options', options: ['LELAKI', 'PEREMPUAN'] },
-  { field: 'umur', question: "Kategori UMUR anda?", type: 'options', options: AGE_RANGES },
-  { field: 'tarafPendidikan', question: "TARAF PENDIDIKAN tertinggi?", type: 'options', options: EDUCATION_LEVELS },
-  { field: 'ratingTarikhMasa', question: "Sekarang sesi penilaian (Skala 1-5). Bagaimana dengan LOGISTIK (Tarikh/Masa/Tempat)?", type: 'rating' },
-  { field: 'ratingPengisian', question: "Bagaimana pula dengan PENGISIAN PROGRAM?", type: 'rating' },
-  { field: 'ratingJamuan', question: "Penilaian untuk JAMUAN (Jika ada)?", type: 'rating' },
-  { field: 'ratingFasilitator', question: "Prestasi FASILITATOR/PEMBENTANG (Jika ada)?", type: 'rating' },
-  { field: 'ratingUrusetia', question: "Bagaimana layanan KEURUSETIAAN?", type: 'rating' },
-  { field: 'ratingKeseluruhan', question: "Secara KESELURUHAN, berapa bintang anda beri?", type: 'rating' },
-  { field: 'komenProgram', question: "Hampir siap! Ada sebarang KOMEN tambahan?", type: 'textarea', options: PREMADE_COMMENTS },
-  { field: 'cadanganProgram', question: "Terakhir, ada CADANGAN penambahbaikan?", type: 'textarea', options: PREMADE_SUGGESTIONS },
+  { field: 'jantina', question: "Terima kasih. Sedikit info diri. Jantina anda?", type: 'options', options: ['LELAKI', 'PEREMPUAN'] },
+  { field: 'umur', question: "Kategori umur anda?", type: 'options', options: AGE_RANGES },
+  { field: 'tarafPendidikan', question: "Taraf pendidikan tertinggi?", type: 'options', options: EDUCATION_LEVELS },
+  { field: 'ratingTarikhMasa', question: "Sekarang sesi penilaian (skala 0-5). Bagaimana dengan logistik (tarikh/masa/tempat)?", type: 'rating' },
+  { field: 'ratingPengisian', question: "Bagaimana pula dengan pengisian program?", type: 'rating' },
+  { field: 'ratingJamuan', question: "Penilaian untuk jamuan (jika ada)?", type: 'rating' },
+  { field: 'ratingFasilitator', question: "Prestasi fasilitator/pembentang (jika ada)?", type: 'rating' },
+  { field: 'ratingUrusetia', question: "Bagaimana layanan keurusetiaan?", type: 'rating' },
+  { field: 'ratingKeseluruhan', question: "Secara keseluruhan, berapa bintang anda beri?", type: 'rating' },
+  { field: 'komenProgram', question: "Hampir siap! Ada sebarang komen tambahan?", type: 'textarea', options: PREMADE_COMMENTS },
+  { field: 'cadanganProgram', question: "Terakhir, ada cadangan penambahbaikan?", type: 'textarea', options: PREMADE_SUGGESTIONS },
 ];
 
-export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programSuggestions = [] }) => {
+export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ 
+  onBack, 
+  programSuggestions = [],
+  initialData = {},
+  isLocked = false
+}) => {
+  const [showInitialChoice, setShowInitialChoice] = useState(true);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  
+  // OCR / Camera States
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Dynamic Steps based on suggestions
   const steps = useMemo(() => {
@@ -88,10 +103,29 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
     return newSteps;
   }, [programSuggestions]);
 
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'bot', text: steps[0].question }
-  ]);
-  const [formData, setFormData] = useState<Partial<EvaluationFormData>>({});
+  const [messages, setMessages] = useState<Message[]>([]);
+  
+  useEffect(() => {
+    if (!showInitialChoice && messages.length === 0) {
+      let startIndex = 0;
+      
+      // If locked, skip pre-filled steps
+      if (isLocked) {
+        while (startIndex < steps.length && formData[steps[startIndex].field]) {
+          startIndex++;
+        }
+      }
+      
+      if (startIndex < steps.length) {
+        setCurrentStepIndex(startIndex);
+        setMessages([{ id: '1', sender: 'bot', text: steps[startIndex].question }]);
+      } else {
+        setIsReviewing(true);
+        setReadyToSubmit(true);
+      }
+    }
+  }, [showInitialChoice, steps, isLocked]);
+  const [formData, setFormData] = useState<Partial<EvaluationFormData>>(initialData);
   const [inputText, setInputText] = useState('');
   
   // Logic States
@@ -156,23 +190,42 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
       
       // Logic to skip namaPenuh if adaSijil is TIADA
       // We check if the NEXT step is 'namaPenuh' and if the user previously selected 'TIADA' for 'adaSijil'
-      if (steps[nextIndex].field === 'namaPenuh' && formData.adaSijil === 'TIADA') {
+      if (steps[nextIndex] && steps[nextIndex].field === 'namaPenuh' && updatedData.adaSijil === 'TIADA') {
          // Skip namaPenuh by setting a default value and incrementing the index
-         setFormData(prev => ({ ...prev, namaPenuh: '-' }));
+         updatedData.namaPenuh = '-';
+         setFormData(updatedData);
          nextIndex++;
       }
 
-      setCurrentStepIndex(nextIndex);
-      
-      // Simulate Typing
-      setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
-      
-      const randomDelay = Math.floor(Math.random() * 800) + 800; // Slightly faster
-      
-      setTimeout(() => {
-        setMessages(prev => prev.filter(m => m.id !== 'typing'));
-        addMessage('bot', steps[nextIndex].question);
-      }, randomDelay);
+      // Skip pre-filled steps if locked
+      if (isLocked) {
+        while (nextIndex < steps.length && updatedData[steps[nextIndex].field]) {
+          nextIndex++;
+        }
+      }
+
+      if (nextIndex < steps.length) {
+        setCurrentStepIndex(nextIndex);
+        
+        // Simulate Typing
+        setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
+        
+        const randomDelay = Math.floor(Math.random() * 800) + 800; // Slightly faster
+        
+        setTimeout(() => {
+          setMessages(prev => prev.filter(m => m.id !== 'typing'));
+          addMessage('bot', steps[nextIndex].question);
+        }, randomDelay);
+      } else {
+        // No more steps after skipping
+        setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
+        
+        setTimeout(() => {
+          setMessages(prev => prev.filter(m => m.id !== 'typing'));
+          addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
+          setReadyToSubmit(true);
+        }, 1000);
+      }
     } else {
       // Last question answered. Ask for confirmation.
       setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
@@ -300,9 +353,179 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
     }
   };
 
+  // --- CAMERA & OCR LOGIC ---
+  const startCamera = async () => {
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Camera Error:", err);
+      alert("Gagal membuka kamera. Sila pastikan anda memberi kebenaran kamera.");
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOpen(false);
+    setIsProcessingOCR(false);
+  };
+
+  const captureAndScan = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    setIsProcessingOCR(true);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+    try {
+      // 2. OCR using Tesseract.js (Native Client-side)
+      const { data: { text } } = await Tesseract.recognize(
+        imageData,
+        'msa+eng', // Malay and English
+        { 
+          logger: m => console.log(m)
+        }
+      );
+
+      console.log("OCR Raw Text:", text);
+
+      if (text) {
+        // 3. Heuristic Parsing of Raw Text
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+        
+        let foundName = '';
+        let foundVenue = '';
+        let foundOrganizer = '';
+        let foundDate = '';
+
+        // Heuristic: Program name is usually one of the first few lines with significant length
+        for (let i = 0; i < Math.min(lines.length, 10); i++) {
+          const line = lines[i].toUpperCase();
+          if (line.includes('PROGRAM') || line.includes('KURSUS') || line.includes('BENGKEL') || line.includes('SEMINAR')) {
+            foundName = line;
+            break;
+          }
+        }
+        if (!foundName && lines.length > 0) foundName = lines[0].toUpperCase();
+
+        // Match Venue
+        for (const venue of PROGRAM_VENUES) {
+          if (text.toUpperCase().includes(venue.toUpperCase())) {
+            foundVenue = venue;
+            break;
+          }
+        }
+
+        // Match Organizer
+        for (const org of ORGANIZERS) {
+          if (text.toUpperCase().includes(org.toUpperCase())) {
+            foundOrganizer = org;
+            break;
+          }
+        }
+
+        // Match Date (Simple DD/MM/YYYY or DD MONTH YYYY)
+        const dateRegex = /(\d{1,2})[\/\-\s](JANUARI|FEBRUARI|MAC|APRIL|MEI|JUN|JULAI|OGOS|SEPTEMBER|OKTOBER|NOVEMBER|DISEMBER|\d{1,2})[\/\-\s](\d{4})/i;
+        const dateMatch = text.toUpperCase().match(dateRegex);
+        if (dateMatch) {
+          const day = dateMatch[1].padStart(2, '0');
+          let month = dateMatch[2];
+          const year = dateMatch[3];
+
+          // Convert month name to number if needed
+          const monthIdx = MONTHS.indexOf(month);
+          if (monthIdx !== -1) {
+            month = (monthIdx + 1).toString().padStart(2, '0');
+          } else {
+            month = month.padStart(2, '0');
+          }
+          
+          foundDate = `${year}-${month}-${day}`;
+        }
+
+        // 4. Auto-fill Form Data
+        const newFormData = {
+          ...formData,
+          namaProgram: foundName || formData.namaProgram,
+          tempatProgram: foundVenue || formData.tempatProgram,
+          penganjurUtama: foundOrganizer || formData.penganjurUtama,
+          tarikhMula: foundDate || formData.tarikhMula
+        };
+        setFormData(newFormData);
+        
+        // Add a message about pre-filling
+        addMessage('bot', `Saya telah mengimbas maklumat program! ✨\n\nNama: ${foundName || '-'}\nTempat: ${foundVenue || '-'}\nTarikh: ${foundDate || '-'}\n\nMaklumat ini akan digunakan secara automatik.`);
+        
+        stopCamera();
+      } else {
+        alert("Gagal mengimbas maklumat. Sila cuba lagi.");
+        setIsProcessingOCR(false);
+      }
+    } catch (error) {
+      console.error("OCR Error:", error);
+      alert("Ralat semasa memproses imej. Sila isi secara manual.");
+      setIsProcessingOCR(false);
+    }
+  };
+
+  const getTitleFontSize = (text: string) => {
+    const length = text?.length || 0;
+    if (length > 50) return 'text-[12px]';
+    if (length > 35) return 'text-[16px]';
+    if (length > 20) return 'text-[20px]';
+    return 'text-[22px]';
+  };
+
   // --- UI RENDERERS ---
 
   const renderInputArea = () => {
+    // 0. INITIAL CHOICE VIEW
+    if (showInitialChoice) {
+      return (
+        <div className="p-6 bg-white border-t border-gray-100">
+           <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-lime-100 rounded-full flex items-center justify-center text-lime-600 mx-auto mb-3">
+                 <Bot size={32} />
+              </div>
+              <h3 className="text-lg font-black text-dark tracking-tight">Pilih Kaedah Penilaian</h3>
+              <p className="text-sm text-gray-500 font-medium">Bagaimana anda mahu mengisi borang ini?</p>
+           </div>
+           <div className="grid gap-3">
+              <button
+                onClick={() => setShowInitialChoice(false)}
+                className="w-full bg-dark text-white py-4 rounded-2xl font-black text-[14px] shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                <Bot size={20} className="text-lime-400" /> Chatbot AI JAIS
+              </button>
+              <button
+                onClick={onBack}
+                className="w-full bg-gray-100 text-dark py-4 rounded-2xl font-black text-[14px] hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                <PenLine size={20} /> Borang klasik
+              </button>
+           </div>
+        </div>
+      );
+    }
+
     // 1. SUCCESS VIEW (Finished)
     if (isCompleted) {
       return (
@@ -367,7 +590,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                                 <Sparkles size={16} fill="currentColor"/>
                             </div>
                             <div>
-                               <p className="text-[14px] font-black text-dark uppercase tracking-wide">Kongsikan</p>
+                               <p className="text-[14px] font-black text-dark tracking-wide">Kongsikan</p>
                                <p className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">Media Sosial</p>
                             </div>
                         </div>
@@ -393,28 +616,28 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                             <div className="absolute bottom-0 left-0 w-20 h-20 bg-lime-400/10 rounded-full blur-2xl -ml-6 -mb-6"></div>
                             
                             <div className="relative z-10">
-                                <div className="bg-lime-400 text-black text-[14px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-2">
-                                    Tamat Program
+                                <div className="bg-lime-400 text-black text-[14px] font-black px-2 py-0.5 rounded-full tracking-wider inline-block mb-2">
+                                    Tamat program
                                 </div>
                                 <div className="flex items-center gap-1.5 text-lime-400 mb-1 opacity-90">
                                     <Building2 size={10} className="shrink-0"/>
-                                    <span className="text-[14px] font-bold uppercase tracking-wider line-clamp-1">
-                                    {formData.penganjurUtama || "PENGANJUR"}
+                                    <span className="text-[10px] font-bold tracking-wider line-clamp-1">
+                                    {formData.penganjurUtama || "Penganjur"}
                                     </span>
                                 </div>
-                                <h2 className="text-white font-black uppercase leading-none tracking-tighter mb-2 break-words text-[22px]">
-                                {formData.namaProgram || "PROGRAM"}
+                                <h2 className={`text-white font-black leading-none tracking-tighter mb-2 break-words ${getTitleFontSize(formData.namaProgram || "")}`}>
+                                {formData.namaProgram || "Program"}
                                 </h2>
                                 <div className="space-y-1.5 mt-2 border-l-2 border-white/20 pl-2">
                                     <div className="flex items-center gap-1.5 text-gray-300">
                                         <MapPin size={10} className="text-white shrink-0"/>
-                                        <span className="text-[14px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
-                                            {formData.tempatProgram || "LOKASI"}
+                                        <span className="text-[10px] font-bold tracking-wide leading-tight line-clamp-2">
+                                            {formData.tempatProgram || "Lokasi"}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1.5 text-gray-300">
                                         <Clock size={10} className="text-white shrink-0"/>
-                                        <span className="text-[14px] font-bold uppercase tracking-wide">
+                                        <span className="text-[10px] font-bold uppercase tracking-wide">
                                             {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </span>
                                     </div>
@@ -426,8 +649,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                                     <LayoutDashboard size={12} className="text-[#0F0F0F]"/>
                                     </div>
                                     <div>
-                                    <div className="text-white font-bold text-[14px] leading-none mb-0.5">e-Penilaian JAIS</div>
-                                    <div className="text-gray-500 text-[14px] uppercase tracking-widest font-bold">Sarawak</div>
+                                    <div className="text-white font-bold text-[10px] leading-none mb-0.5">e-Penilaian JAIS</div>
+                                    <div className="text-gray-500 text-[8px] uppercase tracking-widest font-bold">Sarawak</div>
                                     </div>
                                 </div>
                             </div>
@@ -505,11 +728,13 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                     className="group bg-white rounded-2xl p-4 border border-gray-100 hover:border-lime-400 transition-colors relative shadow-sm"
                   >
                     <div className="pr-10">
-                      <p className="text-[14px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      <p className="text-[14px] font-black text-gray-400 tracking-widest mb-1">
                         {step.field.replace(/([A-Z])/g, ' $1').trim()}
                       </p>
                       <p className="text-[14px] font-bold text-dark leading-snug">
-                        {formData[step.field]?.toString() || <span className="text-gray-300 italic">Tiada jawapan</span>}
+                        {step.field === 'ratingJamuan' && formData[step.field] === 0 
+                          ? 'Tiada jamuan' 
+                          : (formData[step.field]?.toString() || <span className="text-gray-300 italic">Tiada jawapan</span>)}
                       </p>
                     </div>
                     <button 
@@ -535,7 +760,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                 onClick={() => setIsReviewing(false)}
                 className="w-full bg-dark text-white py-4 rounded-2xl font-black text-[22px] shadow-xl hover:bg-black active:scale-95 transition-all"
               >
-                SELESAI SEMAK
+                Selesai semak
               </button>
            </div>
         </motion.div>
@@ -554,7 +779,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                   onClick={() => setIsReviewing(true)}
                   className="flex-1 bg-gray-100 text-dark py-4 rounded-2xl font-bold text-[14px] hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                   <PenLine size={18} /> SEMAK & EDIT
+                   <PenLine size={18} /> Semak & edit
                 </button>
                 <button
                   onClick={handleFinalSubmit}
@@ -568,7 +793,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                       </>
                    ) : (
                       <>
-                        HANTAR <Send size={20} strokeWidth={2.5} />
+                        Hantar <Send size={20} strokeWidth={2.5} />
                       </>
                    )}
                 </button>
@@ -600,7 +825,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-50 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                       <CheckCircle2 size={24} className="text-green-600 sm:w-8 sm:h-8" />
                    </div>
-                   <span className="text-[14px] sm:text-[14px] font-black text-dark uppercase tracking-wide group-hover:text-green-700">ADA</span>
+                   <span className="text-[14px] sm:text-[14px] font-black text-dark tracking-wide group-hover:text-green-700">Ada</span>
                 </motion.button>
 
                 {/* TIADA Option */}
@@ -613,12 +838,12 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                       <X size={24} className="text-red-500 sm:w-8 sm:h-8" />
                    </div>
-                   <span className="text-[14px] sm:text-[14px] font-black text-dark uppercase tracking-wide group-hover:text-red-600">TIADA</span>
+                   <span className="text-[14px] sm:text-[14px] font-black text-dark tracking-wide group-hover:text-red-600">Tiada</span>
                 </motion.button>
              </div>
              <div className="mt-6 text-center">
                 <p className="text-[14px] font-bold text-gray-400 italic">
-                   *Sila Rujuk Kaunter Urussetia Program
+                   *Sila rujuk kaunter urussetia program
                 </p>
              </div>
           </div>
@@ -629,7 +854,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           <div className="p-2 sm:p-3 space-y-3">
             <div className="flex items-center gap-2 px-1">
               <Sparkles size={12} className="text-green-600" />
-              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Dari Senarai</span>
+              <span className="text-[14px] font-black text-gray-500 tracking-widest">Sila pilih dari senarai</span>
             </div>
             <div className="relative group">
               <select
@@ -641,7 +866,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                 }}
                 defaultValue=""
               >
-                <option value="" disabled>-- SILA PILIH PENGANJUR --</option>
+                <option value="" disabled>-- Sila pilih penganjur --</option>
                 {currentStep.options?.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
@@ -658,7 +883,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
           <div className="p-2">
             <div className="flex items-center gap-2 px-3 py-1.5">
               <Sparkles size={12} className="text-green-600" />
-              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Sila Pilih Satu</span>
+              <span className="text-[14px] font-black text-gray-500 tracking-widest">Sila pilih satu</span>
             </div>
             <div className="p-2 overflow-x-auto whitespace-nowrap flex gap-2 no-scrollbar">
               {currentStep.options?.map((opt, idx) => (
@@ -681,17 +906,17 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
         return (
           <div className="p-3">
             <div className="flex items-center justify-center gap-2 py-1.5 mb-2">
-              <span className="text-[14px] font-black text-gray-500 uppercase tracking-widest">Skala Penilaian (1-5)</span>
+              <span className="text-[14px] font-black text-gray-500 tracking-widest">Skala penilaian (0-5)</span>
             </div>
             <div className="flex justify-center gap-2 sm:gap-3">
-              {[1, 2, 3, 4, 5].map((num, idx) => (
+              {[0, 1, 2, 3, 4, 5].map((num, idx) => (
                 <motion.button
                   key={num}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   onClick={() => handleNextStep(num)}
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-gray-200 text-[22px] sm:text-[22px] font-black text-dark hover:bg-green-500 hover:border-green-500 hover:text-white transition-all shadow-sm active:scale-90 flex items-center justify-center group"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white border border-gray-200 text-[18px] sm:text-[20px] font-black text-dark hover:bg-green-500 hover:border-green-500 hover:text-white transition-all shadow-sm active:scale-90 flex items-center justify-center group"
                 >
                   {num}
                 </motion.button>
@@ -744,10 +969,17 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
                        {opt}
                      </motion.button>
                   ))}
-                  <button onClick={() => handleNextStep('TIADA')} className="shrink-0 px-4 py-2 bg-gray-200 rounded-full text-[14px] font-black text-gray-600">TIADA</button>
+                  <button onClick={() => handleNextStep('TIADA')} className="shrink-0 px-4 py-2 bg-gray-200 rounded-full text-[14px] font-black text-gray-600">Tiada</button>
                </div>
              )}
              <form onSubmit={handleTextSubmit} className="flex gap-2 items-end">
+                <button 
+                  type="button"
+                  onClick={startCamera}
+                  className="bg-dark text-white w-12 h-12 rounded-full shadow-md flex items-center justify-center shrink-0 hover:bg-black transition-all active:scale-95"
+                >
+                  <Camera size={20} className="text-lime-400" />
+                </button>
                 <div className="flex-1 relative">
                   <textarea
                     rows={1}
@@ -818,6 +1050,13 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
             )}
 
             <form onSubmit={handleTextSubmit} className="flex gap-2 items-center">
+              <button 
+                type="button"
+                onClick={startCamera}
+                className="bg-dark text-white w-12 h-12 rounded-full shadow-md flex items-center justify-center shrink-0 hover:bg-black transition-all active:scale-95"
+              >
+                <Camera size={20} className="text-lime-400" />
+              </button>
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -850,6 +1089,48 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
 
   return (
     <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative transition-all duration-500">
+        {/* CAMERA OVERLAY */}
+        {isCameraOpen && (
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+            <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/70 to-transparent">
+               <h3 className="text-white font-bold text-lg">Imbas Info Program</h3>
+               <button onClick={stopCamera} className="p-2 bg-white/20 rounded-full text-white backdrop-blur-md">
+                 <X size={24} />
+               </button>
+            </div>
+            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+              <div className="absolute inset-8 border-2 border-lime-400/50 rounded-3xl pointer-events-none flex flex-col justify-between p-4">
+                 <div className="flex justify-between">
+                    <div className="w-8 h-8 border-t-4 border-l-4 border-lime-400 rounded-tl-xl"></div>
+                    <div className="w-8 h-8 border-t-4 border-r-4 border-lime-400 rounded-tr-xl"></div>
+                 </div>
+                 <div className="text-center">
+                    {isProcessingOCR && (
+                      <div className="bg-black/60 text-white px-4 py-2 rounded-xl backdrop-blur-md inline-flex items-center gap-2">
+                         <Loader2 className="animate-spin text-lime-400" size={20}/> Memproses...
+                      </div>
+                    )}
+                 </div>
+                 <div className="flex justify-between">
+                    <div className="w-8 h-8 border-b-4 border-l-4 border-lime-400 rounded-bl-xl"></div>
+                    <div className="w-8 h-8 border-b-4 border-r-4 border-lime-400 rounded-br-xl"></div>
+                 </div>
+              </div>
+            </div>
+            <div className="p-8 bg-black flex justify-center items-center pb-12">
+               <button 
+                 onClick={captureAndScan}
+                 disabled={isProcessingOCR}
+                 className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/10 active:scale-95 transition-all"
+               >
+                  <div className="w-16 h-16 rounded-full bg-white"></div>
+               </button>
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+        )}
+
       {/* Chat Header */}
       <div className="bg-white/90 backdrop-blur-xl p-3 sm:p-4 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -867,10 +1148,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ onBack, programS
             </span>
           </motion.div>
           <div>
-            <h3 className="font-black text-dark text-[14px] tracking-tight leading-none uppercase">AI JAIS</h3>
+            <h3 className="font-black text-dark text-[14px] tracking-tight leading-none">AI JAIS</h3>
             <div className="flex items-center gap-1 mt-1 sm:mt-1">
                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-               <p className="text-[14px] sm:text-[14px] text-gray-400 font-bold uppercase tracking-wider">Aktif</p>
+               <p className="text-[14px] sm:text-[14px] text-gray-400 font-bold tracking-wider">Aktif</p>
             </div>
           </div>
         </div>

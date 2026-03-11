@@ -337,6 +337,7 @@ interface ProgramReportPDFProps {
   totalComments: number;
   totalSuggestions: number;
   aiAnalysis?: string | null;
+  appendixScale?: number;
 }
 
 const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
@@ -353,10 +354,14 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
   rawSuggestions,
   totalComments,
   totalSuggestions,
-  aiAnalysis
+  aiAnalysis,
+  appendixScale = 1
 }) => {
   // Table layout is more compact, so we can fit more items per page
-  const itemsPerPage = 20;
+  const itemsPerPage = Math.floor(20 / appendixScale);
+  const baseFontSize = Math.max(6, 9 * appendixScale);
+  const headerFontSize = Math.max(7, 10 * appendixScale);
+  const smallFontSize = Math.max(5, 8 * appendixScale);
 
   const chunkArray = (arr: string[], size: number) => {
     const chunks = [];
@@ -529,22 +534,22 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
               {/* Left Column: Comments (Lime Theme) */}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: '#ECFCCB', padding: 5, borderRadius: 4 }}>
-                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#3F6212' }}>SENARAI KOMEN</Text>
+                   <Text style={{ fontSize: headerFontSize, fontWeight: 'bold', color: '#3F6212' }}>SENARAI KOMEN</Text>
                 </View>
                 <View style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
                   <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingVertical: 8, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
-                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>KOMEN</Text>
+                    <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
+                    <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>KOMEN</Text>
                   </View>
                   {currentComments.map((comment, idx) => (
-                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 }}>
-                      <Text style={{ fontSize: 9, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
-                      <Text style={{ fontSize: 9, color: '#374151', flex: 1, lineHeight: 1.3 }}>"{comment}"</Text>
+                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 * appendixScale }}>
+                      <Text style={{ fontSize: baseFontSize, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: '#374151', flex: 1, lineHeight: 1.3 }}>"{comment}"</Text>
                     </View>
                   ))}
                   {currentComments.length === 0 && (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 9, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada komen di halaman ini.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada komen di halaman ini.</Text>
                     </View>
                   )}
                 </View>
@@ -553,22 +558,22 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
               {/* Right Column: Suggestions (Orange Theme) */}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: '#FFF7ED', padding: 5, borderRadius: 4 }}>
-                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#9A3412' }}>SENARAI CADANGAN</Text>
+                   <Text style={{ fontSize: headerFontSize, fontWeight: 'bold', color: '#9A3412' }}>SENARAI CADANGAN</Text>
                 </View>
                 <View style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
                   <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingVertical: 8, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
-                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>CADANGAN</Text>
+                    <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
+                    <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>CADANGAN</Text>
                   </View>
                   {currentSuggestions.map((suggestion, idx) => (
-                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 }}>
-                      <Text style={{ fontSize: 9, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
-                      <Text style={{ fontSize: 9, color: '#374151', flex: 1, lineHeight: 1.3 }}>{suggestion}</Text>
+                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 * appendixScale }}>
+                      <Text style={{ fontSize: baseFontSize, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: '#374151', flex: 1, lineHeight: 1.3 }}>{suggestion}</Text>
                     </View>
                   ))}
                   {currentSuggestions.length === 0 && (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 9, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada cadangan di halaman ini.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada cadangan di halaman ini.</Text>
                     </View>
                   )}
                 </View>

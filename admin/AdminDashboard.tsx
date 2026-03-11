@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       { name: 'Logistik', value: avg('skorLogistik') },
       { name: 'Pengisian', value: avg('skorPengisian') },
       { name: 'Fasilitator', value: avg('skorFasilitator') },
-      { name: 'Urusetia', value: avg('skorUrusetia') },
+      { name: 'Keurusetiaan', value: avg('skorUrusetia') },
     ];
 
     return { 

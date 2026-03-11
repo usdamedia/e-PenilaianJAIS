@@ -24,13 +24,13 @@ export const RatingScale: React.FC<RatingScaleProps> = ({
       </label>
       
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        {[1, 2, 3, 4, 5].map((num) => (
+        {[0, 1, 2, 3, 4, 5].map((num) => (
           <button
             key={num}
             type="button"
             onClick={() => onChange(num)}
             className={`
-              relative flex-1 aspect-square sm:min-w-[50px] rounded-xl sm:rounded-2xl flex items-center justify-center 
+              relative flex-1 aspect-square sm:min-w-[40px] rounded-xl sm:rounded-2xl flex items-center justify-center 
               text-lg md:text-xl font-bold transition-all duration-200
               ${value === num 
                 ? 'bg-lime-400 text-black scale-105 shadow-glow z-10' 

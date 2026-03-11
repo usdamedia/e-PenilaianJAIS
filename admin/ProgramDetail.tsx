@@ -10,7 +10,6 @@ import {
   Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
-import { GoogleGenAI } from "@google/genai";
 import html2canvas from 'html2canvas';
 import { pdf } from '@react-pdf/renderer';
 import ProgramReportPDF from './ProgramReportPDF';
@@ -53,6 +52,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // AI States for General Analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
+
+  // NEW: Appendix Scale State (0.5 to 1.5)
+  const [appendixScale, setAppendixScale] = useState(1);
 
   // --- WYSIWYG EDITABLE STATES ---
   const [editableProgramName, setEditableProgramName] = useState(programName);
@@ -225,7 +227,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     const safeAvg = (total: number) => parseFloat((total / count).toFixed(2));
 
     const spiderData = [
-      { subject: 'Urusetia', A: safeAvg(sum('skorUrusetia')), fullMark: 5 },
+      { subject: 'Keurusetiaan', A: safeAvg(sum('skorUrusetia')), fullMark: 5 },
       { subject: 'Logistik', A: safeAvg(sum('skorLogistik')), fullMark: 5 }, 
       { subject: 'Pengisian', A: safeAvg(sum('skorPengisian')), fullMark: 5 }, 
       { subject: 'Fasilitator', A: safeAvg(sum('skorFasilitator')), fullMark: 5 }, 
@@ -289,67 +291,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const displayInfo = filteredData.length > 0 ? filteredData[0] : allProgramData[0];
   const displayPenganjur = displayInfo?.penganjur || "PENGANJUR TIDAK DINYATAKAN";
 
-  // --- AI LOGIC (S.M.A.R.T GOALS FRAMEWORK) ---
+  // --- AI LOGIC (DISABLED TO SAVE TOKENS) ---
   const handleGenerateAI = async () => {
-    if (!analysis) return;
-    setIsAnalyzing(true);
-    setAiAnalysisResult(null);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      // Constructing detailed context for the AI
-      const breakdown = analysis.spiderData.map(s => `- ${s.subject}: ${s.A.toFixed(2)}`).join('\n');
-      const topSuggestions = suggestionList.slice(0, 5).join('; ');
-
-      const context = `
-        PROGRAM: ${programName}
-        PENGANJUR: ${displayPenganjur}
-        SKOR KESELURUHAN: ${analysis.avgTotal.toFixed(2)} / 5.00
-        JUMLAH RESPONDEN: ${analysis.totalRespondents}
-        
-        PECAHAN PRESTASI:
-        ${breakdown}
-
-        SAMPEL CADANGAN PESERTA:
-        ${topSuggestions || "Tiada cadangan spesifik."}
-      `;
-
-      const prompt = `
-        Anda adalah Perunding Strategik Kanan untuk JAIS. Sediakan ringkasan eksekutif (TL;DR) untuk pembentangan kepada Pengarah.
-        
-        ARAHAN:
-        1. Jangan buat karangan panjang. Gunakan "Bullet Points".
-        2. Gunakan Bahasa Melayu profesional, padat, dan "action-oriented".
-        3. JANGAN gunakan simbol *** dalam jawapan anda.
-        
-        FORMAT JAWAPAN (WAJIB IKUT STRUKTUR INI):
-        
-        **📌 STATUS TERKINI**
-        (Satu ayat ringkas merumuskan prestasi program ini. Sebutkan jika cemerlang atau perlu perhatian.)
-
-        **🚀 PENAMBAHBAIKAN S.M.A.R.T**
-        (Pilih SATU aspek paling kritikal untuk ditambah baik berdasarkan data di atas)
-        
-        - **Specific (Spesifik):** [Apa isu sebenar? Contoh: Audio sistem lemah]
-        - **Measurable (Boleh Diukur):** [Sasaran KPI baru. Contoh: Tingkatkan skor logistik > 4.5]
-        - **Achievable (Boleh Dicapai):** [Langkah kerja nyata. Contoh: Lantik kontraktor audio bertauliah]
-        - **Relevant (Relevan):** [Kenapa penting? Contoh: Menjamin fokus peserta]
-        - **Time-bound (Masa):** [Bila pelaksanaannya? Contoh: Program siri akan datang]
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: context }, { text: prompt }] }],
-      });
-      
-      // Clean the result by removing *** symbols
-      const cleanText = response.text.replace(/\*\*\*/g, '');
-      setAiAnalysisResult(cleanText);
-    } catch (error) {
-      alert("AI Service Unavailable. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    setAiAnalysisResult("Analisis AI telah dinyahaktifkan untuk menjimatkan penggunaan token. Sila semak data secara manual.");
   };
 
   // --- JPEG DOWNLOAD LOGIC (New) ---
@@ -420,6 +364,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         totalComments: editableComments.length,
         totalSuggestions: editableSuggestions.length,
         aiAnalysis: editableAnalysis || aiAnalysisResult,
+        appendixScale: appendixScale,
       };
 
       // 3. Generate PDF Blob
@@ -973,12 +918,39 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
             {/* 5. APPENDIX - RAW DATA TABLES (SIDE BY SIDE) */}
             <div className="p-10 sm:p-16 bg-white border-t border-gray-100 break-before-page">
-               <div className="mb-12 border-b border-gray-100 pb-8">
-                  <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-3">Lampiran Maklum Balas</h3>
-                  <h2 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Senarai Penuh Komen & Cadangan</h2>
+               <div className="mb-12 border-b border-gray-100 pb-8 flex flex-col md:flex-row justify-between items-end gap-6">
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-3">Lampiran Maklum Balas</h3>
+                    <h2 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Senarai Penuh Komen & Cadangan</h2>
+                  </div>
+                  
+                  {/* Scale Control */}
+                  <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100" data-html2canvas-ignore>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Skala Kandungan:</span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setAppendixScale(prev => Math.max(0.5, prev - 0.1))}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <div className="w-12 text-center font-black text-dark text-xs">
+                        {Math.round(appendixScale * 100)}%
+                      </div>
+                      <button 
+                        onClick={() => setAppendixScale(prev => Math.min(1.5, prev + 0.1))}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
                </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+               <div 
+                 className="grid grid-cols-1 lg:grid-cols-2 gap-12"
+                 style={{ transform: `scale(${appendixScale})`, transformOrigin: 'top left', width: `${100 / appendixScale}%` }}
+               >
                   {/* Raw Comments Column */}
                   <div className="flex flex-col h-full">
                      <div className="flex items-center gap-3 mb-6 p-4 bg-lime-50 rounded-2xl border border-lime-100">

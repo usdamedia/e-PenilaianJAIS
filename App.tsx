@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, Camera, X, Aperture, Loader2, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2 } from 'lucide-react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
@@ -11,7 +12,7 @@ import { submitEvaluation } from './services/api';
 import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
-import { GoogleGenAI } from "@google/genai";
+import Tesseract from 'tesseract.js';
 import html2canvas from 'html2canvas';
 
 const INITIAL_DATA: EvaluationFormData = {
@@ -39,10 +40,14 @@ function App() {
   // Navigation State: 'form' | 'adminLogin' | 'adminPanel'
   const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
   
-  // NEW: Input Mode State ('standard' | 'chat') - DEFAULT IS NOW 'chat'
+  // NEW: Flow Step State
+  const [flowStep, setFlowStep] = useState<'modeSelection' | 'scanSelection' | 'filling'>('modeSelection');
+  
+  // NEW: Input Mode State ('standard' | 'chat')
   const [inputMode, setInputMode] = useState<'standard' | 'chat'>('chat');
 
   const [formData, setFormData] = useState<EvaluationFormData>(INITIAL_DATA);
+  const [isLocked, setIsLocked] = useState(false); // Lock pre-filled fields
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -111,9 +116,9 @@ function App() {
     });
   };
 
-  // Prevent body scroll when in chat mode
+  // Prevent body scroll when in chat mode or selection mode
   useEffect(() => {
-    if (inputMode === 'chat' && view === 'form') {
+    if ((inputMode === 'chat' || flowStep !== 'filling') && view === 'form') {
       document.body.style.overflow = 'hidden';
       document.body.style.height = '100dvh';
     } else {
@@ -124,7 +129,7 @@ function App() {
       document.body.style.overflow = 'auto';
       document.body.style.height = 'auto';
     };
-  }, [inputMode, view]);
+  }, [inputMode, view, flowStep]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -157,6 +162,14 @@ function App() {
   };
 
 
+
+  const getTitleFontSize = (text: string) => {
+    const length = text?.length || 0;
+    if (length > 50) return 'text-[12px]';
+    if (length > 35) return 'text-[16px]';
+    if (length > 20) return 'text-[20px]';
+    return 'text-[22px]';
+  };
 
   // --- SOCIAL SHARE LOGIC ---
   const handleSharePoster = async () => {
@@ -275,49 +288,89 @@ function App() {
     if (!ctx) return;
     
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
 
     try {
-      // 2. Send to Gemini
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `
-        Analyze this image of a program/event banner or document. 
-        Extract the following details:
-        1. Program Name (Nama Program) - Convert to uppercase.
-        2. Date (Tarikh) - Return in YYYY-MM-DD format.
-        3. Location (Tempat Program) - Convert to uppercase.
-        4. Organizer (Penganjur) - Try to match one of these closely: ${ORGANIZERS.join(', ')}. If no match, return the text found.
-
-        Return ONLY a JSON object with keys: namaProgram, tarikhMula, tempatProgram, penganjurUtama.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-            { text: prompt }
-          ]
-        },
-        config: {
-          responseMimeType: 'application/json'
+      // 2. OCR using Tesseract.js (Native Client-side)
+      const { data: { text } } = await Tesseract.recognize(
+        imageData,
+        'msa+eng', // Malay and English
+        { 
+          logger: m => console.log(m),
+          errorHandler: err => console.error(err)
         }
-      });
+      );
 
-      const text = response.text;
+      console.log("OCR Raw Text:", text);
+
       if (text) {
-        const result = JSON.parse(text);
+        // 3. Heuristic Parsing of Raw Text
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
         
-        // 3. Auto-fill Form
+        let foundName = '';
+        let foundVenue = '';
+        let foundOrganizer = '';
+        let foundDate = '';
+
+        // Heuristic: Program name is usually one of the first few lines with significant length
+        for (let i = 0; i < Math.min(lines.length, 10); i++) {
+          const line = lines[i].toUpperCase();
+          if (line.includes('PROGRAM') || line.includes('KURSUS') || line.includes('BENGKEL') || line.includes('SEMINAR')) {
+            foundName = line;
+            break;
+          }
+        }
+        if (!foundName && lines.length > 0) foundName = lines[0].toUpperCase();
+
+        // Match Venue
+        for (const venue of PROGRAM_VENUES) {
+          if (text.toUpperCase().includes(venue.toUpperCase())) {
+            foundVenue = venue;
+            break;
+          }
+        }
+
+        // Match Organizer
+        for (const org of ORGANIZERS) {
+          if (text.toUpperCase().includes(org.toUpperCase())) {
+            foundOrganizer = org;
+            break;
+          }
+        }
+
+        // Match Date (Simple DD/MM/YYYY or DD MONTH YYYY)
+        const dateRegex = /(\d{1,2})[\/\-\s](JANUARI|FEBRUARI|MAC|APRIL|MEI|JUN|JULAI|OGOS|SEPTEMBER|OKTOBER|NOVEMBER|DISEMBER|\d{1,2})[\/\-\s](\d{4})/i;
+        const dateMatch = text.toUpperCase().match(dateRegex);
+        if (dateMatch) {
+          const day = dateMatch[1].padStart(2, '0');
+          let month = dateMatch[2];
+          const year = dateMatch[3];
+
+          // Convert month name to number if needed
+          const monthIdx = MONTHS.indexOf(month);
+          if (monthIdx !== -1) {
+            month = (monthIdx + 1).toString().padStart(2, '0');
+          } else {
+            month = month.padStart(2, '0');
+          }
+          
+          foundDate = `${year}-${month}-${day}`;
+        }
+
+        // 4. Auto-fill Form
         setFormData(prev => ({
           ...prev,
-          namaProgram: result.namaProgram || prev.namaProgram,
-          tempatProgram: result.tempatProgram || prev.tempatProgram,
-          // Only update organizer if it's not empty, otherwise keep user selection or empty
-          penganjurUtama: ORGANIZERS.includes(result.penganjurUtama) ? result.penganjurUtama : prev.penganjurUtama, 
-          // Update date if valid
-          tarikhMula: result.tarikhMula || prev.tarikhMula
+          namaProgram: foundName || prev.namaProgram,
+          tempatProgram: foundVenue || prev.tempatProgram,
+          penganjurUtama: foundOrganizer || prev.penganjurUtama,
+          tarikhMula: foundDate || prev.tarikhMula
         }));
+
+        // Update date parts if date found
+        if (foundDate) {
+          const [y, m, d] = foundDate.split('-');
+          setDateParts({ d, m, y });
+        }
 
         stopCamera();
       } else {
@@ -441,14 +494,14 @@ function App() {
                   {/* Organizer (NEW) */}
                   <div className="flex items-center gap-2 text-lime-400 mb-2 opacity-90">
                       <Building2 size={16} className="shrink-0"/>
-                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider line-clamp-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider line-clamp-1">
                       {formData.penganjurUtama || "PENGANJUR"}
                       </span>
                   </div>
 
                   {/* Title */}
                   <h2 
-                    className={`text-white font-black uppercase leading-[0.9] tracking-tighter mb-4 break-words ${posterRatio === 'story' ? 'text-5xl' : 'text-4xl'}`}
+                    className={`text-white font-black uppercase leading-[0.9] tracking-tighter mb-4 break-words ${getTitleFontSize(formData.namaProgram || "")}`}
                     style={{ overflowWrap: 'break-word', wordWrap: 'break-word' }}
                   >
                     {formData.namaProgram || "NAMA PROGRAM"}
@@ -459,7 +512,7 @@ function App() {
                       {/* Location */}
                       <div className="flex items-center gap-3 text-gray-300">
                         <MapPin size={18} className="text-white shrink-0"/>
-                        <span className="text-sm font-bold uppercase tracking-wide leading-tight line-clamp-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
                            {formData.tempatProgram || "LOKASI PROGRAM"}
                         </span>
                       </div>
@@ -467,7 +520,7 @@ function App() {
                       {/* Date */}
                       <div className="flex items-center gap-3 text-gray-300">
                         <Clock size={18} className="text-white shrink-0"/>
-                        <span className="text-sm font-bold uppercase tracking-wide">
+                        <span className="text-[10px] font-bold uppercase tracking-wide">
                           {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
                         </span>
                       </div>
@@ -482,7 +535,7 @@ function App() {
                       </div>
                       <div>
                          <div className="text-white font-bold text-base leading-none mb-1">e-Penilaian JAIS</div>
-                         <div className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">Jabatan Agama Islam Sarawak</div>
+                         <div className="text-gray-500 text-[8px] uppercase tracking-widest font-bold">Jabatan Agama Islam Sarawak</div>
                       </div>
                    </div>
                 </div>
@@ -591,7 +644,7 @@ function App() {
 
 
       {/* Mobile-First Sticky Header */}
-      <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' ? 'hidden sm:block' : 'block'}`}>
+      <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' || flowStep !== 'filling' ? 'hidden sm:block' : 'block'}`}>
         <div className="max-w-4xl mx-auto px-4 py-3 sm:bg-white/80 sm:backdrop-blur-xl sm:rounded-full sm:shadow-soft sm:px-6 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:border sm:border-white/50">
           
           {/* Logo & Title */}
@@ -612,20 +665,22 @@ function App() {
           </div>
           
           {/* Center: MODE TOGGLE (Pill Option) */}
-          <div className="bg-gray-200/50 p-1 rounded-full flex relative w-full sm:w-auto">
-             <button 
-                onClick={() => setInputMode('chat')}
-                className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'chat' ? 'bg-dark text-lime-400 shadow-lg' : 'text-gray-500 hover:text-dark'}`}
-             >
-                <Bot size={14}/> Chatbot
-             </button>
-             <button 
-                onClick={() => setInputMode('standard')}
-                className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'standard' ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-dark'}`}
-             >
-                <FileText size={14}/> Borang
-             </button>
-          </div>
+          {flowStep === 'filling' && (
+            <div className="bg-gray-200/50 p-1 rounded-full flex relative w-full sm:w-auto">
+               <button 
+                  onClick={() => setInputMode('chat')}
+                  className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'chat' ? 'bg-dark text-lime-400 shadow-lg' : 'text-gray-500 hover:text-dark'}`}
+               >
+                  <Bot size={14}/> Chatbot
+               </button>
+               <button 
+                  onClick={() => setInputMode('standard')}
+                  className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'standard' ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-dark'}`}
+               >
+                  <FileText size={14}/> Borang
+               </button>
+            </div>
+          )}
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
@@ -635,7 +690,7 @@ function App() {
              >
                <Lock size={16} />
              </button>
-             {inputMode === 'standard' && (
+             {inputMode === 'standard' && flowStep === 'filling' && (
                 <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
                   <button onClick={() => handleFontSizeChange(false)} disabled={fontSizeLevel === 0} className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full hover:text-lime-600 disabled:opacity-30"><Minus size={14} /></button>
                   <div className="w-6 text-center font-bold text-dark text-xs">A{fontSizeLevel > 0 && '+'}</div>
@@ -646,12 +701,122 @@ function App() {
         </div>
       </div>
 
-      <div className={`max-w-4xl mx-auto transition-all duration-500 ${inputMode === 'chat' ? 'px-0 sm:px-6 pt-0 sm:pt-0' : 'px-3 sm:px-6 pt-4 sm:pt-0'}`}>
+      <div className={`max-w-4xl mx-auto transition-all duration-500 ${inputMode === 'chat' || flowStep !== 'filling' ? 'px-0 sm:px-6 pt-0 sm:pt-0' : 'px-3 sm:px-6 pt-4 sm:pt-0'}`}>
         
-        {/* CONDITIONAL RENDERING: CHAT VS FORM */}
-        {inputMode === 'chat' ? (
+        {/* CONDITIONAL RENDERING: FLOW STEPS */}
+        {flowStep === 'modeSelection' ? (
+          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
+            >
+              <div className="w-20 h-20 bg-lime-400 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-glow">
+                <Smartphone size={40} className="text-dark" />
+              </div>
+              <h2 className="text-3xl font-black text-dark mb-4 tracking-tight">Selamat Datang</h2>
+              <p className="text-gray-500 font-medium mb-10">Sila pilih cara anda ingin mengisi borang penilaian ini.</p>
+              
+              <div className="space-y-4">
+                <button 
+                  onClick={() => { setInputMode('chat'); setFlowStep('scanSelection'); }}
+                  className="w-full bg-dark text-white p-6 rounded-2xl flex items-center justify-between group hover:bg-black transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-lime-400 rounded-xl text-dark group-hover:scale-110 transition-transform">
+                      <Bot size={24} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-black text-lg leading-none mb-1">Chatbot</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Interaksi AI</div>
+                    </div>
+                  </div>
+                  <ArrowRight size={20} className="text-lime-400" />
+                </button>
+
+                <button 
+                  onClick={() => { setInputMode('standard'); setFlowStep('scanSelection'); }}
+                  className="w-full bg-white border-2 border-gray-100 text-dark p-6 rounded-2xl flex items-center justify-between group hover:border-lime-400 transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gray-100 rounded-xl text-dark group-hover:bg-lime-100 group-hover:text-lime-600 transition-colors">
+                      <FileText size={24} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-black text-lg leading-none mb-1">Borang Klasik</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Input Manual</div>
+                    </div>
+                  </div>
+                  <ArrowRight size={20} className="text-gray-300 group-hover:text-lime-500" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        ) : flowStep === 'scanSelection' ? (
+          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
+            >
+              <div className="w-20 h-20 bg-dark rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl">
+                <Camera size={40} className="text-lime-400" />
+              </div>
+              <h2 className="text-3xl font-black text-dark mb-4 tracking-tight">Imbas Poster?</h2>
+              <p className="text-gray-500 font-medium mb-10">Gunakan AI untuk mengisi maklumat program secara automatik daripada poster.</p>
+              
+              <div className="space-y-4">
+                <button 
+                  onClick={startCamera}
+                  className="w-full bg-lime-400 text-dark p-6 rounded-2xl flex items-center justify-between group hover:bg-lime-500 transition-all shadow-lg shadow-lime-400/20"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-dark rounded-xl text-lime-400">
+                      <Aperture size={24} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-black text-lg leading-none mb-1">Imbas Poster</div>
+                      <div className="text-[10px] text-dark/50 uppercase tracking-widest font-bold">Bantuan AI</div>
+                    </div>
+                  </div>
+                  <ArrowRight size={20} />
+                </button>
+
+                <button 
+                  onClick={() => { setFlowStep('filling'); setIsLocked(false); }}
+                  className="w-full bg-white border-2 border-gray-100 text-dark p-6 rounded-2xl flex items-center justify-between group hover:border-gray-300 transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gray-100 rounded-xl text-dark">
+                      <PenLine size={24} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-black text-lg leading-none mb-1">Isi Sendiri</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Tanpa Imbasan</div>
+                    </div>
+                  </div>
+                  <ArrowRight size={20} className="text-gray-300" />
+                </button>
+
+                <button 
+                  onClick={() => setFlowStep('modeSelection')}
+                  className="text-xs font-bold text-gray-400 hover:text-dark transition-colors uppercase tracking-widest mt-4"
+                >
+                  Kembali ke pilihan borang
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        ) : (
+        /* CONDITIONAL RENDERING: CHAT VS FORM */
+        inputMode === 'chat' ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 sm:pt-4">
-             <ChatEvaluation onBack={() => setInputMode('standard')} programSuggestions={CADANGAN_NAMA_PROGRAM} />
+             <ChatEvaluation 
+               onBack={() => setFlowStep('modeSelection')} 
+               programSuggestions={CADANGAN_NAMA_PROGRAM} 
+               initialData={formData}
+               isLocked={isLocked}
+             />
           </div>
         ) : (
         <>
@@ -691,7 +856,7 @@ function App() {
                 className="flex items-center gap-2 bg-dark text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-lime-400/10 hover:bg-black transition-all active:scale-95 self-start sm:self-auto"
               >
                 <Camera size={16} className="text-lime-400" />
-                IMBAS INFO (AI)
+                Imbas info (AI)
               </button>
             </div>
             
@@ -711,11 +876,11 @@ function App() {
 
               <div className={currentFontSize('input')}>
                 <Input 
-                  label="NAMA PROGRAM"
+                  label="Nama program"
                   name="namaProgram"
                   value={formData.namaProgram}
                   onChange={handleChange}
-                  placeholder="CONTOH: KURSUS JENAZAH"
+                  placeholder="Contoh: Kursus Jenazah"
                   required
                   uppercase
                   suggestions={CADANGAN_NAMA_PROGRAM}
@@ -725,7 +890,7 @@ function App() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
                   <Select
-                    label="BAHAGIAN PROGRAM"
+                    label="Bahagian program"
                     name="bahagianProgram"
                     value={formData.bahagianProgram}
                     onChange={handleChange}
@@ -736,12 +901,12 @@ function App() {
                   />
                   
                   <Input 
-                    label="TEMPAT PROGRAM"
+                    label="Tempat program"
                     name="tempatProgram"
                     value={formData.tempatProgram}
                     onChange={handleChange}
                     placeholder="Dewan Serbaguna..."
-                    helperText="HURUF BESAR"
+                    helperText="Huruf besar"
                     uppercase
                     required
                     suggestions={PROGRAM_VENUES}
@@ -754,7 +919,7 @@ function App() {
                   {/* Custom Date Picker Logic */}
                   <div className="w-full">
                     <label className={`block font-bold text-dark mb-2 ${currentFontSize('label')}`}>
-                      TARIKH MULA <span className="text-lime-600">*</span>
+                      Tarikh mula <span className="text-lime-600">*</span>
                     </label>
                     <div className="flex gap-2">
                       {/* Day Select */}
@@ -771,7 +936,7 @@ function App() {
                           `}
                           required
                         >
-                          <option value="" disabled className="text-gray-400">HH</option>
+                          <option value="" disabled className="text-gray-400">Hh</option>
                           {DAYS.map((d) => (
                             <option key={d} value={d}>{d}</option>
                           ))}
@@ -795,7 +960,7 @@ function App() {
                           `}
                           required
                         >
-                          <option value="" disabled className="text-gray-400">BULAN</option>
+                          <option value="" disabled className="text-gray-400">Bulan</option>
                           {MONTHS.map((m, idx) => (
                             <option key={m} value={(idx + 1).toString().padStart(2, '0')}>{m}</option>
                           ))}
@@ -819,7 +984,7 @@ function App() {
                           `}
                           required
                         >
-                          <option value="" disabled className="text-gray-400">TTTT</option>
+                          <option value="" disabled className="text-gray-400">Tttt</option>
                           {YEARS.map((y) => (
                             <option key={y} value={y}>{y}</option>
                           ))}
@@ -832,7 +997,7 @@ function App() {
                   </div>
 
                   <Select
-                    label="TEMPOH"
+                    label="Tempoh"
                     name="tempohProgramSelect"
                     value={DURATIONS.includes(formData.tempohProgram) ? formData.tempohProgram : (formData.tempohProgram ? 'LAIN-LAIN' : '')}
                     onChange={(e) => {
@@ -848,11 +1013,11 @@ function App() {
                   {(formData.tempohProgram === 'LAIN-LAIN' || (formData.tempohProgram && !DURATIONS.includes(formData.tempohProgram))) && (
                     <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       <Input 
-                        label="SILA NYATAKAN TEMPOH (HARI)"
+                        label="Sila nyatakan tempoh (hari)"
                         name="tempohProgram"
                         value={formData.tempohProgram === 'LAIN-LAIN' ? '' : formData.tempohProgram}
                         onChange={handleChange}
-                        placeholder="CONTOH: 15 HARI"
+                        placeholder="Contoh: 15 hari"
                         required
                         uppercase
                         fontSizeClass={currentFontSize('input')}
@@ -864,7 +1029,7 @@ function App() {
 
                 <div className="mt-4 sm:mt-6">
                   <Select
-                    label="PENGANJUR UTAMA"
+                    label="Penganjur utama"
                     name="penganjurUtama"
                     value={formData.penganjurUtama}
                     onChange={handleChange}
@@ -892,7 +1057,7 @@ function App() {
             <div className="space-y-6 sm:space-y-8">
               <div className="mb-4 sm:mb-6">
                 <label className={`block font-bold text-dark mb-3 sm:mb-4 ${currentFontSize('label')}`}>
-                  JANTINA <span className="text-lime-600">*</span>
+                  Jantina <span className="text-lime-600">*</span>
                 </label>
                 <div className="flex gap-3 sm:gap-4">
                   {['LELAKI', 'PEREMPUAN'].map((gender) => (
@@ -916,7 +1081,7 @@ function App() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <Select
-                  label="UMUR"
+                  label="Umur"
                   name="umur"
                   value={formData.umur}
                   onChange={handleChange}
@@ -927,7 +1092,7 @@ function App() {
                 />
 
                 <Select
-                  label="TARAF PENDIDIKAN"
+                  label="Taraf pendidikan"
                   name="tarafPendidikan"
                   value={formData.tarafPendidikan}
                   onChange={handleChange}
@@ -958,14 +1123,14 @@ function App() {
                   <div className="text-[10px] sm:text-xs font-bold text-lime-400">Amat Baik</div>
                 </div>
                 <div className="flex justify-between mt-1 sm:mt-2 font-mono font-bold text-base sm:text-lg">
-                  <span>1</span>
+                  <span>0</span>
                   <span>5</span>
                 </div>
               </div>
 
               <div className="space-y-6 sm:space-y-8">
                 <RatingScale
-                  label="Logistik (Tarikh/Masa/Tempat)"
+                  label="Bagaimana dengan logistik (tarikh/masa/tempat)?"
                   value={formData.ratingTarikhMasa}
                   onChange={(val) => handleRatingChange('ratingTarikhMasa', val)}
                   required
@@ -973,7 +1138,7 @@ function App() {
                 />
                 
                 <RatingScale
-                  label="Pengisian Program"
+                  label="Bagaimana pula dengan pengisian program?"
                   value={formData.ratingPengisian}
                   onChange={(val) => handleRatingChange('ratingPengisian', val)}
                   required
@@ -981,21 +1146,26 @@ function App() {
                 />
 
                 <RatingScale
-                  label="Jamuan (Jika ada)"
+                  label="Penilaian untuk jamuan (jika ada)?"
                   value={formData.ratingJamuan}
                   onChange={(val) => handleRatingChange('ratingJamuan', val)}
                   fontSizeClass={currentFontSize('label')}
                 />
+                {formData.ratingJamuan === 0 && (
+                  <p className="text-xs text-gray-400 font-bold -mt-4 mb-4 uppercase tracking-wider">
+                    * Tiada jamuan
+                  </p>
+                )}
 
                 <RatingScale
-                  label="Fasilitator (Jika ada)"
+                  label="Prestasi fasilitator/pembentang (jika ada)?"
                   value={formData.ratingFasilitator}
                   onChange={(val) => handleRatingChange('ratingFasilitator', val)}
                   fontSizeClass={currentFontSize('label')}
                 />
 
                 <RatingScale
-                  label="Keurusetiaan"
+                  label="Bagaimana layanan keurusetiaan?"
                   value={formData.ratingUrusetia}
                   onChange={(val) => handleRatingChange('ratingUrusetia', val)}
                   required
@@ -1034,7 +1204,7 @@ function App() {
               {/* Komen Program */}
               <div>
                 <label className={`block font-bold text-dark mb-3 sm:mb-4 ${currentFontSize('label')}`}>
-                  KOMEN PROGRAM
+                  Komen program
                 </label>
                 
                 {/* Horizontal Scroll Chips for Mobile */}
@@ -1075,7 +1245,7 @@ function App() {
               {/* Cadangan Program */}
               <div>
                 <label className={`block font-bold text-dark mb-3 sm:mb-4 ${currentFontSize('label')}`}>
-                  CADANGAN PROGRAM
+                  Cadangan program
                 </label>
                 
                 <div className="flex overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap gap-2 mb-2 no-scrollbar">
@@ -1131,17 +1301,18 @@ function App() {
                 `}
                 >
                 {isSubmitting ? (
-                    <span className={currentFontSize('base')}>Sedang Menghantar...</span>
+                    <span className={currentFontSize('base')}>Sedang menghantar...</span>
                 ) : (
                     <>
                     <Send size={20} className={(isSubmitting || !isFormValid) ? "text-gray-500" : "text-lime-400"} />
-                    <span className={`tracking-wide`}>{!isFormValid ? "LENGKAPKAN BORANG" : "HANTAR PENILAIAN"}</span>
+                    <span className={`tracking-wide`}>{!isFormValid ? "Lengkapkan borang" : "Hantar penilaian"}</span>
                     </>
                 )}
                 </button>
             </div>
         </div>
         </>
+        )
         )}
       </div>
     </div>
