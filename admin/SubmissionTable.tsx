@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronRight, Users, Star, MapPin, Building2 } from 'lucide-react';
+import { ChevronRight, Users, Star, MapPin, Building2, FileDown } from 'lucide-react';
 
 export interface ProgramSummary {
   id: string;
@@ -16,9 +16,10 @@ export interface ProgramSummary {
 interface SubmissionTableProps {
   data: ProgramSummary[];
   onSelect: (programName: string) => void;
+  onExportPDF: (programName: string) => void;
 }
 
-export const SubmissionTable: React.FC<SubmissionTableProps> = ({ data, onSelect }) => {
+export const SubmissionTable: React.FC<SubmissionTableProps> = ({ data, onSelect, onExportPDF }) => {
   if (data.length === 0) {
     return (
       <div className="p-12 text-center text-gray-400">
@@ -76,9 +77,21 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ data, onSelect
                 </div>
               </td>
               <td className="px-6 py-5 text-right">
-                <button className="p-2 text-gray-300 group-hover:text-dark transition-all group-hover:translate-x-1">
-                  <ChevronRight size={20} />
-                </button>
+                <div className="flex items-center justify-end gap-2">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onExportPDF(program.programName);
+                    }}
+                    className="p-2 text-gray-400 hover:text-lime-600 hover:bg-lime-50 rounded-lg transition-all"
+                    title="Export PDF"
+                  >
+                    <FileDown size={18} />
+                  </button>
+                  <button className="p-2 text-gray-300 group-hover:text-dark transition-all group-hover:translate-x-1">
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

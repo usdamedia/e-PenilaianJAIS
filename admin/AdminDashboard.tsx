@@ -3,12 +3,14 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
   Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal,
-  CalendarDays, Check, SlidersHorizontal, Layers
+  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart as RechartsPie, Pie, Cell, Legend 
 } from 'recharts';
+import { pdf } from '@react-pdf/renderer';
+import ProgramReportPDF from './ProgramReportPDF';
 import { useDashboardData } from '../dashboard/hooks/useDashboardData';
 import { StatCard } from '../dashboard/components/StatCard';
 import { SubmissionTable, ProgramSummary } from './SubmissionTable';
@@ -131,6 +133,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const organizerDropdownRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Unified "Click Outside" Handler to close any open dropdown
   useEffect(() => {
@@ -372,6 +375,175 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     window.scrollTo(0,0);
   };
 
+  // --- PDF EXPORT LOGIC ---
+  
+  const handleExportProgramPDF = async (programName: string) => {
+    setIsExporting(true);
+    try {
+      // 1. Filter data for this specific program
+      const programData = rawData.filter(d => (d.programName || "UNKNOWN") === programName);
+      
+      if (programData.length === 0) return;
+
+      // 2. Calculate Stats (Same logic as ProgramDetail)
+      const count = programData.length;
+      const sum = (key: keyof DashboardData) => programData.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+      const safeAvg = (total: number) => parseFloat((total / count).toFixed(2));
+
+      const radarData = [
+        { subject: 'Keurusetiaan', A: safeAvg(sum('skorUrusetia')) },
+        { subject: 'Logistik', A: safeAvg(sum('skorLogistik')) }, 
+        { subject: 'Pengisian', A: safeAvg(sum('skorPengisian')) }, 
+        { subject: 'Fasilitator', A: safeAvg(sum('skorFasilitator')) }, 
+        { subject: 'Jamuan', A: safeAvg(sum('skorJamuan')) }, 
+      ];
+
+      const getCounts = (key: keyof DashboardData) => {
+        const counts: Record<string, number> = {};
+        programData.forEach(item => {
+          const val = String(item[key] || 'TIADA MAKLUMAT').toUpperCase();
+          if (val === 'TARAF PENDIDIKAN TERTINGGI' || val === 'UMUR' || val === 'JANTINA') return;
+          counts[val] = (counts[val] || 0) + 1;
+        });
+        return Object.entries(counts)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value);
+      };
+
+      const demographics = {
+        jantina: getCounts('jantina'),
+        umur: getCounts('umur'),
+        pendidikan: getCounts('tarafPendidikan')
+      };
+
+      const commentList = programData
+        .filter(d => d.komen && d.komen.trim().length > 2 && d.komen !== 'KOMEN PROGRAM')
+        .map(d => d.komen!.trim());
+
+      const suggestionList = programData
+        .filter(d => d.cadangan && d.cadangan.trim().length > 2 && d.cadangan !== 'CADANGAN PROGRAM')
+        .map(d => d.cadangan!.trim());
+
+      // 3. Prepare PDF Props
+      const pdfProps = {
+        programName: programName === 'UNKNOWN' ? 'PROGRAM TIDAK DINYATAKAN' : programName,
+        penganjur: programData[0]?.penganjur || '-',
+        location: programData[0]?.tempat || '-',
+        bahagian: programData[0]?.bahagian || '-',
+        date: programData[0]?.programDate ? new Date(programData[0].programDate).toLocaleDateString('ms-MY') : '-',
+        totalRespondents: count,
+        avgScore: safeAvg(sum('skorKeseluruhan')),
+        radarData,
+        demographics,
+        rawComments: commentList,
+        rawSuggestions: suggestionList,
+        totalComments: commentList.length,
+        totalSuggestions: suggestionList.length,
+      };
+
+      // 4. Generate and Download
+      const blob = await pdf(<ProgramReportPDF {...pdfProps} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Laporan_${programName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+      alert('Ralat semasa menjana PDF.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportDashboardPDF = async () => {
+    setIsExporting(true);
+    try {
+      // 1. Prepare Summary Data from filteredData
+      const count = filteredData.length;
+      if (count === 0) return;
+
+      const sum = (key: keyof DashboardData) => filteredData.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+      const safeAvg = (total: number) => parseFloat((total / count).toFixed(2));
+
+      const radarData = [
+        { subject: 'Keurusetiaan', A: safeAvg(sum('skorUrusetia')) },
+        { subject: 'Logistik', A: safeAvg(sum('skorLogistik')) }, 
+        { subject: 'Pengisian', A: safeAvg(sum('skorPengisian')) }, 
+        { subject: 'Fasilitator', A: safeAvg(sum('skorFasilitator')) }, 
+        { subject: 'Jamuan', A: safeAvg(sum('skorJamuan')) }, 
+      ];
+
+      const getCounts = (key: keyof DashboardData) => {
+        const counts: Record<string, number> = {};
+        filteredData.forEach(item => {
+          const val = String(item[key] || 'TIADA MAKLUMAT').toUpperCase();
+          if (val === 'TARAF PENDIDIKAN TERTINGGI' || val === 'UMUR' || val === 'JANTINA') return;
+          counts[val] = (counts[val] || 0) + 1;
+        });
+        return Object.entries(counts)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value);
+      };
+
+      const demographics = {
+        jantina: getCounts('jantina'),
+        umur: getCounts('umur'),
+        pendidikan: getCounts('tarafPendidikan')
+      };
+
+      const commentList = filteredData
+        .filter(d => d.komen && d.komen.trim().length > 2 && d.komen !== 'KOMEN PROGRAM')
+        .map(d => d.komen!.trim());
+
+      const suggestionList = filteredData
+        .filter(d => d.cadangan && d.cadangan.trim().length > 2 && d.cadangan !== 'CADANGAN PROGRAM')
+        .map(d => d.cadangan!.trim());
+
+      // 2. Determine Title based on filters
+      let reportTitle = "RINGKASAN EKSEKUTIF";
+      if (selectedYears.length > 0) reportTitle += ` - ${selectedYears.join(', ')}`;
+      if (selectedMonth !== 'SEMUA') reportTitle += ` - ${MONTHS[parseInt(selectedMonth)]}`;
+      if (selectedQuarter !== 'SEMUA') reportTitle += ` - ${getQuarterLabel(selectedQuarter)}`;
+
+      // 3. Prepare PDF Props
+      const pdfProps = {
+        programName: reportTitle,
+        penganjur: selectedOrganizer !== 'SEMUA' ? selectedOrganizer : "PELBAGAI PENGANJUR",
+        location: "PELBAGAI LOKASI",
+        bahagian: "PELBAGAI BAHAGIAN",
+        date: "DATA TERAPIS",
+        totalRespondents: count,
+        avgScore: safeAvg(sum('skorKeseluruhan')),
+        radarData,
+        demographics,
+        rawComments: commentList.slice(0, 100), // Limit for summary
+        rawSuggestions: suggestionList.slice(0, 100),
+        totalComments: commentList.length,
+        totalSuggestions: suggestionList.length,
+      };
+
+      // 4. Generate and Download
+      const blob = await pdf(<ProgramReportPDF {...pdfProps} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Ringkasan_Dashboard_${new Date().getTime()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Dashboard PDF Export Error:', error);
+      alert('Ralat semasa menjana PDF Ringkasan.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || searchTerm !== '';
 
   if (loading) return (
@@ -480,6 +652,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
           
           <div className="flex items-center gap-3 self-end sm:self-auto">
+             <button 
+                onClick={handleExportDashboardPDF}
+                disabled={isExporting || filteredData.length === 0}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-dark text-lime-400 hover:bg-black transition-all text-xs font-bold shadow-lg shadow-lime-900/10 active:scale-95 disabled:opacity-50 group"
+             >
+                {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                <span className="hidden sm:inline">Export PDF</span>
+             </button>
+
              <button 
                 onClick={() => refreshData()}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 transition-all text-xs font-bold text-gray-600 shadow-sm active:scale-95 group"
@@ -964,6 +1145,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <SubmissionTable 
                    data={programSummaries} 
                    onSelect={(programName) => setSelectedProgram(programName)}
+                   onExportPDF={handleExportProgramPDF}
                 />
               </div>
             </>
