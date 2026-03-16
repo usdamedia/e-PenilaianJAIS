@@ -9,6 +9,7 @@ import html2canvas from 'html2canvas';
 
 interface ChatEvaluationProps {
   onBack: () => void;
+  onSubmitSuccess?: () => void;
   programSuggestions?: string[];
   initialData?: Partial<EvaluationFormData>;
   isLocked?: boolean;
@@ -77,6 +78,7 @@ const STEPS: QuestionStep[] = [
 
 export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ 
   onBack, 
+  onSubmitSuccess,
   programSuggestions = [],
   initialData = {},
   isLocked = false
@@ -243,6 +245,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       
       // Success!
       setIsCompleted(true);
+      if (onSubmitSuccess) onSubmitSuccess();
       // Note: We don't add a text message here, we switch the UI to the Success View
       
     } catch (error) {
@@ -906,7 +909,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative transition-all duration-500">
+    <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative">
       {/* Chat Header */}
       <div className="bg-white/90 backdrop-blur-xl p-3 sm:p-4 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -946,7 +949,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       {/* Messages Area */}
       <div 
         ref={scrollRef} 
-        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-white scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-white scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative pb-32"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -1006,8 +1009,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
         )}
       </div>
 
-      {/* Input Area (Sticky Bottom) */}
-      <div className="shrink-0 bg-white dark:bg-[#111b21] p-2 sm:p-3 border-t border-gray-100 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+      {/* Input Area (Fixed/Sticky Bottom) */}
+      <div className="flex-none bg-white dark:bg-[#111b21] p-2 sm:p-3 border-t border-gray-100 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
         {renderInputArea()}
       </div>
     </div>

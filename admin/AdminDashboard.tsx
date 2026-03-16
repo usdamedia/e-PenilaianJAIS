@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
   Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal,
@@ -16,7 +17,6 @@ import { StatCard } from '../dashboard/components/StatCard';
 import { SubmissionTable, ProgramSummary } from './SubmissionTable';
 import { ProgramDetail } from './ProgramDetail';
 import { DashboardData } from '../dashboard/types';
-import { Settings } from './Settings';
 import { MONTHS } from '../constants';
 
 interface AdminDashboardProps {
@@ -66,9 +66,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// Define View Types
-type AdminView = 'dashboard' | 'settings' | 'records' | 'users';
-
 // Helper to determine quarter label
 const getQuarterLabel = (q: string) => {
   switch(q) {
@@ -91,16 +88,30 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 font-bold text-sm group ${
+    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 font-bold text-sm group relative overflow-hidden ${
       active
-        ? 'bg-lime-400 text-dark shadow-glow'
+        ? 'bg-lime-400 text-dark shadow-[0_0_20px_rgba(208,242,64,0.3)]'
         : 'text-gray-400 hover:bg-white/5 hover:text-white'
     }`}
   >
-    <div className={`transition-transform duration-200 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
+    {active && (
+      <motion.div 
+        layoutId="nav-active-bg"
+        className="absolute inset-0 bg-lime-400 z-0"
+        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+      />
+    )}
+    <div className={`relative z-10 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
       {icon}
     </div>
-    <span className="tracking-wide">{label}</span>
+    <span className="relative z-10 tracking-tight">{label}</span>
+    {active && (
+      <motion.div 
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        className="absolute right-3 w-1.5 h-1.5 rounded-full bg-dark z-10"
+      />
+    )}
   </button>
 );
 
@@ -108,7 +119,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { rawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<AdminView>('dashboard');
 
   // --- FILTER STATES & REFS (Updated for Custom Dropdowns) ---
   
@@ -368,11 +378,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     );
   }, [filteredData, searchTerm]);
 
-  const handleViewChange = (view: AdminView) => {
-    setCurrentView(view);
-    setSelectedProgram(null);
+  const handleProgramSelect = (programName: string) => {
+    setSelectedProgram(programName);
     setIsMobileMenuOpen(false);
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
   };
 
   // --- PDF EXPORT LOGIC ---
@@ -588,26 +597,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <NavItem 
               icon={<LayoutDashboard size={20} />} 
               label="Analisis Data" 
-              active={currentView === 'dashboard'} 
-              onClick={() => handleViewChange('dashboard')}
-            />
-            <NavItem 
-              icon={<FileText size={20} />} 
-              label="Rekod Penilaian" 
-              active={currentView === 'records'}
-              onClick={() => handleViewChange('dashboard')} 
-            />
-            <NavItem 
-              icon={<Users size={20} />} 
-              label="Akses Pengguna" 
-              active={currentView === 'users'}
-              onClick={() => handleViewChange('dashboard')} 
-            />
-            <NavItem 
-              icon={<SettingsIcon size={20} />} 
-              label="Konfigurasi" 
-              active={currentView === 'settings'}
-              onClick={() => handleViewChange('settings')}
+              active={true} 
+              onClick={() => {
+                setSelectedProgram(null);
+                setIsMobileMenuOpen(false);
+                window.scrollTo(0,0);
+              }}
             />
           </nav>
 
@@ -643,10 +638,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </button>
             <div>
               <h1 className={TYPO.h2}>
-                {currentView === 'settings' ? 'Konfigurasi' : 'Analisis Program'}
+                Analisis Program
               </h1>
               <p className={`${TYPO.small} text-gray-500 mt-1`}>
-                {currentView === 'settings' ? 'Tetapan sistem dan status pangkalan data' : 'Dashboard prestasi dan maklum balas masa nyata'}
+                Dashboard prestasi dan maklum balas masa nyata
               </p>
             </div>
           </div>
@@ -677,11 +672,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         <div className="p-6 sm:p-10 space-y-10 max-w-[1800px] mx-auto pb-20">
           
-          {currentView === 'settings' ? (
-             <Settings onRefresh={refreshData} lastUpdated={lastFetchTime} />
-          ) : (
-            <>
-              {/* FILTER BAR - Floating Card Design */}
+          <>
+            {/* FILTER BAR - Floating Card Design */}
               <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-2">
                 
                 {/* Search - Dominant */}
@@ -1149,7 +1141,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 />
               </div>
             </>
-          )}
         </div>
       </main>
     </div>

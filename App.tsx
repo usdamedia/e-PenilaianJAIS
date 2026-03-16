@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
+import ReactConfetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
 import { CADANGAN_NAMA_PROGRAM } from './NAMA_PROGRAM_CADANGAN';
@@ -48,6 +50,8 @@ function App() {
   const [formData, setFormData] = useState<EvaluationFormData>(INITIAL_DATA);
   const [isLocked, setIsLocked] = useState(false); // Lock pre-filled fields
   const [submitted, setSubmitted] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const { width, height } = useWindowSize();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
@@ -145,7 +149,10 @@ function App() {
     try {
       await submitEvaluation(formData);
       setSubmitted(true);
+      setShowConfetti(true);
       window.scrollTo(0, 0);
+      // Stop confetti after 5 seconds
+      setTimeout(() => setShowConfetti(false), 5000);
     } catch (error) {
       setErrorMessage("Maaf, terdapat masalah rangkaian. Sila cuba lagi sebentar lagi.");
       window.scrollTo(0, 0);
@@ -439,7 +446,17 @@ function App() {
 
   // ROUTE: MAIN FORM
   return (
-    <div className={`min-h-screen bg-[#F2F2F2] font-sans selection:bg-lime-400 selection:text-black pb-32 sm:pb-20`}>
+    <div className={`min-h-screen bg-[#F2F2F2] font-sans selection:bg-lime-400 selection:text-black ${inputMode === 'chat' ? 'h-dvh overflow-hidden' : 'pb-32 sm:pb-20'}`}>
+      {showConfetti && (
+        <ReactConfetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={500}
+          gravity={0.15}
+          colors={['#DAA520', '#000080']} // Gold and Navy
+        />
+      )}
       {/* Mobile-First Sticky Header */}
       <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' || flowStep !== 'filling' ? 'hidden sm:block' : 'block'}`}>
         <div className="max-w-4xl mx-auto px-4 py-3 sm:bg-white/80 sm:backdrop-blur-xl sm:rounded-full sm:shadow-soft sm:px-6 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:border sm:border-white/50">
@@ -552,9 +569,13 @@ function App() {
         ) : (
         /* CONDITIONAL RENDERING: CHAT VS FORM */
         inputMode === 'chat' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 sm:pt-4">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 sm:pt-4 h-full">
              <ChatEvaluation 
                onBack={() => setFlowStep('modeSelection')} 
+               onSubmitSuccess={() => {
+                 setShowConfetti(true);
+                 setTimeout(() => setShowConfetti(false), 5000);
+               }}
                programSuggestions={CADANGAN_NAMA_PROGRAM} 
                initialData={formData}
                isLocked={isLocked}
