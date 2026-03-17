@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface RatingScaleProps {
   label: string;
@@ -17,17 +17,25 @@ export const RatingScale: React.FC<RatingScaleProps> = ({
   fontSizeClass = 'text-base',
   highlight = false
 }) => {
+  const labelId = useId();
+
   return (
     <div className="mb-6 last:mb-0">
-      <label className={`block font-bold text-dark mb-3 sm:mb-4 ${fontSizeClass}`}>
-        {label} {required && <span className="text-lime-600">*</span>}
+      <label id={labelId} className={`block font-bold text-dark mb-3 sm:mb-4 ${fontSizeClass}`}>
+        {label} {required && <span aria-hidden="true" className="text-lime-600">*</span>}
       </label>
       
-      <div className="flex items-center justify-between gap-2 sm:gap-3">
+      <div
+        className="flex items-center justify-between gap-2 sm:gap-3"
+        role="radiogroup"
+        aria-labelledby={labelId}
+      >
         {[0, 1, 2, 3, 4, 5].map((num) => (
           <button
             key={num}
             type="button"
+            role="radio"
+            aria-checked={value === num}
             onClick={() => onChange(num)}
             className={`
               relative flex-1 aspect-square sm:min-w-[40px] rounded-xl sm:rounded-2xl flex items-center justify-center 

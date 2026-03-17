@@ -1,0 +1,3 @@
+## 2024-05-24 - Form Component Accessibility
+**Learning:** Found that custom form components (Input, Select, RatingScale) were missing crucial ARIA attributes for screen readers, specifically linking labels to inputs, describing error states, and managing custom radio groups.
+**Action:** Implemented `useId` to generate unique IDs, added `htmlFor`, `aria-describedby`, `aria-invalid`, `role="alert"` for errors, and proper `radiogroup`/`radio` roles with `aria-checked` for the custom rating scale to ensure full screen reader support and keyboard accessibility. Kept changes strictly semantic without altering visual design.

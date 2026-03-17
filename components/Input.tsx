@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useId } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -20,26 +20,40 @@ export const Input: React.FC<InputProps> = ({
   labelSizeClass = 'text-sm',
   className = '', 
   suggestions,
+  id,
   ...props 
 }) => {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const helperId = `${inputId}-helper`;
+  const errorId = `${inputId}-error`;
+
   // Generate a unique ID for the datalist based on the input name
   const listId = suggestions && props.name ? `${props.name}-list` : undefined;
+
+  const describedBy = [
+    helperText ? helperId : null,
+    error ? errorId : null
+  ].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="w-full">
       <div className="flex justify-between items-baseline mb-2">
-        <label className={`block font-bold text-dark ${labelSizeClass}`}>
-          {label} {props.required && <span className="text-lime-600">*</span>}
+        <label htmlFor={inputId} className={`block font-bold text-dark ${labelSizeClass}`}>
+          {label} {props.required && <span aria-hidden="true" className="text-lime-600">*</span>}
         </label>
         {helperText && (
-          <span className={`text-gray-400 font-medium ${fontSizeClass === 'text-lg' ? 'text-xs' : 'text-[10px] sm:text-xs'}`}>
+          <span id={helperId} className={`text-gray-400 font-medium ${fontSizeClass === 'text-lg' ? 'text-xs' : 'text-[10px] sm:text-xs'}`}>
             {helperText}
           </span>
         )}
       </div>
 
       <input
+        id={inputId}
         list={listId}
+        aria-invalid={!!error}
+        aria-describedby={describedBy}
         className={`
           w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-2xl transition-all duration-300
           text-dark bg-gray-50 border-2 border-transparent
@@ -63,7 +77,7 @@ export const Input: React.FC<InputProps> = ({
       )}
       
       {error && (
-        <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold animate-pulse">
+        <p id={errorId} className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold animate-pulse" role="alert">
           ⚠ {error}
         </p>
       )}
