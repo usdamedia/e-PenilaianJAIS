@@ -836,8 +836,9 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
         );
 
       default: // Text with potential suggestions
+        const upperInputText = inputText.toUpperCase();
         const filteredOptions = currentStep.options?.filter(opt => 
-          inputText.length > 0 && opt.toUpperCase().includes(inputText.toUpperCase())
+          inputText.length > 0 && opt.toUpperCase().includes(upperInputText)
         ) || [];
 
         return (
