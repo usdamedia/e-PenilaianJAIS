@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -17,15 +17,23 @@ export const Select: React.FC<SelectProps> = ({
   error,
   fontSizeClass = 'text-base',
   labelSizeClass = 'text-sm',
+  id,
   ...props 
 }) => {
+  const generatedId = useId();
+  const selectId = id || generatedId;
+  const errorId = `${selectId}-error`;
+
   return (
     <div className="w-full">
-      <label className={`block font-bold text-dark mb-2 ${labelSizeClass}`}>
-        {label} {props.required && <span className="text-lime-600">*</span>}
+      <label htmlFor={selectId} className={`block font-bold text-dark mb-2 ${labelSizeClass}`}>
+        {label} {props.required && <span className="text-lime-600" aria-hidden="true">*</span>}
       </label>
       <div className="relative group">
         <select
+          id={selectId}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
           className={`
             w-full px-5 py-3.5 pr-10 sm:px-6 sm:py-4 sm:pr-12 rounded-2xl appearance-none transition-all duration-300
             text-dark bg-gray-50 border-2 border-transparent font-medium cursor-pointer
@@ -47,7 +55,9 @@ export const Select: React.FC<SelectProps> = ({
         </div>
       </div>
       {error && (
-        <p className="mt-2 text-sm text-red-600 font-bold">⚠ {error}</p>
+        <p id={errorId} className="mt-2 text-sm text-red-600 font-bold" role="alert">
+          <span aria-hidden="true">⚠</span> {error}
+        </p>
       )}
     </div>
   );

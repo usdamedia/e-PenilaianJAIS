@@ -1,0 +1,3 @@
+## 2024-05-24 - Form Field Accessibility Attributes
+**Learning:** Custom UI components for forms (like `Input` and `Select`) frequently lack proper `id` bindings between `label` and `input`, and don't associate error text with the inputs via `aria-describedby` and `aria-invalid`. This is a common pattern in this app's components, causing screen readers to miss field context and validation states.
+**Action:** When working on form components, always generate dynamic IDs (via `useId`) to correctly map `<label htmlFor="...">` and associate helper/error text using `aria-describedby` and `aria-invalid`.
