@@ -17,6 +17,7 @@ import { StatCard } from '../dashboard/components/StatCard';
 import { SubmissionTable, ProgramSummary } from './SubmissionTable';
 import { ProgramDetail } from './ProgramDetail';
 import { ReportBSC } from './ReportBSC';
+import BSCReportPDF from './BSCReportPDF';
 import { DashboardData } from '../dashboard/types';
 import { MONTHS } from '../constants';
 
@@ -575,6 +576,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
+  const handleExportBSCPDF = async () => {
+    if (filteredData.length === 0) return;
+    setIsExporting(true);
+
+    try {
+      const BSC_CATEGORIES = [
+        "1. AMAT TIDAK BAIK / SESUAI",
+        "2. TIDAK BAIK / SESUAI",
+        "3. SEDERHANA BAIK / SESUAI",
+        "4. BAIK / SESUAI",
+        "5. AMAT BAIK / SESUAI",
+        "6. TIDAK BERKENAAN"
+      ];
+      
+      const BSC_COLORS = ['#EF4444', '#F97316', '#FACC15', '#A3E635', '#22C55E', '#94A3B8'];
+
+      const counts: Record<string, number> = {};
+      BSC_CATEGORIES.forEach(cat => counts[cat] = 0);
+
+      filteredData.forEach(item => {
+        const score = Number(item.skorFormula);
+        const raw = (item.rawSkorFormula || '').toUpperCase();
+        let category = "";
+        if (score === 1 || raw.includes("AMAT TIDAK BAIK")) category = BSC_CATEGORIES[0];
+        else if (score === 2 || raw.includes("TIDAK BAIK") && !raw.includes("AMAT")) category = BSC_CATEGORIES[1];
+        else if (score === 3 || raw.includes("SEDERHANA")) category = BSC_CATEGORIES[2];
+        else if (score === 4 || raw.includes("BAIK") && !raw.includes("AMAT")) category = BSC_CATEGORIES[3];
+        else if (score === 5 || raw.includes("AMAT BAIK")) category = BSC_CATEGORIES[4];
+        else category = BSC_CATEGORIES[5];
+        counts[category]++;
+      });
+
+      const chartData = BSC_CATEGORIES.map((name, index) => ({
+        name,
+        count: counts[name],
+        color: BSC_COLORS[index]
+      }));
+
+      const avgScore = filteredData.length > 0
+        ? filteredData.reduce((acc, curr) => acc + (Number(curr.skorFormula) || 0), 0) / filteredData.length
+        : 0;
+
+      const pdfProps = {
+        reportDate: new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }),
+        filters: {
+          year: selectedYears.length > 0 ? selectedYears.join(', ') : "Semua Tahun",
+          month: selectedMonth !== 'SEMUA' ? MONTHS[parseInt(selectedMonth)] : "Semua Bulan",
+          organizer: selectedOrganizer !== 'SEMUA' ? selectedOrganizer : "Semua Penganjur"
+        },
+        totalRespondents: filteredData.length,
+        avgScore: avgScore,
+        chartData
+      };
+
+      const blob = await pdf(<BSCReportPDF {...pdfProps} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Laporan_BSC_${new Date().getTime()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('BSC PDF Export Error:', error);
+      alert('Ralat semasa menjana PDF Laporan BSC.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || searchTerm !== '';
 
   if (loading) return (
@@ -882,7 +954,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
 
           {currentTab === 'bsc' ? (
-            <ReportBSC data={filteredData} onExportPDF={handleExportDashboardPDF} isExporting={isExporting} />
+            <ReportBSC data={filteredData} onExportPDF={handleExportBSCPDF} isExporting={isExporting} />
           ) : (
             <>
 
