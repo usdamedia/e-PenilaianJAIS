@@ -96,12 +96,12 @@ function App() {
   const [fontSizeLevel, setFontSizeLevel] = useState(0);
 
   const fontSizes = {
-    base: ['text-sm', 'text-base', 'text-lg'],
-    input: ['text-base', 'text-lg', 'text-xl'], // Minimum 16px for mobile inputs
-    header: ['text-2xl', 'text-3xl', 'text-4xl'],
-    subHeader: ['text-sm', 'text-base', 'text-lg'],
-    label: ['text-sm', 'text-base', 'text-lg'],
-    sectionTitle: ['text-lg', 'text-xl', 'text-2xl'],
+    base: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    input: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'], // Standardized to 10pt
+    header: ['text-[14pt]', 'text-[14pt]', 'text-[14pt]'], // Standardized to 14pt
+    subHeader: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    label: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    sectionTitle: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
   };
 
   const currentFontSize = (type: keyof typeof fontSizes) => fontSizes[type][fontSizeLevel];
@@ -286,8 +286,8 @@ function App() {
             <div className="w-16 h-16 bg-lime-400/20 text-lime-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 size={32} strokeWidth={3} />
             </div>
-            <h1 className="text-2xl font-extrabold text-dark tracking-tight mb-2">Penilaian Dihantar!</h1>
-            <p className="text-gray-500 text-sm">
+            <h1 className="text-[14pt] font-extrabold text-dark tracking-tight mb-2">Penilaian dihantar!</h1>
+            <p className="text-gray-500 text-[10pt]">
               Terima kasih atas maklum balas anda.
             </p>
           </div>
@@ -295,8 +295,8 @@ function App() {
           {/* SOCIAL FLEX POSTER PREVIEW */}
           <div className="w-full mb-6">
              <div className="flex justify-between items-end mb-3">
-               <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">
-                ✨ Kongsi Pencapaian Anda
+               <p className="text-gray-500 text-[10pt] font-bold uppercase tracking-widest">
+                ✨ Kongsi pencapaian anda
                </p>
                {/* Ratio Toggles */}
                <div className="bg-gray-200 p-1 rounded-lg flex gap-1">
@@ -320,7 +320,7 @@ function App() {
             {/* EDITABLE NAME SECTION */}
             <div className="bg-white rounded-xl p-3 mb-4 shadow-sm border border-gray-100 flex flex-col gap-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <PenLine size={12}/> Edit Nama Program (Poster)
+                    <PenLine size={12}/> Edit nama program (Poster)
                 </label>
                 <input 
                     type="text" 
@@ -411,7 +411,7 @@ function App() {
                 className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
               >
                 {isSharing ? <Loader2 className="animate-spin" /> : <Share2 size={24} />}
-                Share to WhatsApp Status
+                Kongsi ke status WhatsApp
               </button>
 
               {/* Save to Album */}
@@ -436,7 +436,7 @@ function App() {
             }}
             className="text-gray-500 font-bold hover:text-dark transition-colors text-sm flex items-center gap-2 py-2"
           >
-            <ArrowRight size={16} /> Kembali ke Borang Utama
+            <ArrowRight size={16} /> Kembali ke borang utama
           </button>
 
         </div>
@@ -528,7 +528,7 @@ function App() {
               <div className="w-20 h-20 bg-lime-400 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-glow">
                 <Smartphone size={40} className="text-dark" />
               </div>
-              <h2 className="text-3xl font-black text-dark mb-4 tracking-tight">Selamat Datang</h2>
+              <h2 className="text-[14pt] font-black text-dark mb-4 tracking-tight">Selamat datang</h2>
               <p className="text-gray-500 font-medium mb-10">Sila pilih cara anda ingin mengisi borang penilaian ini.</p>
               
               <div className="space-y-4">
@@ -557,8 +557,8 @@ function App() {
                       <FileText size={24} />
                     </div>
                     <div className="text-left">
-                      <div className="font-black text-lg leading-none mb-1">Borang Klasik</div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Input Manual</div>
+                      <div className="font-black text-[10pt] leading-none mb-1">Borang klasik</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Input manual</div>
                     </div>
                   </div>
                   <ArrowRight size={20} className="text-gray-300 group-hover:text-lime-500" />
@@ -586,7 +586,7 @@ function App() {
         {/* STANDARD FORM CONTENT */}
         <div className="mb-6 sm:mb-10 px-2">
           <h1 className={`${currentFontSize('header')} font-extrabold text-dark tracking-tighter leading-none mb-2`}>
-            Penilaian Program
+            Penilaian program
           </h1>
           <p className={`${currentFontSize('subHeader')} text-gray-500 font-medium`}>
             Jabatan Agama Islam Sarawak
@@ -608,7 +608,7 @@ function App() {
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">A</div>
                 <h2 className={`${currentFontSize('sectionTitle')} font-bold text-dark tracking-tight`}>
-                  Maklumat Program
+                  Maklumat program
                 </h2>
               </div>
             </div>
@@ -620,7 +620,7 @@ function App() {
                    <AlertTriangle size={18} />
                 </div>
                 <div className={`text-dark-800 ${currentFontSize('base')}`}>
-                  <p className="font-bold mb-1 text-sm sm:text-base">Perhatian Penting</p>
+                  <p className="font-bold mb-1 text-[10pt]">Perhatian penting</p>
                   <p className="opacity-70 leading-relaxed text-xs sm:text-sm">
                     Masukkan <strong className="text-black bg-lime-300 px-1.5 rounded">NAMA PROGRAM</strong> (HURUF BESAR). Bukan nama anda.
                   </p>
@@ -803,7 +803,7 @@ function App() {
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">B</div>
               <h2 className={`${currentFontSize('sectionTitle')} font-bold text-dark tracking-tight`}>
-                Maklumat Peserta
+                Maklumat peserta
               </h2>
             </div>
             
@@ -825,7 +825,7 @@ function App() {
                         required
                       />
                       <div className="px-2 py-3.5 sm:px-4 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50 text-center font-bold text-gray-500 text-sm sm:text-base transition-all peer-checked:border-lime-400 peer-checked:bg-lime-400 peer-checked:text-black hover:bg-gray-100">
-                        {gender}
+                        {gender.charAt(0) + gender.slice(1).toLowerCase()}
                       </div>
                     </label>
                   ))}
@@ -863,17 +863,17 @@ function App() {
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">C</div>
               <h2 className={`${currentFontSize('sectionTitle')} font-bold text-dark tracking-tight`}>
-                Penilaian
+                Penilaian program
               </h2>
             </div>
             
             <div>
               <div className="bg-dark rounded-2xl sm:rounded-3xl p-5 sm:p-6 mb-8 text-white">
-                <h3 className={`font-bold mb-3 opacity-90 ${currentFontSize('base')}`}>Panduan Skala:</h3>
+                <h3 className={`font-bold mb-3 opacity-90 ${currentFontSize('base')}`}>Panduan skala:</h3>
                 <div className="flex justify-between items-center text-center gap-2">
-                  <div className="text-[10px] sm:text-xs opacity-60">Amat Tidak Baik</div>
+                  <div className="text-[10pt] opacity-60">Amat tidak baik</div>
                   <div className="flex-1 h-0.5 sm:h-1 bg-gray-700 rounded-full mx-2"></div>
-                  <div className="text-[10px] sm:text-xs font-bold text-lime-400">Amat Baik</div>
+                  <div className="text-[10pt] font-bold text-lime-400">Amat baik</div>
                 </div>
                 <div className="flex justify-between mt-1 sm:mt-2 font-mono font-bold text-base sm:text-lg">
                   <span>0</span>
@@ -883,7 +883,7 @@ function App() {
 
               <div className="space-y-6 sm:space-y-8">
                 <RatingScale
-                  label="Bagaimana dengan logistik (tarikh/masa/tempat)?"
+                  label="1. Bagaimana dengan logistik (tarikh/masa/tempat)?"
                   value={formData.ratingTarikhMasa}
                   onChange={(val) => handleRatingChange('ratingTarikhMasa', val)}
                   required
@@ -891,7 +891,7 @@ function App() {
                 />
                 
                 <RatingScale
-                  label="Bagaimana pula dengan pengisian program?"
+                  label="2. Bagaimana pula dengan pengisian program?"
                   value={formData.ratingPengisian}
                   onChange={(val) => handleRatingChange('ratingPengisian', val)}
                   required
@@ -899,26 +899,26 @@ function App() {
                 />
 
                 <RatingScale
-                  label="Penilaian untuk jamuan (jika ada)?"
+                  label="3. Penilaian untuk jamuan (jika ada)?"
                   value={formData.ratingJamuan}
                   onChange={(val) => handleRatingChange('ratingJamuan', val)}
                   fontSizeClass={currentFontSize('label')}
                 />
                 {formData.ratingJamuan === 0 && (
-                  <p className="text-xs text-gray-400 font-bold -mt-4 mb-4 uppercase tracking-wider">
+                  <p className="text-[10pt] text-gray-400 font-bold -mt-4 mb-4 italic">
                     * Tiada jamuan
                   </p>
                 )}
 
                 <RatingScale
-                  label="Prestasi fasilitator/pembentang (jika ada)?"
+                  label="4. Prestasi fasilitator/pembentang (jika ada)?"
                   value={formData.ratingFasilitator}
                   onChange={(val) => handleRatingChange('ratingFasilitator', val)}
                   fontSizeClass={currentFontSize('label')}
                 />
 
                 <RatingScale
-                  label="Bagaimana layanan keurusetiaan?"
+                  label="5. Bagaimana layanan keurusetiaan?"
                   value={formData.ratingUrusetia}
                   onChange={(val) => handleRatingChange('ratingUrusetia', val)}
                   required
@@ -931,7 +931,7 @@ function App() {
                   <div className="absolute -top-10 -right-10 w-32 h-32 sm:w-40 sm:h-40 bg-lime-300 rounded-full blur-3xl opacity-50"></div>
                   <div className="relative z-10">
                     <RatingScale
-                      label="Penilaian Keseluruhan"
+                      label="Penilaian keseluruhan"
                       value={formData.ratingKeseluruhan}
                       onChange={(val) => handleRatingChange('ratingKeseluruhan', val)}
                       required
@@ -943,13 +943,11 @@ function App() {
               </div>
             </div>
           </div>
-
-          {/* Section D */}
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-sm sm:shadow-soft p-5 sm:p-10 border border-gray-100/50">
              <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-dark font-bold text-lg sm:text-xl shadow-glow">D</div>
               <h2 className={`${currentFontSize('sectionTitle')} font-bold text-dark tracking-tight`}>
-                Komen
+                Komen & cadangan
               </h2>
             </div>
             
@@ -968,7 +966,7 @@ function App() {
                       type="button"
                       onClick={() => handleQuickSelect('komenProgram', text)}
                       className={`
-                        whitespace-nowrap flex-shrink-0 px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border
+                        whitespace-nowrap flex-shrink-0 px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-[10pt] font-bold transition-all border
                         ${formData.komenProgram === text 
                           ? 'bg-dark text-white border-dark shadow-lg' 
                           : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300 hover:text-dark'
@@ -998,7 +996,7 @@ function App() {
               {/* Cadangan Program */}
               <div>
                 <label className={`block font-bold text-dark mb-3 sm:mb-4 ${currentFontSize('label')}`}>
-                  Cadangan program
+                  Cadangan penambahbaikan
                 </label>
                 
                 <div className="flex overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap gap-2 mb-2 no-scrollbar">
@@ -1008,7 +1006,7 @@ function App() {
                       type="button"
                       onClick={() => handleQuickSelect('cadanganProgram', text)}
                       className={`
-                        whitespace-nowrap flex-shrink-0 px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border
+                        whitespace-nowrap flex-shrink-0 px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-[10pt] font-bold transition-all border
                         ${formData.cadanganProgram === text 
                           ? 'bg-dark text-white border-dark shadow-lg' 
                           : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300 hover:text-dark'
@@ -1034,7 +1032,6 @@ function App() {
                   `}
                 />
               </div>
-
             </div>
           </div>
         </form>
