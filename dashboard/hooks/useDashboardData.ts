@@ -102,6 +102,19 @@ export const useDashboardData = () => {
                 const parsedProgramDate = parseMalaysianDate(rawProgramDate);
                 const finalProgramDate = parsedProgramDate || '1970-01-01T00:00:00.000Z';
                 
+                // Helper untuk cari key secara fleksibel (ignore case & spaces)
+                const getVal = (keys: string[]) => {
+                   const itemKeys = Object.keys(item);
+                   for (const k of keys) {
+                      // Exact match
+                      if (item[k] !== undefined) return item[k];
+                      // Case/Space insensitive match
+                      const found = itemKeys.find(ik => ik.trim().toUpperCase() === k.toUpperCase());
+                      if (found) return item[found];
+                   }
+                   return '';
+                };
+
                 return {
                     id: item['ID'] || `RSP-${1000 + index}`,
                     timestamp: parseMalaysianDate(cleanTimestampStr) || new Date().toISOString(),
@@ -117,12 +130,12 @@ export const useDashboardData = () => {
                         : 'PROGRAM TIDAK DINYATAKAN',
                     
                     // 2. TEMPAT PROGRAM DILAKSANA -> Mapped to tempat
-                    tempat: (item['TEMPAT PROGRAM DILAKSANA'] || '-').toUpperCase().trim(),
+                    tempat: (item['TEMPAT PROGRAM DILAKSANA'] || item['TEMPAT'] || '-').toUpperCase().trim(),
                     
                     // 3. BAHAGIAN PROGRAM DILAKSANA -> Mapped to bahagian
-                    bahagian: (item['BAHAGIAN PROGRAM DILAKSANA'] || 'UMUM').toUpperCase().trim(),
+                    bahagian: (item['BAHAGIAN PROGRAM DILAKSANA'] || item['BAHAGIAN'] || 'UMUM').toUpperCase().trim(),
                     
-                    // 4. PENGANJUR UTAMA -> Mapped to exact requested header
+                    // 4. PENGANJUR UTAMA
                     penganjur: (item['BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM'] || item['PENGANJUR'] || '-').toUpperCase(),
 
                     // MAPPING JANTINA
@@ -131,17 +144,15 @@ export const useDashboardData = () => {
                     umur: String(item['UMUR'] || item['Umur'] || '-').toUpperCase().trim(),
                     
                     // MAPPING QUARTER
-                    // 1 = Q1, 2 = Q2, 3 = Q3, 4 = Q4
                     quarter: (() => {
                         const q = String(item['QUARTER'] || '').trim();
                         if (q === '1') return 'Q1';
                         if (q === '2') return 'Q2';
                         if (q === '3') return 'Q3';
                         if (q === '4') return 'Q4';
-                        return q; // Fallback if already Q1-Q4 or something else
+                        return q;
                     })(),
                     
-                    // 5. TARAF PENDIDIKAN TERTINGGI -> Mapped explicitly
                     tarafPendidikan: (item['TARAF PENDIDIKAN TERTINGGI'] || item['PENDIDIKAN'] || item['Taraf Pendidikan'] || '-').toUpperCase().trim(),
                     
                     // Ratings
@@ -154,9 +165,9 @@ export const useDashboardData = () => {
                     skorFormula: parseRating(item['Penilaian Keseluruhan Program Formula']),
                     rawSkorFormula: String(item['Penilaian Keseluruhan Program Formula'] || '').trim().toUpperCase(),
 
-                    // Komen & Cadangan
-                    komen: item['KOMEN PROGRAM'] || item['KOMEN'] || item['komen_program'] || '',
-                    cadangan: item['CADANGAN PROGRAM'] || item['CADANGAN'] || item['cadangan'] || ''
+                    // Komen & Cadangan (Paling Kritikal) - Menggunakan Helper getVal
+                    komen: getVal(['KOMEN PROGRAM', 'KOMEN', 'KOMEN_PROGRAM', 'komen program']),
+                    cadangan: getVal(['CADANGAN PROGRAM', 'CADANGAN', 'CADANGAN_PROGRAM', 'cadangan program'])
                 };
             });
 

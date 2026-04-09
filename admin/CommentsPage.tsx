@@ -23,7 +23,7 @@ const TEMPLATE_WORDS = [
 
 export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'honest'>('honest');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'honest'>('all');
   const [visibleCount, setVisibleCount] = useState(30);
 
   const filteredComments = useMemo(() => {
