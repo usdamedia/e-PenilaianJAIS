@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
   Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal,
-  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot
+  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot, MessageSquare
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -17,6 +17,7 @@ import { StatCard } from '../dashboard/components/StatCard';
 import { SubmissionTable, ProgramSummary } from './SubmissionTable';
 import { ProgramDetail } from './ProgramDetail';
 import { ReportBSC } from './ReportBSC';
+import { CommentsPage } from './CommentsPage';
 import BSCReportPDF from './BSCReportPDF';
 import { DashboardData } from '../dashboard/types';
 import { MONTHS } from '../constants';
@@ -119,7 +120,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { rawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
-  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc'>('analysis');
+  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
 
@@ -710,6 +711,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 window.scrollTo(0,0);
               }}
             />
+            <NavItem 
+              icon={<MessageSquare size={20} />} 
+              label="Komen" 
+              active={currentTab === 'comments'} 
+              onClick={() => {
+                setCurrentTab('comments');
+                setSelectedProgram(null);
+                setIsMobileMenuOpen(false);
+                window.scrollTo(0,0);
+              }}
+            />
           </nav>
 
           <div className="pt-8 border-t border-gray-800 space-y-4">
@@ -744,12 +756,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </button>
             <div>
               <h1 className={TYPO.h2}>
-                {currentTab === 'analysis' ? 'Analisis Program' : 'Laporan BSC'}
+                {currentTab === 'analysis' ? 'Analisis Program' : currentTab === 'bsc' ? 'Laporan BSC' : 'Komen Peserta'}
               </h1>
               <p className={`${TYPO.small} text-gray-500 mt-1`}>
                 {currentTab === 'analysis' 
                   ? 'Dashboard prestasi dan maklum balas masa nyata' 
-                  : 'Analisis strategik Penilaian Keseluruhan Program'}
+                  : currentTab === 'bsc' 
+                    ? 'Analisis strategik Penilaian Keseluruhan Program'
+                    : 'Maklum balas jujur dan cadangan daripada peserta'}
               </p>
             </div>
           </div>
@@ -953,7 +967,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
               </div>
 
-          {currentTab === 'bsc' ? (
+          {currentTab === 'comments' ? (
+            <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
+          ) : currentTab === 'bsc' ? (
             <ReportBSC data={filteredData} onExportPDF={handleExportBSCPDF} isExporting={isExporting} />
           ) : (
             <>
