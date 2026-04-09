@@ -24,6 +24,7 @@ const TEMPLATE_WORDS = [
 export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'honest'>('honest');
+  const [visibleCount, setVisibleCount] = useState(30);
 
   const filteredComments = useMemo(() => {
     // 1. Combine komen and cadangan into a flat list of comment objects
@@ -58,7 +59,7 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelec
     });
 
     // 2. Filter out templates and search term
-    return allComments.filter(comment => {
+    const result = allComments.filter(comment => {
       const textLower = comment.text.toLowerCase();
       
       // Honest filter: Exclude template words and require length > 10
@@ -80,8 +81,19 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelec
       }
 
       return true;
-    }).sort((a, b) => b.text.length - a.text.length); // Sort by length DESC (longest first)
+    });
+
+    return result.sort((a, b) => b.text.length - a.text.length); // Sort by length DESC (longest first)
   }, [data, activeFilter, searchTerm]);
+
+  const displayedComments = useMemo(() => {
+    return filteredComments.slice(0, visibleCount);
+  }, [filteredComments, visibleCount]);
+
+  // Reset visibleCount when filters change
+  React.useEffect(() => {
+    setVisibleCount(30);
+  }, [searchTerm, activeFilter]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -149,7 +161,8 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelec
             ))}
           </div>
           <span className="text-xs font-bold text-gray-500">
-            Ditemui <span className="text-dark font-black">{filteredComments.length}</span> maklum balas yang menepati kriteria.
+            Ditemui <span className="text-dark font-black">{filteredComments.length}</span> maklum balas.
+            {filteredComments.length > visibleCount && <span> Memaparkan <span className="text-dark font-black">{visibleCount}</span> teratas.</span>}
           </span>
         </div>
         
@@ -164,14 +177,13 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelec
       {/* Comments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {filteredComments.map((comment, idx) => (
+          {displayedComments.map((comment, idx) => (
             <motion.div
-              layout
               key={`${comment.programName}-${idx}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 1) }}
+              transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 0.5) }}
               onClick={() => onProgramSelect(comment.original.programName)}
               className="group bg-white p-7 rounded-[2rem] border border-gray-100 hover:border-lime-300 hover:shadow-2xl hover:shadow-lime-900/10 transition-all cursor-pointer relative flex flex-col items-start overflow-hidden"
             >
@@ -218,6 +230,18 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ data, onProgramSelec
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Load More Button */}
+      {filteredComments.length > visibleCount && (
+        <div className="flex justify-center pt-8">
+          <button 
+            onClick={() => setVisibleCount(prev => prev + 30)}
+            className="px-10 py-4 bg-dark text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:shadow-xl transition-all active:scale-95"
+          >
+            Lihat Lebih Banyak
+          </button>
+        </div>
+      )}
 
       {filteredComments.length === 0 && (
         <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-[3rem] border border-dashed border-gray-200">
