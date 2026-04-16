@@ -80,6 +80,37 @@ const getQuarterLabel = (q: string) => {
   }
 };
 
+const formatProgramDateLabel = (isoString: string) => {
+  if (!isoString) return '-';
+  try {
+    return new Date(isoString).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch (e) {
+    return '-';
+  }
+};
+
+interface ProgramSelectionState {
+  programName: string;
+  initialFilters?: {
+    year?: string;
+    date?: string;
+    bahagian?: string;
+    location?: string;
+    penganjur?: string;
+  };
+}
+
+interface ProgramVariantSummary {
+  id: string;
+  year: string;
+  date: string;
+  bahagian: string;
+  tempat: string;
+  penganjur: string;
+  totalRespondents: number;
+  averageScore: number;
+}
+
 // NavItem Component Definition
 interface NavItemProps {
   icon: React.ReactNode;
@@ -122,7 +153,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { rawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
   const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<ProgramSelectionState | null>(null);
+  const [programVariantPicker, setProgramVariantPicker] = useState<string | null>(null);
 
   // --- FILTER STATES & REFS (Updated for Custom Dropdowns) ---
   
@@ -359,6 +391,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       bahagian: string;
       tempat: string;
       penganjur: string;
+      variants: Set<string>;
       totalScore: number;
       count: number;
       timestamps: string[];
@@ -372,11 +405,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           bahagian: item.bahagian, 
           tempat: item.tempat,
           penganjur: item.penganjur,
+          variants: new Set<string>(),
           totalScore: 0,
           count: 0,
           timestamps: []
         };
       }
+      groups[key].variants.add([
+        item.filterTahun || '-',
+        item.programDate || '-',
+        item.bahagian || '-',
+        item.tempat || '-',
+        item.penganjur || '-'
+      ].join('|'));
       groups[key].totalScore += item.skorKeseluruhan;
       groups[key].count += 1;
       groups[key].timestamps.push(item.timestamp);
@@ -388,6 +429,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       bahagian: group.bahagian,
       tempat: group.tempat,
       penganjur: group.penganjur,
+      variantCount: group.variants.size,
       totalRespondents: group.count,
       averageScore: group.count > 0 ? (group.totalScore / group.count) : 0,
       lastUpdated: 'Live'
@@ -403,10 +445,83 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }, [filteredData, searchTerm]);
 
   const handleProgramSelect = (programName: string) => {
-    setSelectedProgram(programName);
+    const programRows = rawData.filter(item => (item.programName || "UNKNOWN") === programName);
+    const variants = new Set(
+      programRows.map(item => [
+        item.filterTahun || '-',
+        formatProgramDateLabel(item.programDate),
+        item.bahagian || '-',
+        item.tempat || '-',
+        item.penganjur || '-'
+      ].join('|'))
+    );
+
+    if (variants.size > 1) {
+      setProgramVariantPicker(programName);
+      setSelectedProgram(null);
+    } else {
+      setSelectedProgram({ programName });
+      setProgramVariantPicker(null);
+    }
     setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
   };
+
+  const selectedProgramVariants = useMemo<ProgramVariantSummary[]>(() => {
+    if (!programVariantPicker) return [];
+
+    const variantGroups: Record<string, {
+      year: string;
+      date: string;
+      bahagian: string;
+      tempat: string;
+      penganjur: string;
+      totalScore: number;
+      count: number;
+    }> = {};
+
+    rawData
+      .filter(item => (item.programName || "UNKNOWN") === programVariantPicker)
+      .forEach(item => {
+        const year = item.filterTahun || '-';
+        const date = formatProgramDateLabel(item.programDate);
+        const bahagian = item.bahagian || '-';
+        const tempat = item.tempat || '-';
+        const penganjur = item.penganjur || '-';
+        const key = [year, date, bahagian, tempat, penganjur].join('|');
+
+        if (!variantGroups[key]) {
+          variantGroups[key] = {
+            year,
+            date,
+            bahagian,
+            tempat,
+            penganjur,
+            totalScore: 0,
+            count: 0
+          };
+        }
+
+        variantGroups[key].totalScore += Number(item.skorKeseluruhan) || 0;
+        variantGroups[key].count += 1;
+      });
+
+    return Object.values(variantGroups)
+      .map((variant, idx) => ({
+        id: `VAR-${idx}`,
+        year: variant.year,
+        date: variant.date,
+        bahagian: variant.bahagian,
+        tempat: variant.tempat,
+        penganjur: variant.penganjur,
+        totalRespondents: variant.count,
+        averageScore: variant.count > 0 ? variant.totalScore / variant.count : 0
+      }))
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime();
+        return Number.isNaN(dateDiff) ? b.year.localeCompare(a.year) : dateDiff;
+      });
+  }, [programVariantPicker, rawData]);
 
   // --- PDF EXPORT LOGIC ---
   
@@ -662,11 +777,115 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   if (selectedProgram) {
     return (
       <ProgramDetail 
-        programName={selectedProgram}
+        programName={selectedProgram.programName}
         data={rawData} 
-        onBack={() => setSelectedProgram(null)}
+        initialFilters={selectedProgram.initialFilters}
+        onBack={() => {
+          setSelectedProgram(null);
+          setProgramVariantPicker(null);
+        }}
         onRefresh={refreshData}
       />
+    );
+  }
+
+  if (programVariantPicker) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-dark">
+        <main className="flex-1 overflow-y-auto h-screen relative">
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 sm:py-10">
+            <div className="flex items-center justify-between gap-4 mb-8">
+              <div>
+                <p className={`${TYPO.micro} text-lime-600 mb-3`}>Pilih Variasi Program</p>
+                <h1 className={TYPO.h2}>{programVariantPicker}</h1>
+                <p className="text-sm text-gray-500 font-medium mt-3 max-w-2xl">
+                  Nama program ini mempunyai beberapa sesi. Pilih satu variasi di bawah supaya paparan detail dan PDF export ikut sesi yang anda mahu.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={refreshData}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-600 hover:text-dark hover:border-lime-300 inline-flex items-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  Kemaskini
+                </button>
+                <button
+                  onClick={() => setProgramVariantPicker(null)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-600 hover:text-dark hover:border-gray-300"
+                >
+                  Kembali
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {selectedProgramVariants.map((variant) => (
+                <button
+                  key={variant.id}
+                  onClick={() => {
+                    setSelectedProgram({
+                      programName: programVariantPicker,
+                      initialFilters: {
+                        year: variant.year !== '-' ? variant.year : undefined,
+                        date: variant.date !== '-' ? variant.date : undefined,
+                        bahagian: variant.bahagian !== '-' ? variant.bahagian : undefined,
+                        location: variant.tempat !== '-' ? variant.tempat : undefined,
+                        penganjur: variant.penganjur !== '-' ? variant.penganjur : undefined,
+                      }
+                    });
+                    setProgramVariantPicker(null);
+                    window.scrollTo(0, 0);
+                  }}
+                  className="text-left bg-white rounded-[28px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-lime-200 transition-all p-7"
+                >
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                      <div className="inline-flex items-center rounded-full bg-lime-50 border border-lime-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-lime-700 mb-4">
+                        {variant.year}
+                      </div>
+                      <h3 className="text-xl font-black text-dark tracking-tight">{variant.date}</h3>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full text-gray-600 font-black text-[10px]">
+                      <Users size={12} />
+                      {variant.totalRespondents} Responden
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-start gap-3">
+                      <Building size={16} className="text-lime-600 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Bahagian</div>
+                        <div className="font-bold text-dark">{variant.bahagian}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <MapPin size={16} className="text-lime-600 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Lokasi</div>
+                        <div className="font-bold text-dark">{variant.tempat}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Award size={16} className="text-lime-600 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Penganjur</div>
+                        <div className="font-bold text-dark">{variant.penganjur}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Purata Skor</span>
+                    <span className="text-lg font-black text-dark">{variant.averageScore.toFixed(2)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
     );
   }
 
@@ -696,6 +915,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               onClick={() => {
                 setCurrentTab('analysis');
                 setSelectedProgram(null);
+                setProgramVariantPicker(null);
                 setIsMobileMenuOpen(false);
                 window.scrollTo(0,0);
               }}
@@ -707,6 +927,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               onClick={() => {
                 setCurrentTab('bsc');
                 setSelectedProgram(null);
+                setProgramVariantPicker(null);
                 setIsMobileMenuOpen(false);
                 window.scrollTo(0,0);
               }}
@@ -718,6 +939,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               onClick={() => {
                 setCurrentTab('comments');
                 setSelectedProgram(null);
+                setProgramVariantPicker(null);
                 setIsMobileMenuOpen(false);
                 window.scrollTo(0,0);
               }}
@@ -1245,87 +1467,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </div>
               </div>
 
-              {/* NEW VISUAL COMPONENT: INDEKS FORMULA (PROGRAM CLEANED CELL AE) */}
-              <div className="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100 flex flex-col relative overflow-hidden group">
-                  {/* Decorative Background Element */}
-                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-lime-400/5 rounded-full blur-3xl group-hover:bg-lime-400/10 transition-colors duration-700"></div>
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 relative z-10">
-                      <div>
-                          <div className="flex items-center gap-3 mb-2">
-                             <div className="p-2.5 bg-dark rounded-2xl text-lime-400 shadow-lg shadow-lime-900/10">
-                                <Bot size={24} />
-                             </div>
-                             <h3 className={TYPO.h2}>Penilaian Keseluruhan Program Formula - Untuk Laporan BSC</h3>
-                          </div>
-                          <p className={`${TYPO.small} text-gray-400 pl-14`}>Analisis keberkesanan program holistik untuk pelaporan Balanced Scorecard (BSC)</p>
-                      </div>
-                      
-                      <div className="bg-gray-50 px-6 py-3 rounded-2xl border border-gray-100">
-                         <span className={`${TYPO.micro} text-gray-400 block mb-1`}>PURATA KESELURUHAN</span>
-                         <span className="text-2xl font-black text-dark">{stats.avgFormula} <span className="text-xs text-gray-400">/ 5.00</span></span>
-                      </div>
-                  </div>
-
-                  <div className="flex-1 w-full h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
-                        data={charts.formulaByBahagian} 
-                        margin={{ top: 40, right: 30, left: 20, bottom: 20 }}
-                        barGap={12}
-                      >
-                        <defs>
-                          <linearGradient id="formulaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={COLORS.lime} stopOpacity={1} />
-                            <stop offset="100%" stopColor={COLORS.limeDark} stopOpacity={1} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fill: '#4B5563', fontSize: 11, fontWeight: 700 }} 
-                          axisLine={false} 
-                          tickLine={false}
-                          dy={15}
-                        />
-                        <YAxis 
-                          domain={[0, 5]} 
-                          tick={{ fill: '#9CA3AF', fontSize: 11 }} 
-                          axisLine={false} 
-                          tickLine={false} 
-                        />
-                        <Tooltip cursor={{ fill: '#F9FAFB', radius: 10 }} content={<CustomTooltip />} />
-                        <Bar 
-                          dataKey="value" 
-                          name="Skor Formula"
-                          radius={[12, 12, 12, 12]} 
-                          barSize={50}
-                          fill="url(#formulaGradient)"
-                          animationDuration={2000}
-                          animationEasing="ease-out"
-                        >
-                          <LabelList 
-                            dataKey="value" 
-                            position="top" 
-                            style={{ fill: COLORS.dark, fontSize: '14px', fontWeight: '900', letterSpacing: '-0.02em' }}
-                            offset={20}
-                            formatter={(val: number) => (Number(val) || 0).toFixed(2)}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="mt-8 flex items-center gap-4 p-5 bg-lime-50 rounded-3xl border border-lime-100/50">
-                     <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-lime-600 shadow-sm shrink-0">
-                        <Star size={20} fill="currentColor" />
-                     </div>
-                     <p className="text-xs font-bold text-lime-900 leading-relaxed">
-                        Data ini diformulasikan mengikut KPI Balanced Scorecard (BSC) untuk memberikan gambaran prestasi yang lebih tepat bagi tujuan pelaporan strategik jabatan.
-                     </p>
-                  </div>
-              </div>
-
               {/* BAHAGIAN CHART */}
               <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
                  <div className="flex items-center gap-3 mb-6">
@@ -1379,7 +1520,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden mt-2">
                 <SubmissionTable 
                    data={programSummaries} 
-                   onSelect={(programName) => setSelectedProgram(programName)}
+                   onSelect={handleProgramSelect}
                    onExportPDF={handleExportProgramPDF}
                 />
               </div>

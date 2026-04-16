@@ -19,6 +19,13 @@ interface ProgramDetailProps {
   data: DashboardData[];
   onBack: () => void;
   onRefresh: () => void;
+  initialFilters?: {
+    year?: string;
+    date?: string;
+    bahagian?: string;
+    location?: string;
+    penganjur?: string;
+  };
 }
 
 const COLORS = {
@@ -39,7 +46,7 @@ const formatDateKey = (isoString: string) => {
   }
 };
 
-export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data, onBack, onRefresh }) => {
+export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data, onBack, onRefresh, initialFilters }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   
@@ -75,10 +82,19 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   }, [aiAnalysisResult]);
 
   // Filter States
+  const [selectedYear, setSelectedYear] = useState<string>('SEMUA');
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
   const [selectedBahagian, setSelectedBahagian] = useState<string>('SEMUA');
   const [selectedLocation, setSelectedLocation] = useState<string>('SEMUA');
   const [selectedPenganjur, setSelectedPenganjur] = useState<string>('SEMUA');
+
+  useEffect(() => {
+    setSelectedYear(initialFilters?.year || 'SEMUA');
+    setSelectedDate(initialFilters?.date || 'SEMUA');
+    setSelectedBahagian(initialFilters?.bahagian || 'SEMUA');
+    setSelectedLocation(initialFilters?.location || 'SEMUA');
+    setSelectedPenganjur(initialFilters?.penganjur || 'SEMUA');
+  }, [programName, initialFilters]);
 
   // --- FONT SIZE LOGIC ---
   const fontSizes = {
@@ -114,9 +130,24 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // 2. DYNAMIC FILTER OPTIONS
 
-  // A. Unique Dates (Level 1)
+  // A. Unique Years (Level 1)
+  const uniqueYears = useMemo(() => {
+    const set = new Set(
+      allProgramData
+        .map(d => String(d.filterTahun || '').trim())
+        .filter(Boolean)
+    );
+    return Array.from(set).sort((a, b) => Number(b) - Number(a));
+  }, [allProgramData]);
+
+  // B. Unique Dates (Level 2 - Depends on Year)
   const uniqueDates = useMemo(() => {
-    const dates = allProgramData.map(d => ({
+    let source = allProgramData;
+    if (selectedYear !== 'SEMUA') {
+      source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+
+    const dates = source.map(d => ({
         iso: d.programDate,
         label: formatDateKey(d.programDate)
     }));
@@ -130,47 +161,51 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime()); // Sort Descending
 
     return unique as { iso: string, label: string }[];
-  }, [allProgramData]);
+  }, [allProgramData, selectedYear]);
 
-  // B. Unique Bahagian (Level 2 - Depends on Date)
+  // C. Unique Bahagian (Level 3 - Depends on Year & Date)
   const uniqueBahagian = useMemo(() => {
     let source = allProgramData;
+    if (selectedYear !== 'SEMUA') {
+        source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
     if (selectedDate !== 'SEMUA') {
         source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     }
     const set = new Set(source.map(d => d.bahagian).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedDate]);
+  }, [allProgramData, selectedYear, selectedDate]);
 
-  // C. Unique Locations (Level 3 - Depends on Date & Bahagian)
+  // D. Unique Locations (Level 4 - Depends on Year, Date & Bahagian)
   const uniqueLocations = useMemo(() => {
     let source = allProgramData;
+    if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
     
     const set = new Set(source.map(d => d.tempat).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedDate, selectedBahagian]);
+  }, [allProgramData, selectedYear, selectedDate, selectedBahagian]);
 
-  // D. Unique Penganjur (Level 4 - Depends on Date, Bahagian & Location)
+  // E. Unique Penganjur (Level 5 - Depends on Year, Date, Bahagian & Location)
   const uniquePenganjur = useMemo(() => {
     let source = allProgramData;
+    if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
     if (selectedLocation !== 'SEMUA') source = source.filter(d => d.tempat === selectedLocation);
 
     const set = new Set(source.map(d => d.penganjur).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedDate, selectedBahagian, selectedLocation]);
+  }, [allProgramData, selectedYear, selectedDate, selectedBahagian, selectedLocation]);
 
   // Reset Filters logic when parent filter changes
   useEffect(() => {
-    if (selectedDate !== 'SEMUA') {
-        if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) setSelectedBahagian('SEMUA');
-        if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
-        if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
-    }
-  }, [selectedDate, uniqueBahagian, selectedBahagian, uniqueLocations, selectedLocation, uniquePenganjur, selectedPenganjur]);
+    if (selectedDate !== 'SEMUA' && !uniqueDates.some(d => d.label === selectedDate)) setSelectedDate('SEMUA');
+    if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) setSelectedBahagian('SEMUA');
+    if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
+    if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
+  }, [selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
 
   useEffect(() => {
       if (selectedBahagian !== 'SEMUA') {
@@ -189,13 +224,14 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // 3. FINAL FILTERED DATA
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
+      const matchYear = selectedYear === 'SEMUA' || String(d.filterTahun || '').trim() === selectedYear;
       const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
       const matchBahagian = selectedBahagian === 'SEMUA' || d.bahagian === selectedBahagian;
       const matchLocation = selectedLocation === 'SEMUA' || d.tempat === selectedLocation;
       const matchPenganjur = selectedPenganjur === 'SEMUA' || d.penganjur === selectedPenganjur;
-      return matchDate && matchBahagian && matchLocation && matchPenganjur;
+      return matchYear && matchDate && matchBahagian && matchLocation && matchPenganjur;
     });
-  }, [allProgramData, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+  }, [allProgramData, selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
   // 4. DERIVE LOCATION & PENGANJUR AUTOMATICALLY (Based on filteredData)
   const displayedLocation = useMemo(() => {
@@ -217,6 +253,53 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (penganjurs.length === 1) return penganjurs[0];
     return `${penganjurs.length} PENGANJUR BERBEZA`;
   }, [filteredData, selectedPenganjur]);
+
+  const activeFilterSummary = useMemo(() => {
+    const yearLabel = selectedYear !== 'SEMUA'
+      ? selectedYear
+      : uniqueYears.length === 1
+        ? uniqueYears[0]
+        : `${uniqueYears.length} TAHUN`;
+
+    const dateLabel = selectedDate !== 'SEMUA'
+      ? selectedDate
+      : uniqueDates.length === 1
+        ? (uniqueDates[0]?.label || '-')
+        : `${uniqueDates.length} TARIKH`;
+
+    const bahagianLabel = selectedBahagian !== 'SEMUA'
+      ? selectedBahagian
+      : uniqueBahagian.length === 1
+        ? (uniqueBahagian[0] || '-')
+        : `${uniqueBahagian.length} BAHAGIAN`;
+
+    const locationLabel = selectedLocation !== 'SEMUA'
+      ? selectedLocation
+      : displayedLocation;
+
+    const penganjurLabel = selectedPenganjur !== 'SEMUA'
+      ? selectedPenganjur
+      : displayedPenganjur;
+
+    return [
+      { label: 'Tahun', value: yearLabel },
+      { label: 'Tarikh', value: dateLabel },
+      { label: 'Bahagian', value: bahagianLabel },
+      { label: 'Lokasi', value: locationLabel },
+      { label: 'Penganjur', value: penganjurLabel }
+    ];
+  }, [
+    selectedYear,
+    uniqueYears,
+    selectedDate,
+    uniqueDates,
+    selectedBahagian,
+    uniqueBahagian,
+    selectedLocation,
+    displayedLocation,
+    selectedPenganjur,
+    displayedPenganjur
+  ]);
 
   // 5. ANALISIS COMPUTATION
   const analysis = useMemo(() => {
@@ -353,7 +436,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         penganjur: editablePenganjur,
         location: displayedLocation,
         bahagian: selectedBahagian !== 'SEMUA' ? selectedBahagian : (uniqueBahagian.length > 1 ? `PELBAGAI BAHAGIAN (${uniqueBahagian.length})` : (uniqueBahagian[0] || '-')),
-        date: selectedDate === 'SEMUA' ? (uniqueDates.length > 1 ? `PELBAGAI TARIKH (${uniqueDates.length})` : (uniqueDates[0]?.label || '-')) : selectedDate,
+        date: selectedDate !== 'SEMUA'
+          ? selectedDate
+          : selectedYear !== 'SEMUA'
+            ? `TAHUN ${selectedYear}`
+            : (uniqueDates.length > 1 ? `PELBAGAI TARIKH (${uniqueDates.length})` : (uniqueDates[0]?.label || '-')),
         totalRespondents: analysis?.totalRespondents || 0,
         avgScore: Number(analysis?.avgTotal.toFixed(2)) || 0,
         radarData: analysis?.spiderData || [],
@@ -374,7 +461,17 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Laporan_Eksekutif_${editableProgramName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      const exportContext = [
+        selectedYear !== 'SEMUA' ? selectedYear : '',
+        selectedDate !== 'SEMUA' ? selectedDate : '',
+        selectedBahagian !== 'SEMUA' ? selectedBahagian : '',
+        selectedLocation !== 'SEMUA' ? selectedLocation : '',
+        selectedPenganjur !== 'SEMUA' ? selectedPenganjur : ''
+      ]
+        .filter(Boolean)
+        .join('_')
+        .replace(/[^a-zA-Z0-9]/g, '_');
+      link.download = `Laporan_Eksekutif_${editableProgramName.replace(/[^a-zA-Z0-9]/g, '_')}${exportContext ? `_${exportContext}` : ''}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -575,7 +672,34 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                 </div>
 
                 {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-10 border-b border-white/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 pb-10 border-b border-white/10">
+                   {/* Year Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tahun</span>
+                       <div className="relative">
+                          {uniqueYears.length > 1 ? (
+                            <div className="group">
+                                <select
+                                  value={selectedYear}
+                                  onChange={(e) => setSelectedYear(e.target.value)}
+                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
+                                >
+                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TAHUN ({uniqueYears.length})</option>
+                                  {uniqueYears.map(year => (
+                                    <option key={year} value={year} className="text-dark bg-white">{year}</option>
+                                  ))}
+                                </select>
+                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
+                            </div>
+                          ) : (
+                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
+                                <Calendar size={16} className="text-lime-400" />
+                                <span className="uppercase tracking-wider">{uniqueYears[0] || '-'}</span>
+                             </div>
+                          )}
+                       </div>
+                   </motion.div>
+
                    {/* Date Filter - DYNAMIC */}
                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tarikh</span>
@@ -683,6 +807,18 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                           )}
                        </div>
                    </motion.div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 pt-6">
+                  {activeFilterSummary.map((item) => (
+                    <div
+                      key={item.label}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85"
+                    >
+                      <span className="text-gray-500">{item.label}</span>
+                      <span className="text-lime-400 truncate max-w-[220px]" title={item.value}>{item.value || '-'}</span>
+                    </div>
+                  ))}
                 </div>
              </div>
           </div>

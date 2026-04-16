@@ -8,6 +8,7 @@ export interface ProgramSummary {
   bahagian: string;
   tempat: string;
   penganjur: string;
+  variantCount: number;
   totalRespondents: number;
   averageScore: number;
   lastUpdated: string;
@@ -58,6 +59,11 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ data, onSelect
                     <span className="flex items-center gap-1">
                       <MapPin size={10} /> {program.bahagian}
                     </span>
+                    {program.variantCount > 1 && (
+                      <span className="inline-flex items-center rounded-full bg-lime-50 px-2 py-0.5 text-[9px] text-lime-700 border border-lime-100">
+                        {program.variantCount} VARIASI
+                      </span>
+                    )}
                   </div>
                 </div>
               </td>
