@@ -445,24 +445,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }, [filteredData, searchTerm]);
 
   const handleProgramSelect = (programName: string) => {
-    const programRows = rawData.filter(item => (item.programName || "UNKNOWN") === programName);
-    const variants = new Set(
-      programRows.map(item => [
-        item.filterTahun || '-',
-        formatProgramDateLabel(item.programDate),
-        item.bahagian || '-',
-        item.tempat || '-',
-        item.penganjur || '-'
-      ].join('|'))
-    );
-
-    if (variants.size > 1) {
-      setProgramVariantPicker(programName);
-      setSelectedProgram(null);
-    } else {
-      setSelectedProgram({ programName });
-      setProgramVariantPicker(null);
-    }
+    setSelectedProgram({ programName });
+    setProgramVariantPicker(null);
     setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
   };

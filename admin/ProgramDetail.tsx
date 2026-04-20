@@ -28,6 +28,16 @@ interface ProgramDetailProps {
   };
 }
 
+interface ProgramVariantOption {
+  id: string;
+  year: string;
+  date: string;
+  bahagian: string;
+  location: string;
+  penganjur: string;
+  totalRespondents: number;
+}
+
 const COLORS = {
   lime: '#D0F240',
   dark: '#1A1C1E',
@@ -128,6 +138,40 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     });
   }, [data, programName]);
 
+  const programVariants = useMemo<ProgramVariantOption[]>(() => {
+    const groups: Record<string, ProgramVariantOption> = {};
+
+    allProgramData.forEach((item) => {
+      const year = String(item.filterTahun || '').trim() || '-';
+      const date = formatDateKey(item.programDate);
+      const bahagian = item.bahagian || '-';
+      const location = item.tempat || '-';
+      const penganjur = item.penganjur || '-';
+      const key = [year, date, bahagian, location, penganjur].join('|');
+
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          year,
+          date,
+          bahagian,
+          location,
+          penganjur,
+          totalRespondents: 0,
+        };
+      }
+
+      groups[key].totalRespondents += 1;
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const aDate = a.date && a.date !== '-' ? new Date(a.date.split('/').reverse().join('-')).getTime() : 0;
+      const bDate = b.date && b.date !== '-' ? new Date(b.date.split('/').reverse().join('-')).getTime() : 0;
+      if (bDate !== aDate) return bDate - aDate;
+      return b.year.localeCompare(a.year);
+    });
+  }, [allProgramData]);
+
   // 2. DYNAMIC FILTER OPTIONS
 
   // A. Unique Years (Level 1)
@@ -219,6 +263,48 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
           if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
       }
   }, [selectedLocation, uniquePenganjur, selectedPenganjur]);
+
+  const selectedVariantId = useMemo(() => {
+    if (
+      selectedYear === 'SEMUA' ||
+      selectedDate === 'SEMUA' ||
+      selectedBahagian === 'SEMUA' ||
+      selectedLocation === 'SEMUA' ||
+      selectedPenganjur === 'SEMUA'
+    ) {
+      return 'SEMUA';
+    }
+
+    const match = programVariants.find((variant) =>
+      variant.year === selectedYear &&
+      variant.date === selectedDate &&
+      variant.bahagian === selectedBahagian &&
+      variant.location === selectedLocation &&
+      variant.penganjur === selectedPenganjur
+    );
+
+    return match?.id || 'SEMUA';
+  }, [programVariants, selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+
+  const handleVariantSelect = (variantId: string) => {
+    if (variantId === 'SEMUA') {
+      setSelectedYear('SEMUA');
+      setSelectedDate('SEMUA');
+      setSelectedBahagian('SEMUA');
+      setSelectedLocation('SEMUA');
+      setSelectedPenganjur('SEMUA');
+      return;
+    }
+
+    const variant = programVariants.find((item) => item.id === variantId);
+    if (!variant) return;
+
+    setSelectedYear(variant.year !== '-' ? variant.year : 'SEMUA');
+    setSelectedDate(variant.date !== '-' ? variant.date : 'SEMUA');
+    setSelectedBahagian(variant.bahagian !== '-' ? variant.bahagian : 'SEMUA');
+    setSelectedLocation(variant.location !== '-' ? variant.location : 'SEMUA');
+    setSelectedPenganjur(variant.penganjur !== '-' ? variant.penganjur : 'SEMUA');
+  };
 
 
   // 3. FINAL FILTERED DATA
@@ -670,6 +756,36 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                    </div>
                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Tapis Mengikut Keperluan</span>
                 </div>
+
+                {programVariants.length > 1 && (
+                  <div className="mb-8 rounded-2xl border border-lime-400/20 bg-lime-400/5 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-300">Indikator Utama</span>
+                        <p className="mt-2 text-xs font-bold text-white/90">
+                          Nama program ini mempunyai {programVariants.length} sesi/variasi. Pilih satu untuk auto-filter tarikh, bahagian, tempat dan penganjur.
+                        </p>
+                      </div>
+                      <div className="relative w-full sm:max-w-[520px]">
+                        <select
+                          value={selectedVariantId}
+                          onChange={(e) => handleVariantSelect(e.target.value)}
+                          className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-10 text-xs font-black uppercase tracking-wider text-white hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400"
+                        >
+                          <option value="SEMUA" className="bg-white text-dark">
+                            Semua Variasi ({programVariants.length})
+                          </option>
+                          {programVariants.map((variant, idx) => (
+                            <option key={variant.id} value={variant.id} className="bg-white text-dark">
+                              {`${idx + 1}. ${variant.date} | ${variant.bahagian} | ${variant.location} | ${variant.year} (${variant.totalRespondents} responden)`}
+                            </option>
+                          ))}
+                        </select>
+                        <Filter size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Info Grid - Refined for Scanning */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 pb-10 border-b border-white/10">
