@@ -1,0 +1,38 @@
+export interface EvaluationFormData {
+  // New Field for Logic
+  adaSijil?: 'ADA' | 'TIADA';
+
+  // Section A
+  namaProgram: string;
+  bahagianProgram: string;
+  tempatProgram: string;
+  tarikhMula: string;
+  tempohProgram: string;
+  penganjurUtama: string;
+
+  // Section B
+  namaPenuh: string;
+  jantina: 'LELAKI' | 'PEREMPUAN' | '';
+  umur: string;
+  tarafPendidikan: string;
+
+  // Section C
+  ratingTarikhMasa: number;
+  ratingPengisian: number;
+  ratingJamuan: number;
+  ratingFasilitator: number;
+  ratingUrusetia: number;
+  ratingKeseluruhan: number;
+
+  // Section D
+  komenProgram: string;
+  cadanganProgram: string;
+}
+
+export type RatingField = 
+  | 'ratingTarikhMasa' 
+  | 'ratingPengisian' 
+  | 'ratingJamuan' 
+  | 'ratingFasilitator' 
+  | 'ratingUrusetia' 
+  | 'ratingKeseluruhan';
