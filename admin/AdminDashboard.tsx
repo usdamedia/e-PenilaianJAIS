@@ -93,6 +93,7 @@ interface ProgramSelectionState {
   programName: string;
   initialFilters?: {
     year?: string;
+    quarter?: string;
     date?: string;
     bahagian?: string;
     location?: string;
@@ -103,6 +104,7 @@ interface ProgramSelectionState {
 interface ProgramVariantSummary {
   id: string;
   year: string;
+  quarter: string;
   date: string;
   bahagian: string;
   tempat: string;
@@ -456,6 +458,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     const variantGroups: Record<string, {
       year: string;
+      quarter: string;
       date: string;
       bahagian: string;
       tempat: string;
@@ -468,15 +471,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       .filter(item => (item.programName || "UNKNOWN") === programVariantPicker)
       .forEach(item => {
         const year = item.filterTahun || '-';
+        const quarter = String(item.quarter || '').trim().toUpperCase() || '-';
         const date = formatProgramDateLabel(item.programDate);
         const bahagian = item.bahagian || '-';
         const tempat = item.tempat || '-';
         const penganjur = item.penganjur || '-';
-        const key = [year, date, bahagian, tempat, penganjur].join('|');
+        const key = [year, quarter, date, bahagian, tempat, penganjur].join('|');
 
         if (!variantGroups[key]) {
           variantGroups[key] = {
             year,
+            quarter,
             date,
             bahagian,
             tempat,
@@ -494,6 +499,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       .map((variant, idx) => ({
         id: `VAR-${idx}`,
         year: variant.year,
+        quarter: variant.quarter,
         date: variant.date,
         bahagian: variant.bahagian,
         tempat: variant.tempat,
@@ -812,6 +818,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       programName: programVariantPicker,
                       initialFilters: {
                         year: variant.year !== '-' ? variant.year : undefined,
+                        quarter: variant.quarter !== '-' ? variant.quarter : undefined,
                         date: variant.date !== '-' ? variant.date : undefined,
                         bahagian: variant.bahagian !== '-' ? variant.bahagian : undefined,
                         location: variant.tempat !== '-' ? variant.tempat : undefined,
@@ -829,6 +836,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         {variant.year}
                       </div>
                       <h3 className="text-xl font-black text-dark tracking-tight">{variant.date}</h3>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{variant.quarter}</p>
                     </div>
                     <div className="inline-flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full text-gray-600 font-black text-[10px]">
                       <Users size={12} />

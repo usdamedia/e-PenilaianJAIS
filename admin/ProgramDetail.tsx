@@ -21,6 +21,7 @@ interface ProgramDetailProps {
   onRefresh: () => void;
   initialFilters?: {
     year?: string;
+    quarter?: string;
     date?: string;
     bahagian?: string;
     location?: string;
@@ -31,6 +32,7 @@ interface ProgramDetailProps {
 interface ProgramVariantOption {
   id: string;
   year: string;
+  quarter: string;
   date: string;
   bahagian: string;
   location: string;
@@ -93,6 +95,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // Filter States
   const [selectedYear, setSelectedYear] = useState<string>('SEMUA');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('SEMUA');
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
   const [selectedBahagian, setSelectedBahagian] = useState<string>('SEMUA');
   const [selectedLocation, setSelectedLocation] = useState<string>('SEMUA');
@@ -100,6 +103,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   useEffect(() => {
     setSelectedYear(initialFilters?.year || 'SEMUA');
+    setSelectedQuarter(initialFilters?.quarter || 'SEMUA');
     setSelectedDate(initialFilters?.date || 'SEMUA');
     setSelectedBahagian(initialFilters?.bahagian || 'SEMUA');
     setSelectedLocation(initialFilters?.location || 'SEMUA');
@@ -143,16 +147,18 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     allProgramData.forEach((item) => {
       const year = String(item.filterTahun || '').trim() || '-';
+      const quarter = String(item.quarter || '').trim().toUpperCase() || '-';
       const date = formatDateKey(item.programDate);
       const bahagian = item.bahagian || '-';
       const location = item.tempat || '-';
       const penganjur = item.penganjur || '-';
-      const key = [year, date, bahagian, location, penganjur].join('|');
+      const key = [year, quarter, date, bahagian, location, penganjur].join('|');
 
       if (!groups[key]) {
         groups[key] = {
           id: key,
           year,
+          quarter,
           date,
           bahagian,
           location,
@@ -184,11 +190,29 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort((a, b) => Number(b) - Number(a));
   }, [allProgramData]);
 
+  // B. Unique Quarters (Level 2 - Depends on Year)
+  const uniqueQuarters = useMemo(() => {
+    let source = allProgramData;
+    if (selectedYear !== 'SEMUA') {
+      source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+
+    const set = new Set(
+      source
+        .map(d => String(d.quarter || '').trim().toUpperCase())
+        .filter(Boolean)
+    );
+    return Array.from(set).sort();
+  }, [allProgramData, selectedYear]);
+
   // B. Unique Dates (Level 2 - Depends on Year)
   const uniqueDates = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
       source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+    if (selectedQuarter !== 'SEMUA') {
+      source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     }
 
     const dates = source.map(d => ({
@@ -205,7 +229,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime()); // Sort Descending
 
     return unique as { iso: string, label: string }[];
-  }, [allProgramData, selectedYear]);
+  }, [allProgramData, selectedYear, selectedQuarter]);
 
   // C. Unique Bahagian (Level 3 - Depends on Year & Date)
   const uniqueBahagian = useMemo(() => {
@@ -213,43 +237,49 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedYear !== 'SEMUA') {
         source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
     }
+    if (selectedQuarter !== 'SEMUA') {
+        source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
+    }
     if (selectedDate !== 'SEMUA') {
         source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     }
     const set = new Set(source.map(d => d.bahagian).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedDate]);
+  }, [allProgramData, selectedYear, selectedQuarter, selectedDate]);
 
   // D. Unique Locations (Level 4 - Depends on Year, Date & Bahagian)
   const uniqueLocations = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
     
     const set = new Set(source.map(d => d.tempat).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedDate, selectedBahagian]);
+  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian]);
 
   // E. Unique Penganjur (Level 5 - Depends on Year, Date, Bahagian & Location)
   const uniquePenganjur = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
     if (selectedLocation !== 'SEMUA') source = source.filter(d => d.tempat === selectedLocation);
 
     const set = new Set(source.map(d => d.penganjur).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedDate, selectedBahagian, selectedLocation]);
+  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation]);
 
   // Reset Filters logic when parent filter changes
   useEffect(() => {
+    if (selectedQuarter !== 'SEMUA' && !uniqueQuarters.includes(selectedQuarter)) setSelectedQuarter('SEMUA');
     if (selectedDate !== 'SEMUA' && !uniqueDates.some(d => d.label === selectedDate)) setSelectedDate('SEMUA');
     if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) setSelectedBahagian('SEMUA');
     if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
     if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
-  }, [selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
+  }, [selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueQuarters, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
 
   useEffect(() => {
       if (selectedBahagian !== 'SEMUA') {
@@ -267,6 +297,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const selectedVariantId = useMemo(() => {
     if (
       selectedYear === 'SEMUA' ||
+      selectedQuarter === 'SEMUA' ||
       selectedDate === 'SEMUA' ||
       selectedBahagian === 'SEMUA' ||
       selectedLocation === 'SEMUA' ||
@@ -277,6 +308,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     const match = programVariants.find((variant) =>
       variant.year === selectedYear &&
+      variant.quarter === selectedQuarter &&
       variant.date === selectedDate &&
       variant.bahagian === selectedBahagian &&
       variant.location === selectedLocation &&
@@ -284,11 +316,12 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     );
 
     return match?.id || 'SEMUA';
-  }, [programVariants, selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+  }, [programVariants, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
   const handleVariantSelect = (variantId: string) => {
     if (variantId === 'SEMUA') {
       setSelectedYear('SEMUA');
+      setSelectedQuarter('SEMUA');
       setSelectedDate('SEMUA');
       setSelectedBahagian('SEMUA');
       setSelectedLocation('SEMUA');
@@ -300,6 +333,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (!variant) return;
 
     setSelectedYear(variant.year !== '-' ? variant.year : 'SEMUA');
+    setSelectedQuarter(variant.quarter !== '-' ? variant.quarter : 'SEMUA');
     setSelectedDate(variant.date !== '-' ? variant.date : 'SEMUA');
     setSelectedBahagian(variant.bahagian !== '-' ? variant.bahagian : 'SEMUA');
     setSelectedLocation(variant.location !== '-' ? variant.location : 'SEMUA');
@@ -311,13 +345,14 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
       const matchYear = selectedYear === 'SEMUA' || String(d.filterTahun || '').trim() === selectedYear;
+      const matchQuarter = selectedQuarter === 'SEMUA' || String(d.quarter || '').trim().toUpperCase() === selectedQuarter;
       const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
       const matchBahagian = selectedBahagian === 'SEMUA' || d.bahagian === selectedBahagian;
       const matchLocation = selectedLocation === 'SEMUA' || d.tempat === selectedLocation;
       const matchPenganjur = selectedPenganjur === 'SEMUA' || d.penganjur === selectedPenganjur;
-      return matchYear && matchDate && matchBahagian && matchLocation && matchPenganjur;
+      return matchYear && matchQuarter && matchDate && matchBahagian && matchLocation && matchPenganjur;
     });
-  }, [allProgramData, selectedYear, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
   // 4. DERIVE LOCATION & PENGANJUR AUTOMATICALLY (Based on filteredData)
   const displayedLocation = useMemo(() => {
@@ -353,6 +388,12 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         ? (uniqueDates[0]?.label || '-')
         : `${uniqueDates.length} TARIKH`;
 
+    const quarterLabel = selectedQuarter !== 'SEMUA'
+      ? selectedQuarter
+      : uniqueQuarters.length === 1
+        ? (uniqueQuarters[0] || '-')
+        : `${uniqueQuarters.length} SUKU`;
+
     const bahagianLabel = selectedBahagian !== 'SEMUA'
       ? selectedBahagian
       : uniqueBahagian.length === 1
@@ -369,6 +410,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     return [
       { label: 'Tahun', value: yearLabel },
+      { label: 'Suku', value: quarterLabel },
       { label: 'Tarikh', value: dateLabel },
       { label: 'Bahagian', value: bahagianLabel },
       { label: 'Lokasi', value: locationLabel },
@@ -377,6 +419,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   }, [
     selectedYear,
     uniqueYears,
+    selectedQuarter,
+    uniqueQuarters,
     selectedDate,
     uniqueDates,
     selectedBahagian,
@@ -524,6 +568,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         bahagian: selectedBahagian !== 'SEMUA' ? selectedBahagian : (uniqueBahagian.length > 1 ? `PELBAGAI BAHAGIAN (${uniqueBahagian.length})` : (uniqueBahagian[0] || '-')),
         date: selectedDate !== 'SEMUA'
           ? selectedDate
+          : selectedQuarter !== 'SEMUA'
+            ? `SUKU ${selectedQuarter}`
           : selectedYear !== 'SEMUA'
             ? `TAHUN ${selectedYear}`
             : (uniqueDates.length > 1 ? `PELBAGAI TARIKH (${uniqueDates.length})` : (uniqueDates[0]?.label || '-')),
@@ -549,6 +595,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       link.href = url;
       const exportContext = [
         selectedYear !== 'SEMUA' ? selectedYear : '',
+        selectedQuarter !== 'SEMUA' ? selectedQuarter : '',
         selectedDate !== 'SEMUA' ? selectedDate : '',
         selectedBahagian !== 'SEMUA' ? selectedBahagian : '',
         selectedLocation !== 'SEMUA' ? selectedLocation : '',
@@ -763,7 +810,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                       <div>
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-300">Indikator Utama</span>
                         <p className="mt-2 text-xs font-bold text-white/90">
-                          Nama program ini mempunyai {programVariants.length} sesi/variasi. Pilih satu untuk auto-filter tarikh, bahagian, tempat dan penganjur.
+                          Nama program ini mempunyai {programVariants.length} sesi/variasi. Pilih satu untuk auto-filter tahun, suku, tarikh, tempat dan penganjur.
                         </p>
                       </div>
                       <div className="relative w-full sm:max-w-[520px]">
@@ -777,7 +824,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                           </option>
                           {programVariants.map((variant, idx) => (
                             <option key={variant.id} value={variant.id} className="bg-white text-dark">
-                              {`${idx + 1}. ${variant.date} | ${variant.bahagian} | ${variant.location} | ${variant.year} (${variant.totalRespondents} responden)`}
+                              {`${idx + 1}. ${variant.year} | ${variant.quarter} | ${variant.date} | ${variant.location} (${variant.totalRespondents} responden)`}
                             </option>
                           ))}
                         </select>
@@ -788,7 +835,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                 )}
 
                 {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 pb-10 border-b border-white/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-6 pb-10 border-b border-white/10">
                    {/* Year Filter - DYNAMIC */}
                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tahun</span>
@@ -811,6 +858,33 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                              <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
                                 <Calendar size={16} className="text-lime-400" />
                                 <span className="uppercase tracking-wider">{uniqueYears[0] || '-'}</span>
+                             </div>
+                          )}
+                       </div>
+                   </motion.div>
+
+                   {/* Quarter Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Suku</span>
+                       <div className="relative">
+                          {uniqueQuarters.length > 1 ? (
+                            <div className="group">
+                                <select
+                                  value={selectedQuarter}
+                                  onChange={(e) => setSelectedQuarter(e.target.value)}
+                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
+                                >
+                                  <option value="SEMUA" className="text-dark bg-white">SEMUA SUKU ({uniqueQuarters.length})</option>
+                                  {uniqueQuarters.map(quarter => (
+                                    <option key={quarter} value={quarter} className="text-dark bg-white">{quarter}</option>
+                                  ))}
+                                </select>
+                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
+                            </div>
+                          ) : (
+                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
+                                <Calendar size={16} className="text-lime-400" />
+                                <span className="uppercase tracking-wider">{uniqueQuarters[0] || '-'}</span>
                              </div>
                           )}
                        </div>
