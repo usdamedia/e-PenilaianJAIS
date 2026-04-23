@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DashboardData, ProgramSummary } from '../types';
+import { DashboardData } from '../types';
 import { GOOGLE_SCRIPT_URL } from '../../services/api';
 
 export const useDashboardData = () => {
@@ -23,6 +23,18 @@ export const useDashboardData = () => {
     if (dateStr instanceof Date) return dateStr.toISOString();
 
     let str = String(dateStr).trim();
+    if (!str) return null;
+
+    // Buang bahagian masa untuk format seperti "23/04/2026, 11:21:16"
+    str = str.replace(/,\s*\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?$/i, '').trim();
+
+    // Sokong format ISO seperti 2026-04-02
+    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      const dateObj = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+      return dateObj.toISOString();
+    }
     
     // 1. Cuba Manual Parse untuk format numerik Malaysia (dd/mm/yyyy) dahulu
     const parts = str.split(/[\/\-\.]/); 
@@ -74,86 +86,110 @@ export const useDashboardData = () => {
       const result = await response.json();
       
       if (result.status === "success" && Array.isArray(result.data)) {
+          const getVal = (item: Record<string, any>, keys: string[]) => {
+             const itemKeys = Object.keys(item);
+             for (const k of keys) {
+                if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') return item[k];
+                const found = itemKeys.find(ik => ik.trim().toUpperCase() === k.toUpperCase());
+                if (found !== undefined && item[found] !== undefined && item[found] !== null && String(item[found]).trim() !== '') {
+                  return item[found];
+                }
+             }
+             return '';
+          };
+
+          const toUpperTrim = (val: any, fallback = '') => {
+            const normalized = String(val ?? '').trim();
+            return normalized ? normalized.toUpperCase() : fallback;
+          };
+
+          const getQuarterFromDate = (isoDate: string) => {
+            const parsed = new Date(isoDate);
+            if (isNaN(parsed.getTime())) return '';
+            return `Q${Math.floor(parsed.getUTCMonth() / 3) + 1}`;
+          };
           
           const mappedData: DashboardData[] = result.data
-            // FILTER PENTING: Logik dikemaskini untuk memadankan jumlah row Google Sheet
             .filter((item: any) => {
-               // 1. Ambil Timestamp Dibetulkan
-               const rawTimestamp = item['Timestamp Dibetulkan'];
+               const rawTimestamp = getVal(item, ['Timestamp Dibetulkan', 'Timestamp Ori', 'Timestamp', 'ts_ori']);
                const tsStr = rawTimestamp ? String(rawTimestamp).trim() : '';
+               const rawProgramName = getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori']);
+               const programName = rawProgramName ? String(rawProgramName).toUpperCase().trim() : '';
 
-               // SYARAT WAJIB: Timestamp mesti wujud dan bukan header
-               if (!tsStr || tsStr === '' || tsStr === 'Timestamp Dibetulkan') {
+               // Elak baris tajuk atau row kosong total
+               if (tsStr === 'TIMESTAMP DIBETULKAN' || tsStr === 'Timestamp Dibetulkan') {
                    return false; 
                }
 
-               // 2. Semak Header lain untuk elak baris tajuk termasuk (Double check)
-               const pName = item['NAMA PROGRAM'] ? String(item['NAMA PROGRAM']).toUpperCase().trim() : '';
-               if (pName === 'NAMA PROGRAM') return false;
-               
-               return true;
+               if (programName === 'NAMA PROGRAM') return false;
+
+               return Boolean(tsStr || programName);
             })
             .map((item: any, index: number) => {
-                const rawTimestamp = item['Timestamp Dibetulkan'];
-                const cleanTimestampStr = String(rawTimestamp).split('T')[0]; 
+                const rawTimestamp = getVal(item, ['Timestamp Dibetulkan', 'Timestamp Ori', 'Timestamp', 'ts_ori']);
+                const parsedTimestamp = parseMalaysianDate(rawTimestamp);
 
-                // MAPPING TARIKH: Cuba baca 'TARIKH MULA PROGRAM', jika tiada, baca 'Tarikh Mula'
-                const rawProgramDate = item['TARIKH MULA PROGRAM'] || item['Tarikh Mula'];
+                const rawProgramDate = getVal(item, [
+                  'TARIKH MULA PROGRAM',
+                  'TARIKH MULA PROGRAM ORI',
+                  'Tarikh Mula',
+                  'tarikh_mula_ori'
+                ]);
                 const parsedProgramDate = parseMalaysianDate(rawProgramDate);
-                const finalProgramDate = parsedProgramDate || '1970-01-01T00:00:00.000Z';
-                
-                // Helper untuk cari key secara fleksibel (ignore case & spaces)
-                const getVal = (keys: string[]) => {
-                   const itemKeys = Object.keys(item);
-                   for (const k of keys) {
-                      // Exact match
-                      if (item[k] !== undefined) return item[k];
-                      // Case/Space insensitive match
-                      const found = itemKeys.find(ik => ik.trim().toUpperCase() === k.toUpperCase());
-                      if (found) return item[found];
-                   }
-                   return '';
-                };
+                const finalProgramDate = parsedProgramDate || parsedTimestamp || '1970-01-01T00:00:00.000Z';
+                const filterTahun = String(getVal(item, ['FILTER TAHUN']) || '').trim() || String(new Date(finalProgramDate).getUTCFullYear());
+                const quarterRaw = String(getVal(item, ['QUARTER']) || '').trim();
+                const quarter = quarterRaw === '1'
+                  ? 'Q1'
+                  : quarterRaw === '2'
+                    ? 'Q2'
+                    : quarterRaw === '3'
+                      ? 'Q3'
+                      : quarterRaw === '4'
+                        ? 'Q4'
+                        : quarterRaw || getQuarterFromDate(finalProgramDate);
 
                 return {
-                    id: item['ID'] || `RSP-${1000 + index}`,
-                    timestamp: parseMalaysianDate(cleanTimestampStr) || new Date().toISOString(),
+                    id: String(item['ID'] || item['row_index'] || `RSP-${1000 + index}`),
+                    timestamp: parsedTimestamp || finalProgramDate,
                     programDate: finalProgramDate,
 
-                    // MAPPING KHAS FILTER TAHUN
-                    // Ia akan ambil dari column 'FILTER TAHUN'. Jika tiada, fallback kosong.
-                    filterTahun: String(item['FILTER TAHUN'] || '').trim(),
+                    filterTahun,
 
-                    // 1. NAMA PROGRAM
-                    programName: (item['NAMA PROGRAM'] && String(item['NAMA PROGRAM']).trim() !== '') 
-                        ? String(item['NAMA PROGRAM']).toUpperCase().trim() 
+                    programName: getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori'])
+                        ? toUpperTrim(getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori']))
                         : 'PROGRAM TIDAK DINYATAKAN',
                     
-                    // 2. TEMPAT PROGRAM DILAKSANA -> Mapped to tempat
-                    tempat: (item['TEMPAT PROGRAM DILAKSANA'] || item['TEMPAT'] || '-').toUpperCase().trim(),
+                    tempat: toUpperTrim(
+                      getVal(item, ['TEMPAT PROGRAM DILAKSANA', 'TEMPAT PROGRAM DILAKSANA ORI', 'TEMPAT', 'tempat_ori']),
+                      '-'
+                    ),
                     
-                    // 3. BAHAGIAN PROGRAM DILAKSANA -> Mapped to bahagian
-                    bahagian: (item['BAHAGIAN PROGRAM DILAKSANA'] || item['BAHAGIAN'] || 'UMUM').toUpperCase().trim(),
+                    bahagian: toUpperTrim(
+                      getVal(item, ['BAHAGIAN PROGRAM DILAKSANA', 'BAHAGIAN PROGRAM DILAKSANA ORI', 'BAHAGIAN', 'bahagian_ori']),
+                      'UMUM'
+                    ),
                     
-                    // 4. PENGANJUR UTAMA
-                    penganjur: (item['BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM'] || item['PENGANJUR'] || '-').toUpperCase(),
+                    penganjur: toUpperTrim(
+                      getVal(item, [
+                        'BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM',
+                        'BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM ORI',
+                        'PENGANJUR',
+                        'penganjur_utama_ori'
+                      ]),
+                      '-'
+                    ),
 
-                    // MAPPING JANTINA
-                    jantina: String(item['JANTINA'] || item['Jantina'] || '-').toUpperCase().trim(),
+                    jantina: toUpperTrim(getVal(item, ['JANTINA', 'Jantina']), '-'),
                     
-                    umur: String(item['UMUR'] || item['Umur'] || '-').toUpperCase().trim(),
+                    umur: toUpperTrim(getVal(item, ['UMUR', 'Umur']), '-'),
                     
-                    // MAPPING QUARTER
-                    quarter: (() => {
-                        const q = String(item['QUARTER'] || '').trim();
-                        if (q === '1') return 'Q1';
-                        if (q === '2') return 'Q2';
-                        if (q === '3') return 'Q3';
-                        if (q === '4') return 'Q4';
-                        return q;
-                    })(),
+                    quarter,
                     
-                    tarafPendidikan: (item['TARAF PENDIDIKAN TERTINGGI'] || item['PENDIDIKAN'] || item['Taraf Pendidikan'] || '-').toUpperCase().trim(),
+                    tarafPendidikan: toUpperTrim(
+                      getVal(item, ['TARAF PENDIDIKAN TERTINGGI', 'PENDIDIKAN', 'Taraf Pendidikan', 'pendidikan']),
+                      '-'
+                    ),
                     
                     // Ratings
                     skorLogistik: parseRating(item['Tarikh, Masa dan Tempat']), 
@@ -165,9 +201,8 @@ export const useDashboardData = () => {
                     skorFormula: parseRating(item['Penilaian Keseluruhan Program Formula']),
                     rawSkorFormula: String(item['Penilaian Keseluruhan Program Formula'] || '').trim().toUpperCase(),
 
-                    // Komen & Cadangan (Paling Kritikal) - Menggunakan Helper getVal
-                    komen: getVal(['KOMEN PROGRAM', 'KOMEN', 'KOMEN_PROGRAM', 'komen program']),
-                    cadangan: getVal(['CADANGAN PROGRAM', 'CADANGAN', 'CADANGAN_PROGRAM', 'cadangan program'])
+                    komen: String(getVal(item, ['KOMEN PROGRAM', 'KOMEN', 'KOMEN_PROGRAM', 'komen program']) || '').trim(),
+                    cadangan: String(getVal(item, ['CADANGAN PROGRAM', 'CADANGAN', 'CADANGAN_PROGRAM', 'cadangan program']) || '').trim()
                 };
             });
 
