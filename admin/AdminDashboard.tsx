@@ -1468,8 +1468,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     )}
                  </div>
               </div>
-              </div>
             </div>
+
 
           {currentTab === 'comments' ? (
             <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
