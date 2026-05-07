@@ -221,6 +221,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [isOrganizerDropdownOpen, setIsOrganizerDropdownOpen] = useState(false);
   const organizerDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Program Name (Single Select Custom UI)
+  const [selectedProgramName, setSelectedProgramName] = useState<string>('SEMUA');
+  const [isProgramNameDropdownOpen, setIsProgramNameDropdownOpen] = useState(false);
+  const programNameDropdownRef = useRef<HTMLDivElement>(null);
+
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -240,6 +245,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
       if (organizerDropdownRef.current && !organizerDropdownRef.current.contains(target)) {
         setIsOrganizerDropdownOpen(false);
+      }
+      if (programNameDropdownRef.current && !programNameDropdownRef.current.contains(target)) {
+        setIsProgramNameDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -283,8 +291,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     };
   }, [rawData]);
 
-  // Main Filter Logic
-  const filteredData = useMemo(() => {
+  // Base Filter Logic (tanpa Nama Program)
+  const baseFilteredData = useMemo(() => {
     return rawData.filter(item => {
       // 1. Filter Tahun: Bandingkan dengan column 'filterTahun'
       let matchYear = true;
@@ -316,6 +324,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       return matchYear && matchMonth && matchQuarter && matchOrg;
     });
   }, [rawData, selectedYears, selectedMonth, selectedQuarter, selectedOrganizer]);
+
+  // Senarai Nama Program Dynamic
+  const programNames = useMemo(() => {
+    const uniquePrograms = new Set<string>();
+    baseFilteredData.forEach(item => {
+      if (item.programName && item.programName !== '-') {
+        uniquePrograms.add(item.programName);
+      }
+    });
+    return Array.from(uniquePrograms).sort();
+  }, [baseFilteredData]);
+
+  // Main Filter Logic (termasuk Nama Program)
+  const filteredData = useMemo(() => {
+    return baseFilteredData.filter(item => {
+      let matchProgramName = true;
+      if (selectedProgramName !== 'SEMUA') {
+        matchProgramName = item.programName === selectedProgramName;
+      }
+      return matchProgramName;
+    });
+  }, [baseFilteredData, selectedProgramName]);
 
   const toggleYear = (year: string) => {
     setSelectedYears(prev => {
@@ -849,7 +879,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || searchTerm !== '';
+  const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || selectedProgramName !== 'SEMUA' || searchTerm !== '';
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1291,10 +1321,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        )}
                     </div>
 
+                    {/* 5. Filter: Nama Program (Custom Dropdown) */}
+                    <div className="relative" ref={programNameDropdownRef}>
+                       <button
+                          onClick={() => setIsProgramNameDropdownOpen(!isProgramNameDropdownOpen)}
+                          className={`
+                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border max-w-[200px] justify-between
+                             ${isProgramNameDropdownOpen || selectedProgramName !== 'SEMUA'
+                                ? 'bg-lime-100 text-lime-900 border-lime-200' 
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                             }
+                          `}
+                       >
+                          <div className="flex items-center gap-2 overflow-hidden">
+                             <FileText size={16} className={selectedProgramName !== 'SEMUA' ? "text-lime-700 shrink-0" : "text-gray-400 shrink-0"} />
+                             <span className="truncate">
+                               {selectedProgramName === 'SEMUA' ? "Nama Program" : selectedProgramName}
+                             </span>
+                          </div>
+                          <ChevronDown size={14} className="opacity-50 shrink-0" />
+                       </button>
+
+                       {isProgramNameDropdownOpen && (
+                          <div className="absolute top-full right-0 mt-2 w-[320px] bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
+                             <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pilih Program</div>
+                             <div className="max-h-[300px] overflow-y-auto space-y-1 custom-scrollbar">
+                                <button onClick={() => {setSelectedProgramName('SEMUA'); setIsProgramNameDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedProgramName === 'SEMUA' ? 'text-lime-600 bg-lime-50' : 'text-gray-600'}`}>Semua Program {selectedProgramName === 'SEMUA' && <Check size={14}/>}</button>
+                                <div className="h-px bg-gray-100 my-1"></div>
+                                {programNames.map(p => (
+                                   <button key={p} onClick={() => {setSelectedProgramName(p); setIsProgramNameDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedProgramName === p ? 'text-dark bg-gray-100' : 'text-gray-600'}`}>
+                                      <span className="truncate" title={p}>{p}</span>
+                                      {selectedProgramName === p && <Check size={14} className="text-lime-500 shrink-0"/>}
+                                   </button>
+                                ))}
+                             </div>
+                          </div>
+                       )}
+                    </div>
+
                     {/* Reset Action */}
                     {hasActiveFilters && (
                       <button 
-                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSearchTerm(''); }}
+                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSelectedProgramName('SEMUA'); setSearchTerm(''); }}
                         className="h-[50px] px-4 text-red-500 font-bold text-xs hover:bg-red-50 rounded-2xl transition-colors ml-auto xl:ml-0"
                       >
                         Reset
