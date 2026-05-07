@@ -224,6 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // Program Name (Single Select Custom UI)
   const [selectedProgramName, setSelectedProgramName] = useState<string>('SEMUA');
   const [isProgramNameDropdownOpen, setIsProgramNameDropdownOpen] = useState(false);
+  const [programNameSearchTerm, setProgramNameSearchTerm] = useState('');
   const programNameDropdownRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -1161,6 +1162,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="p-6 sm:p-10 space-y-10 max-w-[1800px] mx-auto pb-20">
           
             {/* FILTER BAR - Floating Card Design */}
+            <div className="space-y-2">
+              {/* BARIS ATAS: Carian, Tahun, Bulan & Reset */}
               <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-2">
                 
                 {/* Search - Dominant */}
@@ -1250,12 +1253,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        )}
                     </div>
 
+                    {/* Reset Action (dipindahkan ke atas) */}
+                    {hasActiveFilters && (
+                      <button 
+                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSelectedProgramName('SEMUA'); setProgramNameSearchTerm(''); setSearchTerm(''); }}
+                        className="h-[50px] px-4 text-red-500 font-bold text-xs hover:bg-red-50 rounded-2xl transition-colors ml-auto xl:ml-0"
+                      >
+                        Reset
+                      </button>
+                    )}
+                </div>
+              </div>
+
+              {/* BARIS BAWAH: Suku, Penganjur, Nama Program (Grid 3 Komponen) */}
+              <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-2">
+
                     {/* 3. Filter: Quarter (Custom Dropdown) */}
-                    <div className="relative" ref={quarterDropdownRef}>
+                    <div className="relative w-full" ref={quarterDropdownRef}>
                        <button
                           onClick={() => setIsQuarterDropdownOpen(!isQuarterDropdownOpen)}
                           className={`
-                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border min-w-[140px] justify-between
+                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border w-full justify-between
                              ${isQuarterDropdownOpen || selectedQuarter !== 'SEMUA'
                                 ? 'bg-lime-100 text-lime-900 border-lime-200' 
                                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -1284,11 +1302,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </div>
 
                     {/* 4. Filter: Organizer (Custom Dropdown) */}
-                    <div className="relative" ref={organizerDropdownRef}>
+                    <div className="relative w-full" ref={organizerDropdownRef}>
                        <button
                           onClick={() => setIsOrganizerDropdownOpen(!isOrganizerDropdownOpen)}
                           className={`
-                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border max-w-[200px] justify-between
+                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border w-full justify-between
                              ${isOrganizerDropdownOpen || selectedOrganizer !== 'SEMUA'
                                 ? 'bg-lime-100 text-lime-900 border-lime-200' 
                                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -1322,11 +1340,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </div>
 
                     {/* 5. Filter: Nama Program (Custom Dropdown) */}
-                    <div className="relative" ref={programNameDropdownRef}>
+                    <div className="relative w-full" ref={programNameDropdownRef}>
                        <button
                           onClick={() => setIsProgramNameDropdownOpen(!isProgramNameDropdownOpen)}
                           className={`
-                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border max-w-[200px] justify-between
+                             h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border w-full justify-between
                              ${isProgramNameDropdownOpen || selectedProgramName !== 'SEMUA'
                                 ? 'bg-lime-100 text-lime-900 border-lime-200' 
                                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -1344,11 +1362,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                        {isProgramNameDropdownOpen && (
                           <div className="absolute top-full right-0 mt-2 w-[320px] bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
-                             <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pilih Program</div>
+                             <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between items-center">
+                               Pilih Program
+                             </div>
+                             <div className="px-2 mb-2">
+                                <input 
+                                   type="text" 
+                                   placeholder="Taip nama program..." 
+                                   value={programNameSearchTerm}
+                                   onChange={(e) => setProgramNameSearchTerm(e.target.value)}
+                                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-lime-400 focus:bg-white transition-all text-dark"
+                                   onClick={(e) => e.stopPropagation()}
+                                />
+                             </div>
                              <div className="max-h-[300px] overflow-y-auto space-y-1 custom-scrollbar">
                                 <button onClick={() => {setSelectedProgramName('SEMUA'); setIsProgramNameDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedProgramName === 'SEMUA' ? 'text-lime-600 bg-lime-50' : 'text-gray-600'}`}>Semua Program {selectedProgramName === 'SEMUA' && <Check size={14}/>}</button>
                                 <div className="h-px bg-gray-100 my-1"></div>
-                                {programNames.map(p => (
+                                {programNames.filter(p => p.toLowerCase().includes(programNameSearchTerm.toLowerCase())).map(p => (
                                    <button key={p} onClick={() => {setSelectedProgramName(p); setIsProgramNameDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedProgramName === p ? 'text-dark bg-gray-100' : 'text-gray-600'}`}>
                                       <span className="truncate" title={p}>{p}</span>
                                       {selectedProgramName === p && <Check size={14} className="text-lime-500 shrink-0"/>}
@@ -1358,18 +1388,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           </div>
                        )}
                     </div>
-
-                    {/* Reset Action */}
-                    {hasActiveFilters && (
-                      <button 
-                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSelectedProgramName('SEMUA'); setSearchTerm(''); }}
-                        className="h-[50px] px-4 text-red-500 font-bold text-xs hover:bg-red-50 rounded-2xl transition-colors ml-auto xl:ml-0"
-                      >
-                        Reset
-                      </button>
-                    )}
-                </div>
               </div>
+              </div>
+            </div>
 
           {currentTab === 'comments' ? (
             <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
