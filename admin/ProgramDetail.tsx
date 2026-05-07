@@ -1041,16 +1041,16 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
              
              <div className="relative z-10 flex flex-col gap-10">
                 {/* Meta Tag */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                   <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-lime-400 text-black text-[11px] font-black px-6 py-2 rounded-full tracking-[0.3em] uppercase shadow-xl shadow-lime-400/30"
+                    className="bg-lime-400 text-black text-[11px] font-black px-6 py-2 rounded-full tracking-[0.2em] uppercase shadow-xl shadow-lime-400/30 break-words max-w-full leading-relaxed"
                   >
-                     LAPORAN: {editableProgramName || 'PROGRAM'}
+                     LAPORAN: {editableProgramName || 'PROGRAM'} | {selectedBahagian !== 'SEMUA' ? selectedBahagian : (uniqueBahagian.length === 1 ? (uniqueBahagian[0] || '-') : `${uniqueBahagian.length} BAHAGIAN`)} | {displayedLocation} | {displayedProgramDate}
                   </motion.div>
-                  <div className="h-px w-8 bg-white/20"></div>
-                  <span className="text-gray-500 text-[10px] font-black tracking-[0.2em] uppercase">
+                  <div className="h-px w-8 bg-white/20 hidden md:block"></div>
+                  <span className="text-gray-500 text-[10px] font-black tracking-[0.2em] uppercase mt-2 md:mt-0">
                      ID: {filteredData[0]?.id || 'N/A'}
                   </span>
                 </div>
