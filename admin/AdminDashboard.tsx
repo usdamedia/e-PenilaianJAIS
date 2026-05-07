@@ -227,6 +227,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [programNameSearchTerm, setProgramNameSearchTerm] = useState('');
   const programNameDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Place (Single Select Custom UI)
+  const [selectedPlace, setSelectedPlace] = useState<string>('SEMUA');
+  const [isPlaceDropdownOpen, setIsPlaceDropdownOpen] = useState(false);
+  const [placeSearchTerm, setPlaceSearchTerm] = useState('');
+  const placeDropdownRef = useRef<HTMLDivElement>(null);
+
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -249,6 +255,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
       if (programNameDropdownRef.current && !programNameDropdownRef.current.contains(target)) {
         setIsProgramNameDropdownOpen(false);
+      }
+      if (placeDropdownRef.current && !placeDropdownRef.current.contains(target)) {
+        setIsPlaceDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -329,24 +338,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // Senarai Nama Program Dynamic
   const programNames = useMemo(() => {
     const uniquePrograms = new Set<string>();
-    baseFilteredData.forEach(item => {
+    const data = selectedPlace !== 'SEMUA' ? baseFilteredData.filter(i => i.tempat === selectedPlace) : baseFilteredData;
+    data.forEach(item => {
       if (item.programName && item.programName !== '-') {
         uniquePrograms.add(item.programName);
       }
     });
     return Array.from(uniquePrograms).sort();
-  }, [baseFilteredData]);
+  }, [baseFilteredData, selectedPlace]);
 
-  // Main Filter Logic (termasuk Nama Program)
+  // Senarai Tempat Program Dynamic
+  const placeNames = useMemo(() => {
+    const uniquePlaces = new Set<string>();
+    const data = selectedProgramName !== 'SEMUA' ? baseFilteredData.filter(i => i.programName === selectedProgramName) : baseFilteredData;
+    data.forEach(item => {
+      if (item.tempat && item.tempat !== '-') {
+        uniquePlaces.add(item.tempat);
+      }
+    });
+    return Array.from(uniquePlaces).sort();
+  }, [baseFilteredData, selectedProgramName]);
+
+  // Main Filter Logic (termasuk Nama Program dan Tempat Program)
   const filteredData = useMemo(() => {
     return baseFilteredData.filter(item => {
       let matchProgramName = true;
       if (selectedProgramName !== 'SEMUA') {
         matchProgramName = item.programName === selectedProgramName;
       }
-      return matchProgramName;
+      let matchPlace = true;
+      if (selectedPlace !== 'SEMUA') {
+        matchPlace = item.tempat === selectedPlace;
+      }
+      return matchProgramName && matchPlace;
     });
-  }, [baseFilteredData, selectedProgramName]);
+  }, [baseFilteredData, selectedProgramName, selectedPlace]);
 
   const toggleYear = (year: string) => {
     setSelectedYears(prev => {
@@ -880,7 +906,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || selectedProgramName !== 'SEMUA' || searchTerm !== '';
+  const hasActiveFilters = selectedYears.length > 0 || selectedMonth !== 'SEMUA' || selectedQuarter !== 'SEMUA' || selectedOrganizer !== 'SEMUA' || selectedProgramName !== 'SEMUA' || selectedPlace !== 'SEMUA' || searchTerm !== '';
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1256,7 +1282,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     {/* Reset Action (dipindahkan ke atas) */}
                     {hasActiveFilters && (
                       <button 
-                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSelectedProgramName('SEMUA'); setProgramNameSearchTerm(''); setSearchTerm(''); }}
+                        onClick={() => { setSelectedYears([]); setSelectedMonth('SEMUA'); setSelectedQuarter('SEMUA'); setSelectedOrganizer('SEMUA'); setSelectedProgramName('SEMUA'); setProgramNameSearchTerm(''); setSelectedPlace('SEMUA'); setPlaceSearchTerm(''); setSearchTerm(''); }}
                         className="h-[50px] px-4 text-red-500 font-bold text-xs hover:bg-red-50 rounded-2xl transition-colors ml-auto xl:ml-0"
                       >
                         Reset
@@ -1388,6 +1414,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           </div>
                        )}
                     </div>
+              </div>
+
+              {/* BARIS KETIGA: Tempat Program */}
+              <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100">
+                 {/* 6. Filter: Tempat Program (Custom Dropdown) */}
+                 <div className="relative w-full" ref={placeDropdownRef}>
+                    <button
+                       onClick={() => setIsPlaceDropdownOpen(!isPlaceDropdownOpen)}
+                       className={`
+                          h-[50px] px-5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border w-full justify-between
+                          ${isPlaceDropdownOpen || selectedPlace !== 'SEMUA'
+                             ? 'bg-lime-100 text-lime-900 border-lime-200' 
+                             : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }
+                       `}
+                    >
+                       <div className="flex items-center gap-2 overflow-hidden">
+                          <MapPin size={16} className={selectedPlace !== 'SEMUA' ? "text-lime-700 shrink-0" : "text-gray-400 shrink-0"} />
+                          <span className="truncate">
+                            {selectedPlace === 'SEMUA' ? "Tempat Program Dilaksana" : selectedPlace}
+                          </span>
+                       </div>
+                       <ChevronDown size={14} className="opacity-50 shrink-0" />
+                    </button>
+
+                    {isPlaceDropdownOpen && (
+                       <div className="absolute top-full right-0 left-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
+                          <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between items-center">
+                            Pilih Tempat
+                          </div>
+                          <div className="px-2 mb-2">
+                             <input 
+                                type="text" 
+                                placeholder="Taip tempat program..." 
+                                value={placeSearchTerm}
+                                onChange={(e) => setPlaceSearchTerm(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-lime-400 focus:bg-white transition-all text-dark"
+                                onClick={(e) => e.stopPropagation()}
+                             />
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto space-y-1 custom-scrollbar">
+                             <button onClick={() => {setSelectedPlace('SEMUA'); setIsPlaceDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedPlace === 'SEMUA' ? 'text-lime-600 bg-lime-50' : 'text-gray-600'}`}>Semua Tempat {selectedPlace === 'SEMUA' && <Check size={14}/>}</button>
+                             <div className="h-px bg-gray-100 my-1"></div>
+                             {placeNames.filter(p => p.toLowerCase().includes(placeSearchTerm.toLowerCase())).map(p => (
+                                <button key={p} onClick={() => {setSelectedPlace(p); setIsPlaceDropdownOpen(false)}} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedPlace === p ? 'text-dark bg-gray-100' : 'text-gray-600'}`}>
+                                   <span className="truncate" title={p}>{p}</span>
+                                   {selectedPlace === p && <Check size={14} className="text-lime-500 shrink-0"/>}
+                                </button>
+                             ))}
+                          </div>
+                       </div>
+                    )}
+                 </div>
               </div>
               </div>
             </div>
