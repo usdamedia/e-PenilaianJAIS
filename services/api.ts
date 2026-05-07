@@ -1,10 +1,10 @@
 import { EvaluationFormData } from '../types';
 
 // URL Web App Google Apps Script anda
-export const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzW9-SB9ViE-Z7vYJLDDuywLzUv_BazsCLUiuDWt3AK8V8zphgC6ijbPoUY50qJv4L8Pg/exec";
+export const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 
 // Token keselamatan yang mesti sepadan dengan SETTINGS.SECRET_API_TOKEN dalam Code.gs
-const API_TOKEN = "JAIS_PenilaianProgram2026";
+const API_TOKEN = import.meta.env.VITE_API_TOKEN;
 
 export const submitEvaluation = async (data: EvaluationFormData) => {
   // Format tarikh semasa untuk 'ts_ori'
