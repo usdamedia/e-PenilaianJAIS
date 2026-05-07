@@ -14,7 +14,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === import.meta.env.VITE_ADMIN_PASSWORD) {
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'bpnpj@is2026';
+    if (password === adminPassword) {
       onLogin();
     } else {
       setError('Kata laluan tidak sah');
