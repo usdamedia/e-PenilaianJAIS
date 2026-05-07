@@ -2,6 +2,83 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
+type DemographicItem = { name: string; value: number };
+
+const ANALYSIS_TEMPLATES = {
+  age: {
+    young: "Kumpulan peserta didominasi oleh golongan muda. Untuk memantapkan program akan datang, disarankan untuk memperbanyakkan elemen interaktif, gamifikasi, penggunaan platform digital seperti kuiz online, dan aktiviti fizikal yang bertenaga.",
+    career: "Majoriti peserta berada di pertengahan kerjaya. Program akan datang boleh ditambah baik dengan memfokuskan kepada aplikasi praktikal, perkongsian kes industri sebenar, dan sesi networking atau rangkaian profesional.",
+    senior: "Peserta program ini didominasi oleh golongan senior dan berpengalaman. Pendekatan yang sesuai untuk masa hadapan adalah perbincangan dua hala, sesi perkongsian pengalaman yang mendalam, dan penyediaan bahan bacaan bercetak yang mesra pengguna dengan saiz font lebih besar.",
+  },
+  education: {
+    practical: "Latar belakang pendidikan peserta mencadangkan agar penyampaian modul dikurangkan penggunaan jargon teknikal. Adalah disyorkan untuk melebihkan latihan amali, demonstrasi visual, dan penerangan menggunakan bahasa yang ringkas serta mudah difahami.",
+    advanced: "Oleh kerana majoriti peserta mempunyai latar belakang pendidikan tinggi, tahap intelektual program boleh ditingkatkan. Masukkan elemen pemikiran kritikal, analisis strategik, dan kajian kes yang kompleks untuk mencabar dan menarik minat peserta.",
+  },
+  gender: {
+    female: "Demografi menunjukkan penyertaan wanita yang tinggi. Perancangan logistik akan datang boleh mempertimbangkan fasiliti yang lebih mesra wanita dan keluarga, serta gaya komunikasi dan aktiviti kumpulan yang bersesuaian.",
+    male: "Penyertaan lelaki adalah lebih dominan. Strategi pemasaran untuk program akan datang mungkin boleh diselaraskan untuk menarik lebih ramai penyertaan wanita bagi menyeimbangkan demografi, atau menyesuaikan aktiviti dengan kecenderungan majoriti peserta.",
+  },
+};
+
+const getDominantDemographic = (items: DemographicItem[]) => {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  if (items.length === 0 || total === 0) return null;
+
+  const dominant = items.reduce((highest, item) => (item.value > highest.value ? item : highest), items[0]);
+  return {
+    ...dominant,
+    percentage: Math.round((dominant.value / total) * 100),
+  };
+};
+
+const getAgeTemplate = (dominantName: string) => {
+  const name = dominantName.toUpperCase();
+  if (name.includes('20') || name.includes('21-30') || name.includes('30 TAHUN DAN KE BAWAH')) return ANALYSIS_TEMPLATES.age.young;
+  if (name.includes('31-40')) return ANALYSIS_TEMPLATES.age.career;
+  if (name.includes('41') || name.includes('51') || name.includes('SENIOR')) return ANALYSIS_TEMPLATES.age.senior;
+  return null;
+};
+
+const getEducationTemplate = (dominantName: string) => {
+  const name = dominantName.toUpperCase();
+  if (name.includes('SPM') || name.includes('DIPLOMA') || name.includes('SRP') || name.includes('PMR') || name.includes('TIDAK BERSEKOLAH')) {
+    return ANALYSIS_TEMPLATES.education.practical;
+  }
+  if (name.includes('IJAZAH') || name.includes('SARJANA') || name.includes('PHD') || name.includes('PH.D')) {
+    return ANALYSIS_TEMPLATES.education.advanced;
+  }
+  return null;
+};
+
+const getGenderTemplate = (dominantName: string, percentage: number) => {
+  if (percentage <= 60) return null;
+  const name = dominantName.toUpperCase();
+  if (name.includes('PEREMPUAN') || name.includes('WANITA')) return ANALYSIS_TEMPLATES.gender.female;
+  if (name.includes('LELAKI')) return ANALYSIS_TEMPLATES.gender.male;
+  return null;
+};
+
+const buildPrefilledAnalysis = (demographics: ProgramReportPDFProps['demographics']) => {
+  const dominantAge = getDominantDemographic(demographics.umur);
+  const dominantEducation = getDominantDemographic(demographics.pendidikan);
+  const dominantGender = getDominantDemographic(demographics.jantina);
+
+  return [
+    dominantAge && {
+      title: `Umur: ${dominantAge.name} (${dominantAge.percentage}%)`,
+      text: getAgeTemplate(dominantAge.name),
+    },
+    dominantEducation && {
+      title: `Pendidikan: ${dominantEducation.name} (${dominantEducation.percentage}%)`,
+      text: getEducationTemplate(dominantEducation.name),
+    },
+    dominantGender && {
+      title: `Jantina: ${dominantGender.name} (${dominantGender.percentage}%)`,
+      text: getGenderTemplate(dominantGender.name, dominantGender.percentage),
+    },
+  ].filter((item): item is { title: string; text: string } => Boolean(item && item.text));
+};
+
 // Standard fonts are used by default (Helvetica, etc.)
 const styles = StyleSheet.create({
   page: {
@@ -139,7 +216,7 @@ const styles = StyleSheet.create({
   demographicsSection: {
     paddingHorizontal: 50,
     flexDirection: 'row',
-    gap: 45,
+    gap: 28,
   },
   demoCol: {
     flex: 1,
@@ -153,19 +230,71 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
     paddingBottom: 5,
   },
-  demoRow: {
+  demoChartRow: {
+    marginBottom: 9,
+  },
+  demoChartHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 3,
   },
   demoLabel: {
-    fontSize: 9,
+    fontSize: 7,
     color: '#4B5563',
+    flex: 1,
+    paddingRight: 5,
   },
   demoValue: {
-    fontSize: 9,
+    fontSize: 7,
     fontWeight: 'bold',
     color: '#1A1A1A',
+  },
+  demoBarTrack: {
+    height: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  demoBarFill: {
+    height: 6,
+    backgroundColor: '#D0F240',
+    borderRadius: 999,
+  },
+  demoPercent: {
+    fontSize: 6,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  prefilledAnalysisBox: {
+    marginHorizontal: 50,
+    marginTop: 22,
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+  },
+  prefilledAnalysisTitle: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  prefilledAnalysisItem: {
+    marginBottom: 7,
+  },
+  prefilledAnalysisLabel: {
+    fontSize: 7,
+    fontWeight: 'bold',
+    color: '#3F6212',
+    marginBottom: 2,
+  },
+  prefilledAnalysisText: {
+    fontSize: 7,
+    color: '#4B5563',
+    lineHeight: 1.35,
   },
   
   footer: {
@@ -334,6 +463,8 @@ interface ProgramReportPDFProps {
   };
   rawComments: string[];
   rawSuggestions: string[];
+  highlightedCommentIndexes?: number[];
+  highlightedSuggestionIndexes?: number[];
   totalComments: number;
   totalSuggestions: number;
   aiAnalysis?: string | null;
@@ -352,6 +483,8 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
   demographics,
   rawComments,
   rawSuggestions,
+  highlightedCommentIndexes = [],
+  highlightedSuggestionIndexes = [],
   totalComments,
   totalSuggestions,
   aiAnalysis,
@@ -373,6 +506,38 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
 
   const commentChunks = chunkArray(rawComments, itemsPerPage);
   const suggestionChunks = chunkArray(rawSuggestions, itemsPerPage);
+  const highlightedComments = new Set(highlightedCommentIndexes);
+  const highlightedSuggestions = new Set(highlightedSuggestionIndexes);
+  const prefilledAnalysis = buildPrefilledAnalysis(demographics);
+
+  const renderDemographicChart = (items: { name: string; value: number }[]) => {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+
+    if (items.length === 0 || total === 0) {
+      return (
+        <Text style={{ fontSize: 8, color: '#9CA3AF', fontStyle: 'italic' }}>
+          Tiada data
+        </Text>
+      );
+    }
+
+    return items.map((item, index) => {
+      const percentage = Math.round((item.value / total) * 100);
+
+      return (
+        <View key={`${item.name}-${index}`} style={styles.demoChartRow}>
+          <View style={styles.demoChartHeader}>
+            <Text style={styles.demoLabel}>{item.name}</Text>
+            <Text style={styles.demoValue}>{item.value}</Text>
+          </View>
+          <View style={styles.demoBarTrack}>
+            <View style={[styles.demoBarFill, { width: `${Math.max(percentage, 3)}%` }]} />
+          </View>
+          <Text style={styles.demoPercent}>{percentage}% daripada kategori ini</Text>
+        </View>
+      );
+    });
+  };
 
   return (
     <Document>
@@ -381,7 +546,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
         <View style={styles.topBar} />
         
         <View style={styles.headerContainer}>
-          <Text style={styles.headerLabel}>LAPORAN ANALISIS PROGRAM</Text>
+          <Text style={styles.headerLabel}>LAPORAN PENILAIAN PROGRAM</Text>
           <Text style={styles.title}>{programName}</Text>
           <Text style={styles.organizer}>PENGANJUR: {penganjur}</Text>
         </View>
@@ -439,32 +604,28 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
           <View style={styles.demographicsSection}>
             <View style={styles.demoCol}>
               <Text style={styles.demoTitle}>JANTINA</Text>
-              {demographics.jantina.map((d, i) => (
-                <View key={i} style={styles.demoRow}>
-                  <Text style={styles.demoLabel}>{d.name}</Text>
-                  <Text style={styles.demoValue}>{d.value}</Text>
-                </View>
-              ))}
+              {renderDemographicChart(demographics.jantina)}
             </View>
             <View style={styles.demoCol}>
               <Text style={styles.demoTitle}>UMUR</Text>
-              {demographics.umur.map((d, i) => (
-                <View key={i} style={styles.demoRow}>
-                  <Text style={styles.demoLabel}>{d.name}</Text>
-                  <Text style={styles.demoValue}>{d.value}</Text>
-                </View>
-              ))}
+              {renderDemographicChart(demographics.umur)}
             </View>
             <View style={styles.demoCol}>
               <Text style={styles.demoTitle}>PENDIDIKAN</Text>
-              {demographics.pendidikan.map((d, i) => (
-                <View key={i} style={styles.demoRow}>
-                  <Text style={styles.demoLabel}>{d.name}</Text>
-                  <Text style={styles.demoValue}>{d.value}</Text>
+              {renderDemographicChart(demographics.pendidikan)}
+            </View>
+          </View>
+          {prefilledAnalysis.length > 0 && (
+            <View style={styles.prefilledAnalysisBox}>
+              <Text style={styles.prefilledAnalysisTitle}>Analisis Demografi Pra-Isi</Text>
+              {prefilledAnalysis.map((item, index) => (
+                <View key={`${item.title}-${index}`} style={styles.prefilledAnalysisItem}>
+                  <Text style={styles.prefilledAnalysisLabel}>{item.title}</Text>
+                  <Text style={styles.prefilledAnalysisText}>{item.text}</Text>
                 </View>
               ))}
             </View>
-          </View>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -541,12 +702,30 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
                     <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
                     <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>KOMEN</Text>
                   </View>
-                  {currentComments.map((comment, idx) => (
-                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 * appendixScale }}>
-                      <Text style={{ fontSize: baseFontSize, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
-                      <Text style={{ fontSize: baseFontSize, color: '#374151', flex: 1, lineHeight: 1.3 }}>"{comment}"</Text>
+                  {currentComments.map((comment, idx) => {
+                    const absoluteIndex = pageIdx * itemsPerPage + idx;
+                    const isHighlighted = highlightedComments.has(absoluteIndex);
+
+                    return (
+                    <View
+                      key={idx}
+                      style={{
+                        flexDirection: 'row',
+                        borderBottomWidth: 1,
+                        borderBottomColor: isHighlighted ? '#FACC15' : '#F3F4F6',
+                        backgroundColor: isHighlighted ? '#FEFCE8' : '#FFFFFF',
+                        paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        minHeight: 30 * appendixScale,
+                      }}
+                    >
+                      <Text style={{ fontSize: baseFontSize, color: isHighlighted ? '#A16207' : '#6B7280', width: 25 }}>{absoluteIndex + 1}.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: isHighlighted ? '#713F12' : '#374151', flex: 1, lineHeight: 1.3 }}>
+                        {isHighlighted ? '★ ' : ''}"{comment}"
+                      </Text>
                     </View>
-                  ))}
+                    );
+                  })}
                   {currentComments.length === 0 && (
                     <View style={{ padding: 20, alignItems: 'center' }}>
                       <Text style={{ fontSize: baseFontSize, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada komen di halaman ini.</Text>
@@ -565,12 +744,30 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
                     <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', width: 25 }}>NO.</Text>
                     <Text style={{ fontSize: smallFontSize, fontWeight: 'bold', color: '#4B5563', flex: 1 }}>CADANGAN</Text>
                   </View>
-                  {currentSuggestions.map((suggestion, idx) => (
-                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingVertical: 8, paddingHorizontal: 8, minHeight: 30 * appendixScale }}>
-                      <Text style={{ fontSize: baseFontSize, color: '#6B7280', width: 25 }}>{pageIdx * itemsPerPage + idx + 1}.</Text>
-                      <Text style={{ fontSize: baseFontSize, color: '#374151', flex: 1, lineHeight: 1.3 }}>{suggestion}</Text>
+                  {currentSuggestions.map((suggestion, idx) => {
+                    const absoluteIndex = pageIdx * itemsPerPage + idx;
+                    const isHighlighted = highlightedSuggestions.has(absoluteIndex);
+
+                    return (
+                    <View
+                      key={idx}
+                      style={{
+                        flexDirection: 'row',
+                        borderBottomWidth: 1,
+                        borderBottomColor: isHighlighted ? '#FACC15' : '#F3F4F6',
+                        backgroundColor: isHighlighted ? '#FEFCE8' : '#FFFFFF',
+                        paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        minHeight: 30 * appendixScale,
+                      }}
+                    >
+                      <Text style={{ fontSize: baseFontSize, color: isHighlighted ? '#A16207' : '#6B7280', width: 25 }}>{absoluteIndex + 1}.</Text>
+                      <Text style={{ fontSize: baseFontSize, color: isHighlighted ? '#713F12' : '#374151', flex: 1, lineHeight: 1.3 }}>
+                        {isHighlighted ? '★ ' : ''}{suggestion}
+                      </Text>
                     </View>
-                  ))}
+                    );
+                  })}
                   {currentSuggestions.length === 0 && (
                     <View style={{ padding: 20, alignItems: 'center' }}>
                       <Text style={{ fontSize: baseFontSize, color: '#9CA3AF', fontStyle: 'italic' }}>Tiada cadangan di halaman ini.</Text>

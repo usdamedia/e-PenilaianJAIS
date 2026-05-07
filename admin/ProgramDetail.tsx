@@ -7,12 +7,13 @@ import {
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
   Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon, Save, CheckCircle2
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
 import html2canvas from 'html2canvas';
 import { pdf } from '@react-pdf/renderer';
 import ProgramReportPDF from './ProgramReportPDF';
+import { MONTHS } from '../constants';
 
 interface ProgramDetailProps {
   programName: string;
@@ -21,6 +22,7 @@ interface ProgramDetailProps {
   onRefresh: () => void;
   initialFilters?: {
     year?: string;
+    month?: string;
     quarter?: string;
     date?: string;
     bahagian?: string;
@@ -32,12 +34,29 @@ interface ProgramDetailProps {
 interface ProgramVariantOption {
   id: string;
   year: string;
+  month: string;
   quarter: string;
   date: string;
   bahagian: string;
   location: string;
   penganjur: string;
   totalRespondents: number;
+}
+
+interface StoredFeedbackHighlights {
+  commentIndexes: number[];
+  suggestionIndexes: number[];
+  commentSignature: string;
+  suggestionSignature: string;
+  savedAt: string;
+}
+
+interface HighlightableFeedbackRowProps {
+  index: number;
+  text: string;
+  type: 'comment' | 'suggestion';
+  isHighlighted: boolean;
+  onToggle: () => void;
 }
 
 const COLORS = {
@@ -48,6 +67,69 @@ const COLORS = {
   white: '#FFFFFF'
 };
 
+const HIGHLIGHT_STORAGE_PREFIX = 'ePenilaian:programDetailHighlights:v1';
+
+const createFeedbackSignature = (items: string[]) => {
+  return items.map((item, index) => `${index}:${item}`).join('\u001F');
+};
+
+const setsAreEqual = (first: Set<number>, second: Set<number>) => {
+  if (first.size !== second.size) return false;
+  for (const value of first) {
+    if (!second.has(value)) return false;
+  }
+  return true;
+};
+
+const HighlightableFeedbackRow: React.FC<HighlightableFeedbackRowProps> = ({
+  index,
+  text,
+  type,
+  isHighlighted,
+  onToggle,
+}) => {
+  const isComment = type === 'comment';
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onToggle();
+    }
+  };
+
+  return (
+    <tr
+      role="button"
+      tabIndex={0}
+      aria-pressed={isHighlighted}
+      aria-label={`${isHighlighted ? 'Buang highlight' : 'Highlight'} ${isComment ? 'komen' : 'cadangan'} nombor ${index + 1}`}
+      onClick={onToggle}
+      onKeyDown={handleKeyDown}
+      className={[
+        'cursor-pointer transition-all group outline-none',
+        isHighlighted
+          ? 'bg-yellow-50 hover:bg-yellow-100/80 ring-1 ring-inset ring-yellow-300'
+          : 'hover:bg-gray-50/50 focus:bg-gray-50/70',
+      ].join(' ')}
+      title="Klik untuk tanda sebagai perlu diberi perhatian"
+    >
+      <td className={`px-6 py-4 text-[10px] font-black w-12 align-top pt-5 ${isHighlighted ? 'text-yellow-700' : 'text-gray-300'}`}>
+        {String(index + 1).padStart(2, '0')}
+      </td>
+      <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 leading-relaxed align-top font-medium">
+        <div className="flex items-start gap-3">
+          <span className={`mt-0.5 shrink-0 transition-colors ${isHighlighted ? 'text-yellow-500' : 'text-gray-200 group-hover:text-gray-300'}`}>
+            <Star size={15} fill={isHighlighted ? 'currentColor' : 'none'} />
+          </span>
+          <span className={isComment ? 'italic' : undefined}>
+            {isComment ? `"${text}"` : text}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 // Helper untuk format tarikh (ISO -> DD/MM/YYYY)
 const formatDateKey = (isoString: string) => {
   if (!isoString) return '-';
@@ -56,6 +138,18 @@ const formatDateKey = (isoString: string) => {
   } catch (e) {
     return '-';
   }
+};
+
+const getVariantSummaryLabel = (variant: ProgramVariantOption) => {
+  const parts = [
+    variant.date !== '-' ? variant.date : '',
+    variant.month !== '-' ? (MONTHS[Number(variant.month)] || variant.month) : '',
+    variant.year !== '-' ? variant.year : '',
+    variant.location !== '-' ? variant.location : '',
+    variant.penganjur !== '-' ? variant.penganjur : '',
+  ].filter(Boolean);
+
+  return parts.join(' • ');
 };
 
 export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data, onBack, onRefresh, initialFilters }) => {
@@ -81,6 +175,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const [editableAnalysis, setEditableAnalysis] = useState<string | null>(null);
   const [editableComments, setEditableComments] = useState<string[]>([]);
   const [editableSuggestions, setEditableSuggestions] = useState<string[]>([]);
+  const [highlightedCommentIndexes, setHighlightedCommentIndexes] = useState<Set<number>>(new Set<number>());
+  const [highlightedSuggestionIndexes, setHighlightedSuggestionIndexes] = useState<Set<number>>(new Set<number>());
+  const [savedHighlightedCommentIndexes, setSavedHighlightedCommentIndexes] = useState<Set<number>>(new Set<number>());
+  const [savedHighlightedSuggestionIndexes, setSavedHighlightedSuggestionIndexes] = useState<Set<number>>(new Set<number>());
+  const [highlightSavedAt, setHighlightSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     // Handle "UNKNOWN" case: Set to empty string to trigger fallback text
@@ -95,6 +194,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // Filter States
   const [selectedYear, setSelectedYear] = useState<string>('SEMUA');
+  const [selectedMonth, setSelectedMonth] = useState<string>('SEMUA');
   const [selectedQuarter, setSelectedQuarter] = useState<string>('SEMUA');
   const [selectedDate, setSelectedDate] = useState<string>('SEMUA');
   const [selectedBahagian, setSelectedBahagian] = useState<string>('SEMUA');
@@ -103,6 +203,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   useEffect(() => {
     setSelectedYear(initialFilters?.year || 'SEMUA');
+    setSelectedMonth(initialFilters?.month || 'SEMUA');
     setSelectedQuarter(initialFilters?.quarter || 'SEMUA');
     setSelectedDate(initialFilters?.date || 'SEMUA');
     setSelectedBahagian(initialFilters?.bahagian || 'SEMUA');
@@ -147,17 +248,22 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     allProgramData.forEach((item) => {
       const year = String(item.filterTahun || '').trim() || '-';
+      const month = (() => {
+        const parsed = new Date(item.programDate);
+        return isNaN(parsed.getTime()) ? '-' : String(parsed.getUTCMonth());
+      })();
       const quarter = String(item.quarter || '').trim().toUpperCase() || '-';
       const date = formatDateKey(item.programDate);
       const bahagian = item.bahagian || '-';
       const location = item.tempat || '-';
       const penganjur = item.penganjur || '-';
-      const key = [year, quarter, date, bahagian, location, penganjur].join('|');
+      const key = [year, month, quarter, date, bahagian, location, penganjur].join('|');
 
       if (!groups[key]) {
         groups[key] = {
           id: key,
           year,
+          month,
           quarter,
           date,
           bahagian,
@@ -191,10 +297,35 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   }, [allProgramData]);
 
   // B. Unique Quarters (Level 2 - Depends on Year)
+  const uniqueMonths = useMemo(() => {
+    let source = allProgramData;
+    if (selectedYear !== 'SEMUA') {
+      source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+
+    const set = new Set(
+      source
+        .map(d => {
+          const parsed = new Date(d.programDate);
+          return isNaN(parsed.getTime()) ? '' : String(parsed.getUTCMonth());
+        })
+        .filter(Boolean)
+    );
+
+    return Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }, [allProgramData, selectedYear]);
+
+  // B. Unique Quarters (Level 2 - Depends on Year & Month)
   const uniqueQuarters = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
       source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+    if (selectedMonth !== 'SEMUA') {
+      source = source.filter(d => {
+        const parsed = new Date(d.programDate);
+        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+      });
     }
 
     const set = new Set(
@@ -203,13 +334,19 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         .filter(Boolean)
     );
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear]);
+  }, [allProgramData, selectedYear, selectedMonth]);
 
-  // B. Unique Dates (Level 2 - Depends on Year)
+  // C. Unique Dates (Depends on Year, Month & Quarter)
   const uniqueDates = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
       source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+    if (selectedMonth !== 'SEMUA') {
+      source = source.filter(d => {
+        const parsed = new Date(d.programDate);
+        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+      });
     }
     if (selectedQuarter !== 'SEMUA') {
       source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
@@ -229,13 +366,19 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime()); // Sort Descending
 
     return unique as { iso: string, label: string }[];
-  }, [allProgramData, selectedYear, selectedQuarter]);
+  }, [allProgramData, selectedYear, selectedMonth, selectedQuarter]);
 
-  // C. Unique Bahagian (Level 3 - Depends on Year & Date)
+  // D. Unique Bahagian
   const uniqueBahagian = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
         source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    }
+    if (selectedMonth !== 'SEMUA') {
+        source = source.filter(d => {
+          const parsed = new Date(d.programDate);
+          return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+        });
     }
     if (selectedQuarter !== 'SEMUA') {
         source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
@@ -245,24 +388,32 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     }
     const set = new Set(source.map(d => d.bahagian).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedQuarter, selectedDate]);
+  }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate]);
 
-  // D. Unique Locations (Level 4 - Depends on Year, Date & Bahagian)
+  // E. Unique Locations
   const uniqueLocations = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    if (selectedMonth !== 'SEMUA') source = source.filter(d => {
+      const parsed = new Date(d.programDate);
+      return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+    });
     if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
     
     const set = new Set(source.map(d => d.tempat).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian]);
+  }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian]);
 
-  // E. Unique Penganjur (Level 5 - Depends on Year, Date, Bahagian & Location)
+  // F. Unique Penganjur
   const uniquePenganjur = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    if (selectedMonth !== 'SEMUA') source = source.filter(d => {
+      const parsed = new Date(d.programDate);
+      return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+    });
     if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     if (selectedBahagian !== 'SEMUA') source = source.filter(d => d.bahagian === selectedBahagian);
@@ -270,16 +421,17 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     const set = new Set(source.map(d => d.penganjur).filter(Boolean));
     return Array.from(set).sort();
-  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation]);
+  }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation]);
 
   // Reset Filters logic when parent filter changes
   useEffect(() => {
+    if (selectedMonth !== 'SEMUA' && !uniqueMonths.includes(selectedMonth)) setSelectedMonth('SEMUA');
     if (selectedQuarter !== 'SEMUA' && !uniqueQuarters.includes(selectedQuarter)) setSelectedQuarter('SEMUA');
     if (selectedDate !== 'SEMUA' && !uniqueDates.some(d => d.label === selectedDate)) setSelectedDate('SEMUA');
     if (selectedBahagian !== 'SEMUA' && !uniqueBahagian.includes(selectedBahagian)) setSelectedBahagian('SEMUA');
     if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
     if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
-  }, [selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueQuarters, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
+  }, [selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueMonths, uniqueQuarters, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
 
   useEffect(() => {
       if (selectedBahagian !== 'SEMUA') {
@@ -297,6 +449,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const selectedVariantId = useMemo(() => {
     if (
       selectedYear === 'SEMUA' ||
+      selectedMonth === 'SEMUA' ||
       selectedQuarter === 'SEMUA' ||
       selectedDate === 'SEMUA' ||
       selectedBahagian === 'SEMUA' ||
@@ -308,6 +461,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     const match = programVariants.find((variant) =>
       variant.year === selectedYear &&
+      variant.month === selectedMonth &&
       variant.quarter === selectedQuarter &&
       variant.date === selectedDate &&
       variant.bahagian === selectedBahagian &&
@@ -316,11 +470,12 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     );
 
     return match?.id || 'SEMUA';
-  }, [programVariants, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+  }, [programVariants, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
   const handleVariantSelect = (variantId: string) => {
     if (variantId === 'SEMUA') {
       setSelectedYear('SEMUA');
+      setSelectedMonth('SEMUA');
       setSelectedQuarter('SEMUA');
       setSelectedDate('SEMUA');
       setSelectedBahagian('SEMUA');
@@ -333,6 +488,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (!variant) return;
 
     setSelectedYear(variant.year !== '-' ? variant.year : 'SEMUA');
+    setSelectedMonth(variant.month !== '-' ? variant.month : 'SEMUA');
     setSelectedQuarter(variant.quarter !== '-' ? variant.quarter : 'SEMUA');
     setSelectedDate(variant.date !== '-' ? variant.date : 'SEMUA');
     setSelectedBahagian(variant.bahagian !== '-' ? variant.bahagian : 'SEMUA');
@@ -345,14 +501,18 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
       const matchYear = selectedYear === 'SEMUA' || String(d.filterTahun || '').trim() === selectedYear;
+      const matchMonth = selectedMonth === 'SEMUA' || (() => {
+        const parsed = new Date(d.programDate);
+        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+      })();
       const matchQuarter = selectedQuarter === 'SEMUA' || String(d.quarter || '').trim().toUpperCase() === selectedQuarter;
       const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
       const matchBahagian = selectedBahagian === 'SEMUA' || d.bahagian === selectedBahagian;
       const matchLocation = selectedLocation === 'SEMUA' || d.tempat === selectedLocation;
       const matchPenganjur = selectedPenganjur === 'SEMUA' || d.penganjur === selectedPenganjur;
-      return matchYear && matchQuarter && matchDate && matchBahagian && matchLocation && matchPenganjur;
+      return matchYear && matchMonth && matchQuarter && matchDate && matchBahagian && matchLocation && matchPenganjur;
     });
-  }, [allProgramData, selectedYear, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
+  }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
   // 4. DERIVE LOCATION & PENGANJUR AUTOMATICALLY (Based on filteredData)
   const displayedLocation = useMemo(() => {
@@ -375,6 +535,13 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return `${penganjurs.length} PENGANJUR BERBEZA`;
   }, [filteredData, selectedPenganjur]);
 
+  const displayedProgramDate = useMemo(() => {
+    if (selectedDate !== 'SEMUA') return selectedDate;
+    if (uniqueDates.length === 0) return '-';
+    if (uniqueDates.length === 1) return uniqueDates[0]?.label || '-';
+    return `${uniqueDates.length} TARIKH BERBEZA`;
+  }, [selectedDate, uniqueDates]);
+
   const activeFilterSummary = useMemo(() => {
     const yearLabel = selectedYear !== 'SEMUA'
       ? selectedYear
@@ -382,11 +549,13 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         ? uniqueYears[0]
         : `${uniqueYears.length} TAHUN`;
 
-    const dateLabel = selectedDate !== 'SEMUA'
-      ? selectedDate
-      : uniqueDates.length === 1
-        ? (uniqueDates[0]?.label || '-')
-        : `${uniqueDates.length} TARIKH`;
+    const monthLabel = selectedMonth !== 'SEMUA'
+      ? (MONTHS[Number(selectedMonth)] || selectedMonth)
+      : uniqueMonths.length === 1
+        ? (MONTHS[Number(uniqueMonths[0])] || uniqueMonths[0])
+        : `${uniqueMonths.length} BULAN`;
+
+    const dateLabel = displayedProgramDate;
 
     const quarterLabel = selectedQuarter !== 'SEMUA'
       ? selectedQuarter
@@ -410,6 +579,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
     return [
       { label: 'Tahun', value: yearLabel },
+      { label: 'Bulan', value: monthLabel },
       { label: 'Suku', value: quarterLabel },
       { label: 'Tarikh', value: dateLabel },
       { label: 'Bahagian', value: bahagianLabel },
@@ -419,10 +589,13 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   }, [
     selectedYear,
     uniqueYears,
+    selectedMonth,
+    uniqueMonths,
     selectedQuarter,
     uniqueQuarters,
     selectedDate,
     uniqueDates,
+    displayedProgramDate,
     selectedBahagian,
     uniqueBahagian,
     selectedLocation,
@@ -488,6 +661,45 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       .map(d => d.cadangan!.trim());
   }, [filteredData]);
 
+  const commentSignature = useMemo(() => createFeedbackSignature(commentList), [commentList]);
+  const suggestionSignature = useMemo(() => createFeedbackSignature(suggestionList), [suggestionList]);
+
+  const highlightStorageKey = useMemo(() => {
+    const context = {
+      programName,
+      selectedYear,
+      selectedMonth,
+      selectedQuarter,
+      selectedDate,
+      selectedBahagian,
+      selectedLocation,
+      selectedPenganjur,
+    };
+
+    return `${HIGHLIGHT_STORAGE_PREFIX}:${JSON.stringify(context)}`;
+  }, [
+    programName,
+    selectedYear,
+    selectedMonth,
+    selectedQuarter,
+    selectedDate,
+    selectedBahagian,
+    selectedLocation,
+    selectedPenganjur,
+  ]);
+
+  const hasUnsavedHighlights = useMemo(() => {
+    return (
+      !setsAreEqual(highlightedCommentIndexes, savedHighlightedCommentIndexes) ||
+      !setsAreEqual(highlightedSuggestionIndexes, savedHighlightedSuggestionIndexes)
+    );
+  }, [
+    highlightedCommentIndexes,
+    highlightedSuggestionIndexes,
+    savedHighlightedCommentIndexes,
+    savedHighlightedSuggestionIndexes,
+  ]);
+
   // Initialize editable states when data changes
   useEffect(() => {
     setEditablePenganjur(displayedPenganjur);
@@ -500,6 +712,93 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   useEffect(() => {
     setEditableSuggestions(suggestionList);
   }, [suggestionList]);
+
+  useEffect(() => {
+    const emptyComments = new Set<number>();
+    const emptySuggestions = new Set<number>();
+
+    try {
+      const storedValue = window.localStorage.getItem(highlightStorageKey);
+      if (!storedValue) {
+        setHighlightedCommentIndexes(emptyComments);
+        setHighlightedSuggestionIndexes(emptySuggestions);
+        setSavedHighlightedCommentIndexes(emptyComments);
+        setSavedHighlightedSuggestionIndexes(emptySuggestions);
+        setHighlightSavedAt(null);
+        return;
+      }
+
+      const storedHighlights = JSON.parse(storedValue) as StoredFeedbackHighlights;
+      const isSameFeedbackList =
+        storedHighlights.commentSignature === commentSignature &&
+        storedHighlights.suggestionSignature === suggestionSignature;
+
+      if (!isSameFeedbackList) {
+        setHighlightedCommentIndexes(emptyComments);
+        setHighlightedSuggestionIndexes(emptySuggestions);
+        setSavedHighlightedCommentIndexes(emptyComments);
+        setSavedHighlightedSuggestionIndexes(emptySuggestions);
+        setHighlightSavedAt(null);
+        return;
+      }
+
+      const validCommentIndexes = new Set(
+        (storedHighlights.commentIndexes || []).filter((index) => index >= 0 && index < commentList.length)
+      );
+      const validSuggestionIndexes = new Set(
+        (storedHighlights.suggestionIndexes || []).filter((index) => index >= 0 && index < suggestionList.length)
+      );
+
+      setHighlightedCommentIndexes(validCommentIndexes);
+      setHighlightedSuggestionIndexes(validSuggestionIndexes);
+      setSavedHighlightedCommentIndexes(new Set(validCommentIndexes));
+      setSavedHighlightedSuggestionIndexes(new Set(validSuggestionIndexes));
+      setHighlightSavedAt(storedHighlights.savedAt || null);
+    } catch (error) {
+      console.error('Failed to load feedback highlights:', error);
+      setHighlightedCommentIndexes(emptyComments);
+      setHighlightedSuggestionIndexes(emptySuggestions);
+      setSavedHighlightedCommentIndexes(emptyComments);
+      setSavedHighlightedSuggestionIndexes(emptySuggestions);
+      setHighlightSavedAt(null);
+    }
+  }, [highlightStorageKey, commentSignature, suggestionSignature, commentList.length, suggestionList.length]);
+
+  const toggleHighlightedIndex = (
+    index: number,
+    setHighlightedIndexes: React.Dispatch<React.SetStateAction<Set<number>>>
+  ) => {
+    setHighlightedIndexes((currentIndexes) => {
+      const nextIndexes = new Set(currentIndexes);
+      if (nextIndexes.has(index)) {
+        nextIndexes.delete(index);
+      } else {
+        nextIndexes.add(index);
+      }
+      return nextIndexes;
+    });
+  };
+
+  const handleSaveFeedbackHighlights = () => {
+    const savedAt = new Date().toISOString();
+    const storedHighlights: StoredFeedbackHighlights = {
+      commentIndexes: (Array.from(highlightedCommentIndexes) as number[]).sort((a, b) => a - b),
+      suggestionIndexes: (Array.from(highlightedSuggestionIndexes) as number[]).sort((a, b) => a - b),
+      commentSignature,
+      suggestionSignature,
+      savedAt,
+    };
+
+    try {
+      window.localStorage.setItem(highlightStorageKey, JSON.stringify(storedHighlights));
+      setSavedHighlightedCommentIndexes(new Set(storedHighlights.commentIndexes));
+      setSavedHighlightedSuggestionIndexes(new Set(storedHighlights.suggestionIndexes));
+      setHighlightSavedAt(savedAt);
+    } catch (error) {
+      console.error('Failed to save feedback highlights:', error);
+      alert('Maaf, highlight gagal disimpan sementara. Sila cuba lagi.');
+    }
+  };
 
   const displayInfo = filteredData.length > 0 ? filteredData[0] : allProgramData[0];
   const displayPenganjur = displayInfo?.penganjur || "PENGANJUR TIDAK DINYATAKAN";
@@ -545,6 +844,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   // --- PDF GENERATION LOGIC (Professional @react-pdf/renderer) ---
   const handleGeneratePDF = async () => {
+    if (hasUnsavedHighlights) {
+      alert('Sila tekan "Simpan Sementara" dahulu supaya komen/cadangan yang di-highlight dibawa masuk ke PDF.');
+      return;
+    }
+
     setIsDownloading(true);
 
     try {
@@ -570,6 +874,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
           ? selectedDate
           : selectedQuarter !== 'SEMUA'
             ? `SUKU ${selectedQuarter}`
+          : selectedMonth !== 'SEMUA'
+            ? `${MONTHS[Number(selectedMonth)] || selectedMonth} ${selectedYear !== 'SEMUA' ? selectedYear : ''}`.trim()
           : selectedYear !== 'SEMUA'
             ? `TAHUN ${selectedYear}`
             : (uniqueDates.length > 1 ? `PELBAGAI TARIKH (${uniqueDates.length})` : (uniqueDates[0]?.label || '-')),
@@ -580,6 +886,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         // Pass raw comments and suggestions for the new grid layout
         rawComments: editableComments,
         rawSuggestions: editableSuggestions,
+        highlightedCommentIndexes: Array.from(savedHighlightedCommentIndexes),
+        highlightedSuggestionIndexes: Array.from(savedHighlightedSuggestionIndexes),
         totalComments: editableComments.length,
         totalSuggestions: editableSuggestions.length,
         aiAnalysis: editableAnalysis || aiAnalysisResult,
@@ -595,6 +903,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       link.href = url;
       const exportContext = [
         selectedYear !== 'SEMUA' ? selectedYear : '',
+        selectedMonth !== 'SEMUA' ? (MONTHS[Number(selectedMonth)] || selectedMonth) : '',
         selectedQuarter !== 'SEMUA' ? selectedQuarter : '',
         selectedDate !== 'SEMUA' ? selectedDate : '',
         selectedBahagian !== 'SEMUA' ? selectedBahagian : '',
@@ -794,6 +1103,33 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                          placeholder="PENGANJUR TIDAK DINYATAKAN"
                        />
                   </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl"
+                  >
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+                        <Calendar size={14} className="text-lime-400" />
+                        Tarikh Program
+                      </div>
+                      <div className="text-sm font-black uppercase tracking-wide text-white">
+                        {displayedProgramDate}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+                        <MapPin size={14} className="text-lime-400" />
+                        Lokasi Program
+                      </div>
+                      <div className="text-sm font-black uppercase tracking-wide text-white line-clamp-2" title={displayedLocation}>
+                        {displayedLocation}
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
                 
                 {/* Filter Section Header - Principle: Interactive Analysis */}
@@ -805,26 +1141,27 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                 </div>
 
                 {programVariants.length > 1 && (
-                  <div className="mb-8 rounded-2xl border border-lime-400/20 bg-lime-400/5 p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-300">Indikator Utama</span>
-                        <p className="mt-2 text-xs font-bold text-white/90">
-                          Nama program ini mempunyai {programVariants.length} sesi/variasi. Pilih satu untuk auto-filter tahun, suku, tarikh, tempat dan penganjur.
+                  <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Variasi Program</span>
+                        <p className="mt-1 truncate text-xs font-bold text-white/70">
+                          {programVariants.length} variasi tersedia
+                          {selectedVariantId !== 'SEMUA' ? ` • ${getVariantSummaryLabel(programVariants.find((variant) => variant.id === selectedVariantId) || programVariants[0])}` : ''}
                         </p>
                       </div>
-                      <div className="relative w-full sm:max-w-[520px]">
+                      <div className="relative w-full md:max-w-[360px]">
                         <select
                           value={selectedVariantId}
                           onChange={(e) => handleVariantSelect(e.target.value)}
-                          className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-10 text-xs font-black uppercase tracking-wider text-white hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400"
+                          className="w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 pr-9 text-xs font-black uppercase tracking-wider text-white hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400"
                         >
                           <option value="SEMUA" className="bg-white text-dark">
                             Semua Variasi ({programVariants.length})
                           </option>
                           {programVariants.map((variant, idx) => (
                             <option key={variant.id} value={variant.id} className="bg-white text-dark">
-                              {`${idx + 1}. ${variant.year} | ${variant.quarter} | ${variant.date} | ${variant.location} (${variant.totalRespondents} responden)`}
+                              {`${idx + 1}. ${variant.date} | ${variant.location} (${variant.totalRespondents})`}
                             </option>
                           ))}
                         </select>
@@ -835,7 +1172,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                 )}
 
                 {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-6 pb-10 border-b border-white/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-6 pb-10 border-b border-white/10">
                    {/* Year Filter - DYNAMIC */}
                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tahun</span>
@@ -858,6 +1195,33 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                              <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
                                 <Calendar size={16} className="text-lime-400" />
                                 <span className="uppercase tracking-wider">{uniqueYears[0] || '-'}</span>
+                             </div>
+                          )}
+                       </div>
+                   </motion.div>
+
+                   {/* Month Filter - DYNAMIC */}
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }}>
+                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Bulan</span>
+                       <div className="relative">
+                          {uniqueMonths.length > 1 ? (
+                            <div className="group">
+                                <select
+                                  value={selectedMonth}
+                                  onChange={(e) => setSelectedMonth(e.target.value)}
+                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
+                                >
+                                  <option value="SEMUA" className="text-dark bg-white">SEMUA BULAN ({uniqueMonths.length})</option>
+                                  {uniqueMonths.map(month => (
+                                    <option key={month} value={month} className="text-dark bg-white">{MONTHS[Number(month)] || month}</option>
+                                  ))}
+                                </select>
+                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
+                            </div>
+                          ) : (
+                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
+                                <Calendar size={16} className="text-lime-400" />
+                                <span className="uppercase tracking-wider">{uniqueMonths[0] !== undefined ? (MONTHS[Number(uniqueMonths[0])] || uniqueMonths[0]) : '-'}</span>
                              </div>
                           )}
                        </div>
@@ -1248,27 +1612,53 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                   <div>
                     <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-3">Lampiran Maklum Balas</h3>
                     <h2 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Senarai Penuh Komen & Cadangan</h2>
+                    <p className="text-xs text-gray-400 mt-3 font-semibold">
+                      Klik mana-mana komen atau cadangan untuk tanda sebagai perlu diberi perhatian. Tanda ini akan dibawa ke PDF.
+                    </p>
                   </div>
                   
-                  {/* Scale Control */}
-                  <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100" data-html2canvas-ignore>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Skala Kandungan:</span>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setAppendixScale(prev => Math.max(0.5, prev - 0.1))}
-                        className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3" data-html2canvas-ignore>
+                    <div className="flex items-center gap-3 bg-yellow-50 p-2 rounded-2xl border border-yellow-100">
+                      <button
+                        onClick={handleSaveFeedbackHighlights}
+                        className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                          hasUnsavedHighlights
+                            ? 'bg-yellow-400 text-black hover:bg-yellow-300 shadow-sm'
+                            : 'bg-white text-yellow-700 border border-yellow-100'
+                        }`}
                       >
-                        <Minus size={14} />
+                        {hasUnsavedHighlights ? <Save size={14} /> : <CheckCircle2 size={14} />}
+                        {hasUnsavedHighlights ? 'Simpan Sementara' : 'Highlight Disimpan'}
                       </button>
-                      <div className="w-12 text-center font-black text-dark text-xs">
-                        {Math.round(appendixScale * 100)}%
+                      <div className="hidden md:block pr-2 text-[10px] font-bold text-yellow-700">
+                        {hasUnsavedHighlights
+                          ? 'Perlu simpan sebelum export PDF'
+                          : highlightSavedAt
+                            ? `Disimpan ${new Date(highlightSavedAt).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}`
+                            : 'Tiada highlight disimpan'}
                       </div>
-                      <button 
-                        onClick={() => setAppendixScale(prev => Math.min(1.5, prev + 0.1))}
-                        className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
-                      >
-                        <Plus size={14} />
-                      </button>
+                    </div>
+
+                    {/* Scale Control */}
+                    <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Skala Kandungan:</span>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setAppendixScale(prev => Math.max(0.5, prev - 0.1))}
+                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <div className="w-12 text-center font-black text-dark text-xs">
+                          {Math.round(appendixScale * 100)}%
+                        </div>
+                        <button 
+                          onClick={() => setAppendixScale(prev => Math.min(1.5, prev + 0.1))}
+                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                </div>
@@ -1288,13 +1678,15 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                      <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
                         <table className="w-full text-left border-collapse">
                            <tbody className="divide-y divide-gray-50">
-                              {editableComments.length > 0 ? editableComments.map((c, i) => (
-                                 <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4 text-[10px] font-black text-gray-300 w-12 align-top pt-5">{String(i + 1).padStart(2, '0')}</td>
-                                    <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 italic leading-relaxed align-top font-medium">
-                                        "{c}"
-                                    </td>
-                                 </tr>
+                              {editableComments.length > 0 ? editableComments.map((comment, index) => (
+                                 <HighlightableFeedbackRow
+                                   key={`${index}-${comment}`}
+                                   index={index}
+                                   text={comment}
+                                   type="comment"
+                                   isHighlighted={highlightedCommentIndexes.has(index)}
+                                   onToggle={() => toggleHighlightedIndex(index, setHighlightedCommentIndexes)}
+                                 />
                               )) : (
                                  <tr>
                                     <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada komen direkodkan.</td>
@@ -1316,13 +1708,15 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                      <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
                         <table className="w-full text-left border-collapse">
                            <tbody className="divide-y divide-gray-50">
-                              {editableSuggestions.length > 0 ? editableSuggestions.map((s, i) => (
-                                 <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4 text-[10px] font-black text-gray-300 w-12 align-top pt-5">{String(i + 1).padStart(2, '0')}</td>
-                                    <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 leading-relaxed align-top font-medium">
-                                        {s}
-                                    </td>
-                                 </tr>
+                              {editableSuggestions.length > 0 ? editableSuggestions.map((suggestion, index) => (
+                                 <HighlightableFeedbackRow
+                                   key={`${index}-${suggestion}`}
+                                   index={index}
+                                   text={suggestion}
+                                   type="suggestion"
+                                   isHighlighted={highlightedSuggestionIndexes.has(index)}
+                                   onToggle={() => toggleHighlightedIndex(index, setHighlightedSuggestionIndexes)}
+                                 />
                               )) : (
                                  <tr>
                                     <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada cadangan direkodkan.</td>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
   Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal,
-  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot, MessageSquare
+  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot, MessageSquare, AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -113,6 +113,46 @@ interface ProgramVariantSummary {
   averageScore: number;
 }
 
+const getVariantPreviewLabel = (item: DashboardData) => {
+  const parts = [
+    formatProgramDateLabel(item.programDate) !== '-' ? formatProgramDateLabel(item.programDate) : '',
+    item.tempat && item.tempat !== '-' ? item.tempat : '',
+    item.penganjur && item.penganjur !== '-' ? item.penganjur : '',
+  ].filter(Boolean);
+
+  return parts.join(' • ');
+};
+
+const getProgramVariantChoice = (item: DashboardData) => {
+  const date = formatProgramDateLabel(item.programDate);
+  const year = item.filterTahun || '-';
+  const quarter = String(item.quarter || '').trim().toUpperCase() || '-';
+  const bahagian = item.bahagian || '-';
+  const location = item.tempat || '-';
+  const penganjur = item.penganjur || '-';
+  const id = [year, quarter, date, bahagian, location, penganjur].join('|');
+  const label = [
+    date !== '-' ? date : '',
+    year !== '-' ? year : '',
+    quarter !== '-' ? getQuarterLabel(quarter) : '',
+    location !== '-' ? location : '',
+    penganjur !== '-' ? penganjur : '',
+  ].filter(Boolean).join(' • ');
+
+  return {
+    id,
+    label: label || 'Variasi program',
+    initialFilters: {
+      year: year !== '-' ? year : undefined,
+      quarter: quarter !== '-' ? quarter : undefined,
+      date: date !== '-' ? date : undefined,
+      bahagian: bahagian !== '-' ? bahagian : undefined,
+      location: location !== '-' ? location : undefined,
+      penganjur: penganjur !== '-' ? penganjur : undefined,
+    },
+  };
+};
+
 // NavItem Component Definition
 interface NavItemProps {
   icon: React.ReactNode;
@@ -152,7 +192,8 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
 );
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { rawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
+  const { rawData: dashboardRawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
+  const rawData = dashboardRawData || [];
   const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<ProgramSelectionState | null>(null);
@@ -293,6 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         totalRespondents: 0, 
         totalPrograms: 0,
         avgKeseluruhan: "0.00",
+        avgFormula: "0.00",
         avgPengisian: "0.00",
         avgFasilitator: "0.00" 
     };
@@ -394,6 +436,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       tempat: string;
       penganjur: string;
       variants: Set<string>;
+      variantChoices: Map<string, ReturnType<typeof getProgramVariantChoice> & { totalScore: number, count: number, penganjur: string, bahagian: string, tempat: string }>;
+      variantPreview: string[];
       totalScore: number;
       count: number;
       timestamps: string[];
@@ -408,18 +452,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           tempat: item.tempat,
           penganjur: item.penganjur,
           variants: new Set<string>(),
+          variantChoices: new Map(),
+          variantPreview: [],
           totalScore: 0,
           count: 0,
           timestamps: []
         };
       }
-      groups[key].variants.add([
-        item.filterTahun || '-',
-        item.programDate || '-',
-        item.bahagian || '-',
-        item.tempat || '-',
-        item.penganjur || '-'
-      ].join('|'));
+      const variantChoice = getProgramVariantChoice(item);
+      groups[key].variants.add(variantChoice.id);
+      
+      let existingVariant = groups[key].variantChoices.get(variantChoice.id);
+      if (!existingVariant) {
+        existingVariant = {
+          ...variantChoice,
+          totalScore: 0,
+          count: 0,
+          penganjur: item.penganjur,
+          bahagian: item.bahagian,
+          tempat: item.tempat
+        };
+        groups[key].variantChoices.set(variantChoice.id, existingVariant);
+      }
+      existingVariant.count += 1;
+      existingVariant.totalScore += item.skorKeseluruhan;
+
+      const previewLabel = getVariantPreviewLabel(item);
+      if (previewLabel && !groups[key].variantPreview.includes(previewLabel) && groups[key].variantPreview.length < 3) {
+        groups[key].variantPreview.push(previewLabel);
+      }
       groups[key].totalScore += item.skorKeseluruhan;
       groups[key].count += 1;
       groups[key].timestamps.push(item.timestamp);
@@ -432,6 +493,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       tempat: group.tempat,
       penganjur: group.penganjur,
       variantCount: group.variants.size,
+      variantPreview: group.variantPreview,
+      variants: Array.from(group.variantChoices.values()).map(v => ({
+        ...v,
+        totalRespondents: v.count,
+        averageScore: v.count > 0 ? (v.totalScore / v.count) : 0
+      })),
       totalRespondents: group.count,
       averageScore: group.count > 0 ? (group.totalScore / group.count) : 0,
       lastUpdated: 'Live'
@@ -446,8 +513,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     );
   }, [filteredData, searchTerm]);
 
-  const handleProgramSelect = (programName: string) => {
-    setSelectedProgram({ programName });
+  const handleProgramSelect = (programName: string, initialFilters?: Record<string, string | undefined>) => {
+    setSelectedProgram({ programName, initialFilters });
     setProgramVariantPicker(null);
     setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
@@ -760,6 +827,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       <div className="flex flex-col items-center gap-4">
         <div className="w-16 h-16 border-4 border-gray-200 border-t-lime-500 rounded-full animate-spin"></div>
         <p className="text-gray-500 font-bold animate-pulse text-sm tracking-wide">MEMUATKAN DATA...</p>
+      </div>
+    </div>
+  );
+
+  if (rawData.length === 0) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="max-w-lg w-full bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8 text-center">
+        <AlertCircle size={44} className="mx-auto text-orange-400 mb-4" />
+        <h2 className="text-xl font-black text-dark mb-2">Data dashboard tidak dapat dimuatkan</h2>
+        <p className="text-sm text-gray-500 font-medium mb-6">
+          Sumber data Google Script tidak memulangkan rekod. Semak sambungan internet atau tekan kemaskini semula.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={refreshData}
+            className="flex-1 px-5 py-3 rounded-2xl bg-lime-400 text-dark text-sm font-black hover:bg-lime-500 transition-all"
+          >
+            Kemaskini Semula
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex-1 px-5 py-3 rounded-2xl bg-gray-100 text-gray-600 text-sm font-black hover:bg-gray-200 transition-all"
+          >
+            Kembali
+          </button>
+        </div>
       </div>
     </div>
   );

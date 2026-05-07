@@ -1,15 +1,16 @@
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { 
   LayoutDashboard, Users, Star, Activity, ArrowLeft, 
-  TrendingUp, MapPin, Calendar, Award 
+  TrendingUp, MapPin, Calendar, Award, Search, ChevronRight, Building2
 } from 'lucide-react';
 import { useDashboardData } from './hooks/useDashboardData';
 import { StatCard } from './components/StatCard';
+import { ProgramDetail } from '../admin/ProgramDetail';
 
 // Brand Colors
 const COLORS = {
@@ -46,8 +47,90 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const formatVariantDateLabel = (isoString: string) => {
+  if (!isoString) return '-';
+  try {
+    return new Date(isoString).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch (error) {
+    return '-';
+  }
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
-  const { loading, stats, charts } = useDashboardData();
+  const { loading, stats, charts, rawData, refreshData } = useDashboardData();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
+
+  const programSummaries = useMemo(() => {
+    const groups: Record<string, {
+      totalRespondents: number;
+      totalScore: number;
+      locations: Set<string>;
+      organizers: Set<string>;
+      latestTimestamp: number;
+    }> = {};
+
+    rawData.forEach((item) => {
+      const key = item.programName || 'PROGRAM TIDAK DINYATAKAN';
+      if (!groups[key]) {
+        groups[key] = {
+          totalRespondents: 0,
+          totalScore: 0,
+          locations: new Set<string>(),
+          organizers: new Set<string>(),
+          latestTimestamp: 0,
+        };
+      }
+
+      groups[key].totalRespondents += 1;
+      groups[key].totalScore += Number(item.skorKeseluruhan) || 0;
+      if (item.tempat && item.tempat !== '-') groups[key].locations.add(item.tempat);
+      if (item.penganjur && item.penganjur !== '-') groups[key].organizers.add(item.penganjur);
+
+      const ts = new Date(item.timestamp).getTime();
+      if (!Number.isNaN(ts)) {
+        groups[key].latestTimestamp = Math.max(groups[key].latestTimestamp, ts);
+      }
+    });
+
+    const summaries = Object.entries(groups)
+      .map(([programName, group]) => ({
+        programName,
+        totalRespondents: group.totalRespondents,
+        averageScore: group.totalRespondents > 0 ? group.totalScore / group.totalRespondents : 0,
+        locationLabel: group.locations.size <= 1 ? (Array.from(group.locations)[0] || '-') : `${group.locations.size} TEMPAT`,
+        organizerLabel: group.organizers.size <= 1 ? (Array.from(group.organizers)[0] || '-') : `${group.organizers.size} PENGANJUR`,
+        variantPreview: Array.from(
+          new Set(
+            rawData
+              .filter((row) => (row.programName || 'PROGRAM TIDAK DINYATAKAN') === programName)
+              .map((row) => [formatVariantDateLabel(row.programDate), row.tempat, row.penganjur].filter(Boolean).join(' • '))
+              .filter(Boolean)
+          )
+        ).slice(0, 3),
+        lastUpdated: group.latestTimestamp,
+      }))
+      .sort((a, b) => b.lastUpdated - a.lastUpdated || b.totalRespondents - a.totalRespondents);
+
+    if (!searchTerm.trim()) return summaries;
+    const q = searchTerm.toLowerCase();
+    return summaries.filter((item) =>
+      item.programName.toLowerCase().includes(q) ||
+      item.locationLabel.toLowerCase().includes(q) ||
+      item.organizerLabel.toLowerCase().includes(q)
+    );
+  }, [rawData, searchTerm]);
+
+  if (selectedProgram) {
+    return (
+      <ProgramDetail
+        programName={selectedProgram}
+        data={rawData}
+        onBack={() => setSelectedProgram(null)}
+        onRefresh={refreshData}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -312,6 +395,95 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                 </ResponsiveContainer>
              </div>
           </div>
+        </div>
+
+        <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-soft border border-gray-100">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+                <LayoutDashboard size={20} className="text-lime-600" />
+                Subdetail Mengikut Nama Program
+              </h3>
+              <p className="text-gray-400 text-sm mt-1">
+                Jika nama program sama, buka subdetail untuk tapis variasi ikut tahun, bulan, lokasi, penganjur dan tempat program.
+              </p>
+            </div>
+            <div className="relative w-full lg:w-[360px]">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari nama program, tempat atau penganjur"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm font-medium text-dark outline-none transition-all focus:border-lime-400 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {programSummaries.map((program) => (
+              <button
+                key={program.programName}
+                onClick={() => setSelectedProgram(program.programName)}
+                className="text-left rounded-[1.75rem] border border-gray-100 bg-[#FCFCFC] p-5 transition-all hover:border-lime-200 hover:shadow-lg"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h4 className="text-base font-black text-dark uppercase tracking-tight line-clamp-2">
+                      {program.programName}
+                    </h4>
+                    <div className="mt-3 space-y-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 size={13} className="text-lime-600 shrink-0" />
+                        <span className="truncate">{program.organizerLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MapPin size={13} className="text-lime-600 shrink-0" />
+                        <span className="truncate">{program.locationLabel}</span>
+                      </div>
+                    </div>
+                    {program.variantPreview.length > 1 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {program.variantPreview.map((variantLabel) => (
+                          <span
+                            key={variantLabel}
+                            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-gray-500"
+                            title={variantLabel}
+                          >
+                            {variantLabel}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-600">
+                      <Users size={12} />
+                      {program.totalRespondents}
+                    </div>
+                    <div className="mt-3 flex items-center justify-end gap-1 text-sm font-black text-dark">
+                      <Star size={13} className="text-lime-500" fill="currentColor" />
+                      {program.averageScore.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                    Buka Subdetail
+                  </span>
+                  <ChevronRight size={18} className="text-gray-400" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {programSummaries.length === 0 && (
+            <div className="rounded-[1.5rem] border border-dashed border-gray-200 bg-gray-50 px-6 py-12 text-center text-sm font-medium text-gray-500">
+              Tiada program yang sepadan dengan carian anda.
+            </div>
+          )}
         </div>
       </div>
     </div>

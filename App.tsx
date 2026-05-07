@@ -37,6 +37,70 @@ const INITIAL_DATA: EvaluationFormData = {
   cadanganProgram: '',
 };
 
+interface AdminErrorBoundaryProps {
+  children: React.ReactNode;
+  onBack: () => void;
+}
+
+interface AdminErrorBoundaryState {
+  hasError: boolean;
+  message: string;
+}
+
+class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminErrorBoundaryState> {
+  props: AdminErrorBoundaryProps;
+  state: AdminErrorBoundaryState;
+
+  constructor(props: AdminErrorBoundaryProps) {
+    super(props);
+    this.props = props;
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, message: error.message };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Admin dashboard crashed:', error, errorInfo);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-lg bg-white rounded-[2rem] shadow-soft border border-gray-100 p-8 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mb-5">
+            <AlertCircle size={28} />
+          </div>
+          <h1 className="text-xl font-black text-dark mb-2">Dashboard gagal dimuatkan</h1>
+          <p className="text-sm text-gray-500 font-medium mb-5">
+            Terdapat ralat pada paparan admin. Sila refresh halaman atau kembali ke borang.
+          </p>
+          {this.state.message && (
+            <pre className="text-left text-xs bg-gray-50 text-red-600 p-4 rounded-2xl overflow-auto mb-5">
+              {this.state.message}
+            </pre>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-lime-400 text-dark font-bold py-3 rounded-2xl hover:bg-lime-500 transition-all mb-3"
+          >
+            Cuba muat semula dashboard
+          </button>
+          <button
+            onClick={this.props.onBack}
+            className="w-full bg-dark text-lime-400 font-bold py-3 rounded-2xl hover:bg-black transition-all"
+          >
+            Kembali ke borang
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 function App() {
   // Navigation State: 'form' | 'adminLogin' | 'adminPanel'
   const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
@@ -273,7 +337,11 @@ function App() {
   }
 
   if (view === 'adminPanel') {
-    return <AdminDashboard onLogout={() => setView('form')} />;
+    return (
+      <AdminErrorBoundary onBack={() => setView('form')}>
+        <AdminDashboard onLogout={() => setView('form')} />
+      </AdminErrorBoundary>
+    );
   }
 
   // ROUTE: SUCCESS PAGE (Standard Form)
