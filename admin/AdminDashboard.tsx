@@ -420,11 +420,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
 
+    const countGenerasi = () => {
+      const counts: Record<string, number> = {
+        'Gen Z': 0,
+        'Millennials': 0,
+        'Gen X': 0,
+        'Boomers': 0,
+      };
+      
+      filteredData.forEach(item => {
+        const umurStr = String(item.umur || '');
+        if (!umurStr || umurStr === '-') return;
+        
+        // Cari nombor pertama dalam string umur
+        const match = umurStr.match(/\d+/);
+        if (match) {
+          const age = parseInt(match[0], 10);
+          if (age <= 25) counts['Gen Z']++;
+          else if (age <= 40) counts['Millennials']++;
+          else if (age <= 55) counts['Gen X']++;
+          else counts['Boomers']++;
+        }
+      });
+      
+      return Object.entries(counts)
+        .map(([name, value]) => ({ name, value }))
+        .filter(item => item.value > 0);
+    };
+
     return { 
         scores, 
         formulaByBahagian,
         jantina: countBy('jantina'), 
         umur: countBy('umur'),
+        generasi: countGenerasi(),
         bahagian: countBy('bahagian')
     };
   }, [filteredData]);
@@ -1491,7 +1520,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
-                     </div>
                   </div>
 
                   {/* Top Places */}
@@ -1548,6 +1576,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                 <p className="text-sm font-bold text-gray-400">Tiada Data Lokasi</p>
                              </div>
                         )}
+                     </div>
+                     </div>
+                  </div>
+
+                  {/* Generasi Demografi */}
+                  <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
+                     <div className="flex items-center gap-3 mb-8">
+                        <div className="p-2 bg-lime-100 rounded-lg text-lime-700">
+                           <Users size={20} />
+                        </div>
+                        <div>
+                           <h3 className={TYPO.h3}>Generasi Demografi</h3>
+                           <p className={`${TYPO.micro} text-gray-400 mt-1`}>Mengikut Generasi</p>
+                        </div>
+                     </div>
+                     
+                     <div className="h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart 
+                            data={charts.generasi} 
+                            layout="vertical"
+                            margin={{ left: 10, right: 60 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f3f4f6" />
+                            <XAxis type="number" hide />
+                            <YAxis 
+                              dataKey="name" 
+                              type="category" 
+                              width={100}
+                              tick={{ fill: '#4B5563', fontSize: 11, fontWeight: 600 }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                            />
+                            <Tooltip cursor={{fill: 'transparent'}} content={<CustomTooltip />} />
+                            <Bar 
+                              dataKey="value" 
+                              name="Peserta"
+                              fill={COLORS.limeDark} 
+                              radius={[0, 6, 6, 0]} 
+                              barSize={24} 
+                              background={{ fill: '#F9FAFB', radius: [0, 6, 6, 0] } as any}
+                            >
+                              <LabelList 
+                                dataKey="value" 
+                                position="right" 
+                                style={{ fill: COLORS.dark, fontSize: '11px', fontWeight: '800' }}
+                                offset={10}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                      </div>
                   </div>
               </div>

@@ -168,14 +168,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
        setIsEditing(false);
        setIsReviewing(true); // Go back to review immediately to show the update
        setReadyToSubmit(true);
-       
-       // Add a confirmation message from the bot
-       setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
-       
-       setTimeout(() => {
-         setMessages(prev => prev.filter(m => m.id !== 'typing'));
-         addMessage('bot', "Jawapan telah dikemaskini. Sila semak semula.");
-       }, 600);
+       addMessage('bot', "Jawapan telah dikemaskini. Sila semak semula.");
        return;
     }
 
@@ -184,9 +177,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       let nextIndex = currentStepIndex + 1;
       
       // Logic to skip namaPenuh if adaSijil is TIADA
-      // We check if the NEXT step is 'namaPenuh' and if the user previously selected 'TIADA' for 'adaSijil'
       if (steps[nextIndex] && steps[nextIndex].field === 'namaPenuh' && updatedData.adaSijil === 'TIADA') {
-         // Skip namaPenuh by setting a default value and incrementing the index
          updatedData.namaPenuh = '-';
          setFormData(updatedData);
          nextIndex++;
@@ -201,35 +192,16 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
 
       if (nextIndex < steps.length) {
         setCurrentStepIndex(nextIndex);
-        
-        // Simulate Typing
-        setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
-        
-        const randomDelay = Math.floor(Math.random() * 800) + 800; // Slightly faster
-        
-        setTimeout(() => {
-          setMessages(prev => prev.filter(m => m.id !== 'typing'));
-          addMessage('bot', steps[nextIndex].question);
-        }, randomDelay);
+        addMessage('bot', steps[nextIndex].question);
       } else {
         // No more steps after skipping
-        setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
-        
-        setTimeout(() => {
-          setMessages(prev => prev.filter(m => m.id !== 'typing'));
-          addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
-          setReadyToSubmit(true);
-        }, 1000);
+        addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
+        setReadyToSubmit(true);
       }
     } else {
       // Last question answered. Ask for confirmation.
-      setMessages(prev => [...prev, { id: 'typing', sender: 'bot', text: '...', isTyping: true }]);
-      
-      setTimeout(() => {
-        setMessages(prev => prev.filter(m => m.id !== 'typing'));
-        addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
-        setReadyToSubmit(true);
-      }, 1000);
+      addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
+      setReadyToSubmit(true);
     }
   };
 
