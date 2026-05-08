@@ -139,7 +139,17 @@ export const useDashboardData = () => {
                 const finalProgramDate = parsedProgramDate || parsedTimestamp || '1970-01-01T00:00:00.000Z';
                 const filterTahun = String(getVal(item, ['FILTER TAHUN']) || '').trim() || String(new Date(finalProgramDate).getUTCFullYear());
                 const quarterRaw = String(getVal(item, ['QUARTER']) || '').trim();
-                const quarter = quarterRaw === '1'
+                const filterBulanRaw = String(getVal(item, ['FILTER BULAN']) || '').trim().toUpperCase();
+                
+                let quarterFromBulan = '';
+                if (filterBulanRaw) {
+                   if (['JANUARI', 'JANUARY', 'JAN', '1', '01', 'FEBRUARI', 'FEBRUARY', 'FEB', '2', '02', 'MAC', 'MARCH', 'MAR', '3', '03'].includes(filterBulanRaw)) quarterFromBulan = 'Q1';
+                   else if (['APRIL', 'APR', '4', '04', 'MEI', 'MAY', '5', '05', 'JUN', 'JUNE', '6', '06'].includes(filterBulanRaw)) quarterFromBulan = 'Q2';
+                   else if (['JULAI', 'JULY', 'JUL', '7', '07', 'OGOS', 'AUGUST', 'AUG', '8', '08', 'SEPTEMBER', 'SEP', '9', '09'].includes(filterBulanRaw)) quarterFromBulan = 'Q3';
+                   else if (['OKTOBER', 'OCTOBER', 'OKT', 'OCT', '10', 'NOVEMBER', 'NOV', '11', 'DISEMBER', 'DECEMBER', 'DIS', 'DEC', '12'].includes(filterBulanRaw)) quarterFromBulan = 'Q4';
+                }
+
+                const quarter = quarterFromBulan || (quarterRaw === '1'
                   ? 'Q1'
                   : quarterRaw === '2'
                     ? 'Q2'
@@ -147,7 +157,7 @@ export const useDashboardData = () => {
                       ? 'Q3'
                       : quarterRaw === '4'
                         ? 'Q4'
-                        : quarterRaw || getQuarterFromDate(finalProgramDate);
+                        : quarterRaw || getQuarterFromDate(finalProgramDate));
 
                 return {
                     id: String(item['ID'] || item['row_index'] || `RSP-${1000 + index}`),
