@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
 import ReactConfetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
+import { Analytics } from '@vercel/analytics/react';
 import { EvaluationFormData } from './types';
 import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, DAYS, MONTHS, YEARS, PROGRAM_VENUES } from './constants';
 import { CADANGAN_NAMA_PROGRAM } from './NAMA_PROGRAM_CADANGAN';
@@ -1208,6 +1209,7 @@ function App() {
       <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500">
         RUJUKAN KAMI: BPNP/UPS/B/NILAI/02
       </div>
+      <Analytics />
     </div>
   );
 }
