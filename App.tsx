@@ -118,6 +118,8 @@ function App() {
   const { width, height } = useWindowSize();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Social Flex Poster Ref & State
   const posterRef = useRef<HTMLDivElement>(null);
@@ -209,19 +211,36 @@ function App() {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage(null);
-    
+    setCountdown(20);
+
+    // Start visual countdown timer (ticks every second)
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     try {
       await submitEvaluation(formData);
+      // Submission berjaya — hentikan countdown serta-merta
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(null);
+      setIsSubmitting(false);
       setSubmitted(true);
       setShowConfetti(true);
       window.scrollTo(0, 0);
-      // Stop confetti after 5 seconds
       setTimeout(() => setShowConfetti(false), 5000);
     } catch (error) {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(null);
+      setIsSubmitting(false);
       setErrorMessage("Maaf, terdapat masalah rangkaian. Sila cuba lagi sebentar lagi.");
       window.scrollTo(0, 0);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -1106,6 +1125,56 @@ function App() {
             </div>
           </div>
         </form>
+
+        {/* Countdown Overlay */}
+        <AnimatePresence>
+          {isSubmitting && countdown !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-dark/90 backdrop-blur-xl flex flex-col items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+                className="text-center"
+              >
+                {/* Animated Ring */}
+                <div className="relative w-36 h-36 mx-auto mb-8">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                    <circle
+                      cx="70" cy="70" r="62"
+                      fill="none"
+                      stroke="#a3e635"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 62}
+                      strokeDashoffset={2 * Math.PI * 62 * (1 - (countdown / 20))}
+                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-5xl font-black text-white tabular-nums">{countdown}</span>
+                  </div>
+                </div>
+
+                {/* Loader Animation */}
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <Loader2 className="animate-spin text-lime-400" size={20} />
+                  <span className="text-white font-bold text-lg tracking-tight">Menghantar penilaian</span>
+                </div>
+
+                {/* Subtitle */}
+                <p className="text-gray-400 text-sm font-medium">
+                  ...sedang menghantar penilaian kepada urus setia...
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Floating Bottom Action Bar for Mobile (Standard Only) */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-lg border-t border-gray-200 shadow-up z-50 md:static md:bg-transparent md:border-none md:shadow-none md:p-0 md:pt-4 md:pb-20">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, X, User, Camera, Aperture } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
@@ -128,6 +128,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   const [isReviewing, setIsReviewing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Poster & Cert logic for Chatbot
   const posterRef = useRef<HTMLDivElement>(null);
@@ -208,19 +210,33 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     setReadyToSubmit(false); // Hide the button
-    
-    // Add a fake "Submitting" message bubble
-    addMessage('bot', <span className="flex items-center gap-2"><Loader2 className="animate-spin" size={14}/> Menghantar penilaian...</span>);
+    setCountdown(20); // Start 20-second countdown
+
+    // Start visual countdown timer (ticks every second)
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     try {
       await submitEvaluation(formData as EvaluationFormData);
       
-      // Success!
+      // Submission berjaya — hentikan countdown serta-merta
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(null);
+      setIsSubmitting(false);
       setIsCompleted(true);
       if (onSubmitSuccess) onSubmitSuccess();
-      // Note: We don't add a text message here, we switch the UI to the Success View
       
     } catch (error) {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(null);
       setIsSubmitting(false);
       setReadyToSubmit(true); // Show button again
       addMessage('bot', "Maaf, ada ralat rangkaian. Sila cuba tekan Hantar sekali lagi.");
@@ -986,6 +1002,56 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       <div className="flex-none bg-white dark:bg-[#111b21] p-2 sm:p-3 border-t border-gray-100 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
         {renderInputArea()}
       </div>
+
+      {/* Countdown Overlay */}
+      <AnimatePresence>
+        {isSubmitting && countdown !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] bg-dark/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 rounded-[2rem]"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+              className="text-center"
+            >
+              {/* Animated Ring */}
+              <div className="relative w-36 h-36 mx-auto mb-8">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+                  <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                  <circle
+                    cx="70" cy="70" r="62"
+                    fill="none"
+                    stroke="#a3e635"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 62}
+                    strokeDashoffset={2 * Math.PI * 62 * (1 - (countdown / 20))}
+                    style={{ transition: 'stroke-dashoffset 1s linear' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-5xl font-black text-white tabular-nums">{countdown}</span>
+                </div>
+              </div>
+
+              {/* Loader Animation */}
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Loader2 className="animate-spin text-lime-400" size={20} />
+                <span className="text-white font-bold text-lg tracking-tight">Menghantar penilaian</span>
+              </div>
+
+              {/* Subtitle */}
+              <p className="text-gray-400 text-sm font-medium">
+                ...sedang menghantar penilaian kepada urus setia...
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
