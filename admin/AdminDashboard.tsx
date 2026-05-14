@@ -600,7 +600,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }, [filteredData, searchTerm]);
 
   const handleProgramSelect = (programName: string, initialFilters?: Record<string, string | undefined>) => {
-    setSelectedProgram({ programName, initialFilters });
+    const mergedFilters = initialFilters || {
+      year: selectedYears.length === 1 ? selectedYears[0] : undefined,
+      month: selectedMonth !== 'SEMUA' ? selectedMonth : undefined,
+      quarter: selectedQuarter !== 'SEMUA' ? selectedQuarter : undefined,
+      location: selectedPlace !== 'SEMUA' ? selectedPlace : undefined,
+      penganjur: selectedOrganizer !== 'SEMUA' ? selectedOrganizer : undefined,
+    };
+    setSelectedProgram({ programName, initialFilters: mergedFilters });
     setProgramVariantPicker(null);
     setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
