@@ -250,7 +250,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       const year = String(item.filterTahun || '').trim() || '-';
       const month = (() => {
         const parsed = new Date(item.programDate);
-        return isNaN(parsed.getTime()) ? '-' : String(parsed.getUTCMonth());
+        return isNaN(parsed.getTime()) ? '-' : String(parsed.getMonth());
       })();
       const quarter = String(item.quarter || '').trim().toUpperCase() || '-';
       const date = formatDateKey(item.programDate);
@@ -307,7 +307,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       source
         .map(d => {
           const parsed = new Date(d.programDate);
-          return isNaN(parsed.getTime()) ? '' : String(parsed.getUTCMonth());
+          return isNaN(parsed.getTime()) ? '' : String(parsed.getMonth());
         })
         .filter(Boolean)
     );
@@ -324,7 +324,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedMonth !== 'SEMUA') {
       source = source.filter(d => {
         const parsed = new Date(d.programDate);
-        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+        return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
       });
     }
 
@@ -345,7 +345,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedMonth !== 'SEMUA') {
       source = source.filter(d => {
         const parsed = new Date(d.programDate);
-        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+        return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
       });
     }
     if (selectedQuarter !== 'SEMUA') {
@@ -377,7 +377,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedMonth !== 'SEMUA') {
         source = source.filter(d => {
           const parsed = new Date(d.programDate);
-          return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+          return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
         });
     }
     if (selectedQuarter !== 'SEMUA') {
@@ -396,7 +396,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
     if (selectedMonth !== 'SEMUA') source = source.filter(d => {
       const parsed = new Date(d.programDate);
-      return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+      return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
     });
     if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
@@ -412,7 +412,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
     if (selectedMonth !== 'SEMUA') source = source.filter(d => {
       const parsed = new Date(d.programDate);
-      return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+      return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
     });
     if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
     if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
@@ -503,7 +503,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       const matchYear = selectedYear === 'SEMUA' || String(d.filterTahun || '').trim() === selectedYear;
       const matchMonth = selectedMonth === 'SEMUA' || (() => {
         const parsed = new Date(d.programDate);
-        return !isNaN(parsed.getTime()) && String(parsed.getUTCMonth()) === selectedMonth;
+        return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
       })();
       const matchQuarter = selectedQuarter === 'SEMUA' || String(d.quarter || '').trim().toUpperCase() === selectedQuarter;
       const matchDate = selectedDate === 'SEMUA' || formatDateKey(d.programDate) === selectedDate;
