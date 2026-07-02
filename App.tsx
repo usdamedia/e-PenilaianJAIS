@@ -569,23 +569,7 @@ function App() {
             </div>
           </div>
           
-          {/* Center: MODE TOGGLE (Pill Option) */}
-          {flowStep === 'filling' && (
-            <div className="bg-gray-200/50 p-1 rounded-full flex relative w-full sm:w-auto">
-               <button 
-                  onClick={() => setInputMode('chat')}
-                  className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'chat' ? 'bg-dark text-lime-400 shadow-lg' : 'text-gray-500 hover:text-dark'}`}
-               >
-                  <Bot size={14}/> Chatbot
-               </button>
-               <button 
-                  onClick={() => setInputMode('standard')}
-                  className={`flex-1 sm:w-32 py-1.5 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${inputMode === 'standard' ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-dark'}`}
-               >
-                  <FileText size={14}/> Borang
-               </button>
-            </div>
-          )}
+          {/* Center: MODE TOGGLE (Pill Option) HIDING AS REQUESTED */}
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
@@ -616,8 +600,8 @@ function App() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
             >
-              <div className="w-20 h-20 bg-lime-400 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-glow">
-                <Smartphone size={40} className="text-dark" />
+              <div className="w-20 h-20 bg-white border-2 border-black rounded-3xl flex items-center justify-center mx-auto mb-8 p-3">
+                <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
               </div>
               <h2 className="text-[14pt] font-black text-dark mb-4 tracking-tight">Selamat datang</h2>
               <p className="text-gray-500 font-medium mb-10">Sila pilih cara anda ingin mengisi borang penilaian ini.</p>
@@ -632,7 +616,7 @@ function App() {
                       <Bot size={24} />
                     </div>
                     <div className="text-left">
-                      <div className="font-black text-lg leading-none mb-1">Chatbot</div>
+                      <div className="font-black text-lg leading-none mb-1">Isi borang Penilaian</div>
                       <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Interaksi AI</div>
                     </div>
                   </div>
@@ -640,19 +624,19 @@ function App() {
                 </button>
 
                 <button 
-                  onClick={() => { setInputMode('standard'); setFlowStep('filling'); }}
-                  className="w-full bg-white border-2 border-gray-100 text-dark p-6 rounded-2xl flex items-center justify-between group hover:border-lime-400 transition-all"
+                  disabled
+                  className="w-full bg-gray-50 border-2 border-gray-100 text-gray-400 p-6 rounded-2xl flex items-center justify-between opacity-70 cursor-not-allowed transition-all"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-100 rounded-xl text-dark group-hover:bg-lime-100 group-hover:text-lime-600 transition-colors">
+                    <div className="p-3 bg-gray-200 rounded-xl text-gray-400 transition-colors">
                       <FileText size={24} />
                     </div>
                     <div className="text-left">
-                      <div className="font-black text-[10pt] leading-none mb-1">Borang klasik</div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Input manual</div>
+                      <div className="font-black text-[10pt] leading-none mb-1 text-gray-400 line-through decoration-gray-300">Borang klasik (Legasi)</div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Telah Ditutup</div>
                     </div>
                   </div>
-                  <ArrowRight size={20} className="text-gray-300 group-hover:text-lime-500" />
+                  <Lock size={20} className="text-gray-400" />
                 </button>
               </div>
             </motion.div>
