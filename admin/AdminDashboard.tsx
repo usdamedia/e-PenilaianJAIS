@@ -21,6 +21,7 @@ import { CommentsPage } from './CommentsPage';
 import BSCReportPDF from './BSCReportPDF';
 import { DashboardData } from '../dashboard/types';
 import { MONTHS } from '../constants';
+import LogoImage from '../components/LogoImage';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -1056,7 +1057,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                   <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Purata Skor</span>
-                    <span className="text-lg font-black text-dark">{variant.averageScore.toFixed(2)}</span>
+                    <span className="text-base font-black text-dark">Skor {variant.averageScore.toFixed(2)} — {variant.totalRespondents} responden</span>
                   </div>
                 </button>
               ))}
@@ -1077,7 +1078,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="h-full flex flex-col p-8">
           <div className="flex items-center gap-4 mb-12 mt-2">
             <div className="w-12 h-12 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-glow">
-              <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
+              <LogoImage />
             </div>
             <div>
               <span className="font-black text-2xl tracking-tight block leading-none">JAIS</span>
@@ -1507,7 +1508,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   title="Purata Skor" 
                   value={stats.avgKeseluruhan}
                   icon={<Star size={24} />}
-                  subtext="Sasaran: 4.5+"
+                  subtext={`Skor ${stats.avgKeseluruhan} — ${stats.totalRespondents} responden (Sasaran: 4.5+)`}
                   trend="Indeks"
                   className="h-full"
                 />
@@ -1515,7 +1516,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   title="Indeks BSC (AE)" 
                   value={stats.avgFormula}
                   icon={<Bot size={24} />}
-                  subtext="Formula Laporan BSC"
+                  subtext={`Skor ${stats.avgFormula} — ${stats.totalRespondents} responden`}
                   highlight
                   className="h-full"
                 />
@@ -1523,14 +1524,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   title="Kepuasan Pengisian" 
                   value={stats.avgPengisian}
                   icon={<Activity size={24} />}
-                  subtext="Relevansi Topik"
+                  subtext={`Skor ${stats.avgPengisian} — ${stats.totalRespondents} responden`}
                   className="h-full"
                 />
                  <StatCard 
                   title="Prestasi Fasilitator" 
                   value={stats.avgFasilitator}
                   icon={<Award size={24} />}
-                  subtext="Kualiti Penyampaian"
+                  subtext={`Skor ${stats.avgFasilitator} — ${stats.totalRespondents} responden`}
                   className="h-full"
                 />
               </div>
@@ -1544,7 +1545,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <div className="p-2 bg-lime-100 rounded-lg text-lime-700"><TrendingUp size={20} /></div>
                           Prestasi Kategori
                         </h3>
-                        <p className={`${TYPO.small} text-gray-400 mt-1 pl-12`}>Analisis purata skor bagi setiap aspek</p>
+                        <p className={`${TYPO.small} text-gray-400 mt-1 pl-12`}>Analisis purata skor bagi setiap aspek (Berdasarkan {stats.totalRespondents} responden)</p>
                     </div>
                     
                     <div className="flex-1 w-full h-[250px]">

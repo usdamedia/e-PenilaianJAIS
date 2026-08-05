@@ -205,6 +205,7 @@ const BSCReportPDF: React.FC<BSCReportPDFProps> = ({
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel}>PURATA INDEKS BSC</Text>
             <Text style={styles.kpiValue}>{avgScore.toFixed(2)}</Text>
+            <Text style={{ fontSize: 8, color: '#666666', marginTop: 3 }}>Skor {avgScore.toFixed(2)} — {totalRespondents} responden</Text>
           </View>
         </View>
 

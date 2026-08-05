@@ -1407,6 +1407,9 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
                            <span className={`${fs('kpiValue')} font-black text-dark tracking-tighter`}>{analysis.avgTotal.toFixed(2)}</span>
                            <span className="text-gray-400 font-bold text-lg">/ 5.0</span>
                         </div>
+                        <div className="mt-2 inline-block rounded-full bg-lime-100/80 px-3 py-1 text-xs font-bold text-lime-900 border border-lime-200">
+                          Skor {analysis.avgTotal.toFixed(2)} — {analysis.totalRespondents} responden
+                        </div>
                       </div>
                       <div className="bg-white p-5 rounded-3xl text-lime-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
                          <Star size={32} fill="currentColor" />

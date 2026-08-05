@@ -15,6 +15,7 @@ import { submitEvaluation } from './services/api';
 import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
+import LogoImage from './components/LogoImage';
 import html2canvas from 'html2canvas';
 
 const INITIAL_DATA: EvaluationFormData = {
@@ -479,7 +480,7 @@ function App() {
                 <div className="pt-6 border-t border-white/10 mt-auto">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 border border-white/20 shadow-sm">
-                         <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
+                         <LogoImage />
                       </div>
                       <div>
                          <div className="text-white font-bold text-base leading-none mb-1">e-Penilaian JAIS</div>
@@ -556,7 +557,7 @@ function App() {
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-xl p-1 shadow-sm border border-gray-100 flex items-center justify-center">
-                 <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
+                 <LogoImage />
               </div>
               <span className="font-bold text-dark text-sm sm:text-base tracking-tight leading-tight">
                 e-Penilaian <span className="text-lime-600 block sm:inline">JAIS</span>
@@ -601,7 +602,7 @@ function App() {
               className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
             >
               <div className="w-20 h-20 bg-white border-2 border-black rounded-3xl flex items-center justify-center mx-auto mb-8 p-3">
-                <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
+                <LogoImage />
               </div>
               <h2 className="text-[14pt] font-black text-dark mb-4 tracking-tight">Selamat datang</h2>
               <p className="text-gray-500 font-medium mb-10">Sila pilih cara anda ingin mengisi borang penilaian ini.</p>

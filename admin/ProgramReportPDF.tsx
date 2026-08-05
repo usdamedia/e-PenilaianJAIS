@@ -571,7 +571,7 @@ const ProgramReportPDF: React.FC<ProgramReportPDFProps> = ({
             <View style={styles.kpiBox}>
               <Text style={styles.kpiLabel}>PURATA SKOR</Text>
               <Text style={styles.kpiValue}>{avgScore.toFixed(2)}</Text>
-              <Text style={styles.kpiSub}>/ 5.00</Text>
+              <Text style={styles.kpiSub}>SKOR {avgScore.toFixed(2)} — {totalRespondents} RESPONDEN</Text>
             </View>
             <View style={styles.kpiDivider} />
             <View style={styles.kpiBox}>

@@ -157,7 +157,7 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ data, onSelect
                     <Star size={12} className="text-lime-500" fill="currentColor" />
                     {displayScore.toFixed(2)}
                   </div>
-                  <div className="text-[8px] text-gray-400 font-bold uppercase">Purata</div>
+                  <div className="text-[9px] text-gray-500 font-bold">{displayRespondents} responden</div>
                 </div>
               </td>
               <td className="px-6 py-5 text-right">

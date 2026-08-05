@@ -195,20 +195,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
             title="Purata Skor" 
             value={stats.avgKeseluruhan} 
             icon={<Star size={24} />}
-            subtext="Daripada skala 5.0"
+            subtext={`Skor ${stats.avgKeseluruhan} — ${stats.totalRespondents} responden`}
             trend="Cemerlang"
           />
           <StatCard 
             title="Kepuasan Pengisian" 
             value={stats.avgPengisian} 
             icon={<Activity size={24} />}
-            subtext="Relevansi topik"
+            subtext={`Skor ${stats.avgPengisian} — ${stats.totalRespondents} responden`}
           />
           <StatCard 
             title="Prestasi Fasilitator" 
             value={stats.avgFasilitator} 
             icon={<Award size={24} />}
-            subtext="Penyampaian & Interaksi"
+            subtext={`Skor ${stats.avgFasilitator} — ${stats.totalRespondents} responden`}
           />
         </div>
 
@@ -464,7 +464,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                     </div>
                     <div className="mt-3 flex items-center justify-end gap-1 text-sm font-black text-dark">
                       <Star size={13} className="text-lime-500" fill="currentColor" />
-                      {program.averageScore.toFixed(2)}
+                      Skor {program.averageScore.toFixed(2)} — {program.totalRespondents} responden
                     </div>
                   </div>
                 </div>

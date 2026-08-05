@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Input } from '../components/Input';
+import LogoImage from '../components/LogoImage';
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -38,7 +39,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
           </div>
           
           <div className="w-16 h-16 bg-white border border-gray-100 rounded-2xl p-2 flex items-center justify-center mb-6 shadow-md">
-            <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
+            <LogoImage />
           </div>
           
           <h2 className="text-2xl font-extrabold text-dark mb-2">Admin Portal</h2>
