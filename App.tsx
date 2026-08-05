@@ -478,8 +478,8 @@ function App() {
                 {/* Footer */}
                 <div className="pt-6 border-t border-white/10 mt-auto">
                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                         <LayoutDashboard size={20} className="text-[#0F0F0F]"/>
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 border border-white/20 shadow-sm">
+                         <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
                       </div>
                       <div>
                          <div className="text-white font-bold text-base leading-none mb-1">e-Penilaian JAIS</div>
@@ -555,8 +555,8 @@ function App() {
           {/* Logo & Title */}
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
             <div className="flex items-center gap-3">
-              <div className="bg-dark text-white p-2 rounded-xl sm:rounded-full shadow-md">
-                 <LayoutDashboard size={18} />
+              <div className="w-10 h-10 bg-white rounded-xl p-1 shadow-sm border border-gray-100 flex items-center justify-center">
+                 <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
               </div>
               <span className="font-bold text-dark text-sm sm:text-base tracking-tight leading-tight">
                 e-Penilaian <span className="text-lime-600 block sm:inline">JAIS</span>

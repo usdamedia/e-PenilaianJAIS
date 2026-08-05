@@ -1076,12 +1076,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       `}>
         <div className="h-full flex flex-col p-8">
           <div className="flex items-center gap-4 mb-12 mt-2">
-            <div className="w-12 h-12 bg-lime-400 rounded-2xl flex items-center justify-center text-dark shadow-glow">
-              <Shield size={24} strokeWidth={2.5} />
+            <div className="w-12 h-12 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-glow">
+              <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
             </div>
             <div>
               <span className="font-black text-2xl tracking-tight block leading-none">JAIS</span>
-              <span className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold">Admin Panel</span>
+              <span className="text-[10px] text-lime-400 uppercase tracking-[0.2em] font-bold">Admin Panel</span>
             </div>
           </div>
 

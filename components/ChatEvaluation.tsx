@@ -468,8 +468,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                             </div>
                             <div className="relative z-10 pt-3 border-t border-white/10 mt-auto">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
-                                    <LayoutDashboard size={12} className="text-[#0F0F0F]"/>
+                                    <div className="w-6 h-6 bg-white rounded p-0.5 flex items-center justify-center">
+                                       <img src="/logo.png" alt="Logo JAIS" className="w-full h-full object-contain" />
                                     </div>
                                     <div>
                                     <div className="text-white font-bold text-[10px] leading-none mb-0.5">e-Penilaian JAIS</div>
