@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Send, Bot, ChevronLeft, Share2, Loader2, LayoutDashboard, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, Sparkles, RefreshCw, X, User, Camera, Aperture } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Send, Bot, ChevronLeft, ChevronRight, Share2, Loader2, Square, Smartphone, 
+  Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, 
+  Sparkles, RefreshCw, X, Check, ArrowRight
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
-import { LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES, MONTHS } from '../constants';
+import { 
+  LOCATIONS, ORGANIZERS, DURATIONS, EDUCATION_LEVELS, AGE_RANGES, 
+  PREMADE_COMMENTS, PREMADE_SUGGESTIONS, PROGRAM_VENUES 
+} from '../constants';
 import { CADANGAN_NAMA_PROGRAM } from '../NAMA_PROGRAM_CADANGAN';
 import { submitEvaluation } from '../services/api';
 import html2canvas from 'html2canvas';
@@ -15,13 +22,6 @@ interface ChatEvaluationProps {
   initialData?: Partial<EvaluationFormData>;
   isLocked?: boolean;
 }
-
-type Message = {
-  id: string;
-  sender: 'bot' | 'user';
-  text: React.ReactNode;
-  isTyping?: boolean;
-};
 
 type QuestionStep = {
   field: keyof EvaluationFormData;
@@ -42,7 +42,7 @@ const STEPS: QuestionStep[] = [
   },
   { 
     field: 'namaProgram', 
-    question: "Assalamualaikum & hai! Saya AI JAIS. Jom mulakan. Boleh berikan nama program yang anda hadiri?", 
+    question: "Assalamualaikum & hai! Saya e-Penilaian Program JAIS. Jom mulakan. Boleh berikan nama program yang anda hadiri?", 
     type: 'text', 
     uppercase: true,
     options: CADANGAN_NAMA_PROGRAM
@@ -84,9 +84,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   initialData = {},
   isLocked = false
 }) => {
-  const [showInitialChoice, setShowInitialChoice] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  
+
   // Dynamic Steps based on suggestions
   const steps = useMemo(() => {
     const newSteps = [...STEPS];
@@ -99,121 +98,135 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
     return newSteps;
   }, [programSuggestions]);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  
-  useEffect(() => {
-    if (!showInitialChoice && messages.length === 0) {
-      let startIndex = 0;
-      
-      // If locked, skip pre-filled steps
-      if (isLocked) {
-        while (startIndex < steps.length && formData[steps[startIndex].field]) {
-          startIndex++;
-        }
-      }
-      
-      if (startIndex < steps.length) {
-        setCurrentStepIndex(startIndex);
-        setMessages([{ id: '1', sender: 'bot', text: steps[startIndex].question }]);
-      } else {
-        setIsReviewing(true);
-        setReadyToSubmit(true);
-      }
-    }
-  }, [showInitialChoice, steps, isLocked]);
   const [formData, setFormData] = useState<Partial<EvaluationFormData>>(initialData);
   const [inputText, setInputText] = useState('');
-  
+
   // Logic States
-  const [readyToSubmit, setReadyToSubmit] = useState(false); // New state for confirmation button
+  const [readyToSubmit, setReadyToSubmit] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  // Poster & Cert logic for Chatbot
+
+  // Poster & Cert logic
   const posterRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [posterRatio, setPosterRatio] = useState<'square' | 'story'>('square');
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [isEditing, setIsEditing] = useState(false); // New state for edit mode
+  const [isEditing, setIsEditing] = useState(false);
 
   const currentStep = steps[currentStepIndex];
 
-  // Auto-scroll to bottom
+  // Sync initial step
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+    let startIndex = 0;
+    if (isLocked) {
+      while (startIndex < steps.length && formData[steps[startIndex].field]) {
+        startIndex++;
+      }
     }
-  }, [messages, readyToSubmit, isCompleted]);
+    if (startIndex < steps.length) {
+      setCurrentStepIndex(startIndex);
+    } else {
+      setIsReviewing(true);
+      setReadyToSubmit(true);
+    }
+  }, [steps, isLocked]);
 
-  const addMessage = (sender: 'bot' | 'user', text: React.ReactNode) => {
-    const newMsg: Message = { id: Date.now().toString(), sender, text };
-    setMessages(prev => [...prev, newMsg]);
-  };
+  // Sync inputText when changing step
+  useEffect(() => {
+    if (steps[currentStepIndex]) {
+      const field = steps[currentStepIndex].field;
+      const val = formData[field];
+      if (val !== undefined && val !== null && val !== '-') {
+        setInputText(String(val));
+      } else {
+        setInputText('');
+      }
+    }
+  }, [currentStepIndex, steps, formData]);
 
-  const handleNextStep = async (value: any, displayValue?: string) => {
-    // 1. Add User Response
-    addMessage('user', displayValue || value.toString());
-
-    // 2. Update Data
+  const handleNextStep = async (value: any) => {
     const updatedData = { ...formData, [currentStep.field]: value };
     setFormData(updatedData);
 
-    // 3. Check if Editing
     if (isEditing) {
-       setIsEditing(false);
-       setIsReviewing(true); // Go back to review immediately to show the update
-       setReadyToSubmit(true);
-       addMessage('bot', "Jawapan telah dikemaskini. Sila semak semula.");
-       return;
+      setIsEditing(false);
+      setIsReviewing(true);
+      setReadyToSubmit(true);
+      return;
     }
 
-    // 4. Move to next or Trigger Submit Confirmation
     if (currentStepIndex < steps.length - 1) {
       let nextIndex = currentStepIndex + 1;
-      
-      // Logic to skip namaPenuh if adaSijil is TIADA
+
+      // Skip namaPenuh if adaSijil is TIADA
       if (steps[nextIndex] && steps[nextIndex].field === 'namaPenuh' && updatedData.adaSijil === 'TIADA') {
-         updatedData.namaPenuh = '-';
-         setFormData(updatedData);
-         nextIndex++;
+        updatedData.namaPenuh = '-';
+        setFormData(updatedData);
+        nextIndex++;
       }
 
-      // Skip pre-filled steps if locked
+      // Skip prefilled steps if locked
       if (isLocked) {
-        while (nextIndex < steps.length && updatedData[steps[nextIndex].field]) {
+        while (nextIndex < steps.length && updatedData[nextIndex] && updatedData[steps[nextIndex].field]) {
           nextIndex++;
         }
       }
 
       if (nextIndex < steps.length) {
         setCurrentStepIndex(nextIndex);
-        addMessage('bot', steps[nextIndex].question);
       } else {
-        // No more steps after skipping
-        addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
         setReadyToSubmit(true);
+        handleFinalSubmit(updatedData);
       }
     } else {
-      // Last question answered. Ask for confirmation.
-      addMessage('bot', "Terima kasih! Anda telah menjawab semua soalan. Sila semak jawapan anda atau terus tekan butang HANTAR.");
       setReadyToSubmit(true);
+      handleFinalSubmit(updatedData);
     }
   };
 
-  const handleFinalSubmit = async () => {
-    setIsSubmitting(true);
-    setReadyToSubmit(false); // Hide the button
-    setCountdown(20); // Start 20-second countdown
+  const handlePrevStep = () => {
+    if (isReviewing) {
+      setIsReviewing(false);
+      return;
+    }
 
-    // Start visual countdown timer (ticks every second)
+    if (currentStepIndex > 0) {
+      let prevIndex = currentStepIndex - 1;
+
+      // Skip namaPenuh backward if adaSijil is TIADA
+      if (steps[prevIndex] && steps[prevIndex].field === 'namaPenuh' && formData.adaSijil === 'TIADA') {
+        prevIndex--;
+      }
+
+      // Skip locked pre-filled steps backward
+      if (isLocked) {
+        while (prevIndex >= 0 && initialData[steps[prevIndex].field]) {
+          prevIndex--;
+        }
+      }
+
+      if (prevIndex >= 0) {
+        setCurrentStepIndex(prevIndex);
+        setIsEditing(false);
+        setReadyToSubmit(false);
+      } else {
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
+
+  const handleFinalSubmit = async (overrideData?: Partial<EvaluationFormData>) => {
+    const dataToSubmit = overrideData || formData;
+    setIsSubmitting(true);
+    setReadyToSubmit(false);
+    setCountdown(20);
+
     if (countdownRef.current) clearInterval(countdownRef.current);
     countdownRef.current = setInterval(() => {
       setCountdown(prev => {
@@ -226,60 +239,70 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
     }, 1000);
 
     try {
-      await submitEvaluation(formData as EvaluationFormData);
-      
-      // Submission berjaya — hentikan countdown serta-merta
+      await submitEvaluation(dataToSubmit as EvaluationFormData);
       if (countdownRef.current) clearInterval(countdownRef.current);
       setCountdown(null);
       setIsSubmitting(false);
       setIsCompleted(true);
       if (onSubmitSuccess) onSubmitSuccess();
-      
     } catch (error) {
+      console.error("Submission error:", error);
       if (countdownRef.current) clearInterval(countdownRef.current);
       setCountdown(null);
       setIsSubmitting(false);
-      setReadyToSubmit(true); // Show button again
-      addMessage('bot', "Maaf, ada ralat rangkaian. Sila cuba tekan Hantar sekali lagi.");
+      setReadyToSubmit(true);
+      alert("Gagal menghantar borang. Sila cuba lagi.");
     }
   };
 
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    const finalVal = inputText.toUpperCase(); 
-    handleNextStep(finalVal);
-    setInputText('');
+  // Helper validation
+  const isCurrentStepValid = (): boolean => {
+    if (!currentStep) return false;
+    const field = currentStep.field;
+    const val = formData[field];
+
+    if (currentStep.type === 'textarea') {
+      return true; // Textarea input is optional (defaults to TIADA if blank)
+    }
+
+    if (currentStep.type === 'text' || currentStep.type === 'date') {
+      if (inputText.trim().length > 0) return true;
+      if (val !== undefined && val !== null && String(val).trim().length > 0 && val !== '-') return true;
+      return false;
+    }
+
+    if (val !== undefined && val !== null && val !== '') return true;
+    return false;
   };
 
+  const handleTextSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim()) return;
+    const finalVal = currentStep.uppercase ? inputText.toUpperCase() : inputText;
+    handleNextStep(finalVal);
+  };
 
-
-  // --- SOCIAL SHARE LOGIC ---
+  // Social share poster handlers
   const handleSharePoster = async () => {
     if (!posterRef.current) return;
     setIsSharing(true);
-    
     try {
-      // Give UI time to update
       await new Promise(resolve => setTimeout(resolve, 300));
-
       const canvas = await html2canvas(posterRef.current, {
-        scale: 2, // Reduced scale for better compatibility/performance
+        scale: 2,
         backgroundColor: '#0F0F0F',
         logging: false,
         useCORS: true,
-        allowTaint: false, // Changed to false for better security/compatibility
+        allowTaint: false,
         foreignObjectRendering: false,
         removeContainer: true,
       });
-      
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png', 0.9));
       if (!blob) throw new Error("Gagal menjana imej");
 
       const fileName = `Tamat_Kursus_${Date.now()}.png`;
       const file = new File([blob], fileName, { type: 'image/png' });
 
-      // Check for Web Share API support with files
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -287,7 +310,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
           text: `Alhamdulillah, selesai program ${formData.namaProgram}! ✨`
         });
       } else {
-        // Fallback to download
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = dataUrl;
@@ -317,7 +339,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
         useCORS: true,
         allowTaint: false,
       });
-      
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = dataUrl;
@@ -325,8 +346,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // Small delay to show success
       setTimeout(() => {
         alert("Poster berjaya dimuat turun!");
       }, 500);
@@ -338,7 +357,6 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
     }
   };
 
-  // --- CAMERA & OCR LOGIC ---
   const getTitleFontSize = (text: string) => {
     const length = text?.length || 0;
     if (length > 50) return 'text-[12px]';
@@ -347,671 +365,710 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
     return 'text-[22px]';
   };
 
-  // --- UI RENDERERS ---
+  // Progress percentage calculation
+  const progressPercent = Math.round(((currentStepIndex + 1) / steps.length) * 100);
 
-  const renderInputArea = () => {
-    // 1. SUCCESS VIEW (Finished)
-    if (isCompleted) {
-      return (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute inset-0 bg-gray-50 z-20 flex flex-col overflow-y-auto"
-        >
-           {/* Success Header */}
-           <div className="bg-lime-400 p-8 pb-16 rounded-b-[3rem] shadow-glow relative overflow-hidden shrink-0">
-              <motion.div 
-                animate={{ scale: [1, 1.1, 1], rotate: [0, 5, 0] }}
-                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute top-0 right-0 w-48 h-48 bg-white/20 rounded-full blur-3xl -mr-16 -mt-16"
-              ></motion.div>
-              <motion.div 
-                animate={{ scale: [1, 1.2, 1], rotate: [0, -5, 0] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="absolute bottom-0 left-0 w-32 h-32 bg-lime-300/50 rounded-full blur-2xl -ml-10 -mb-10"
-              ></motion.div>
-              
-              <div className="relative z-10 flex flex-col items-center text-center mt-4">
-                 <motion.div 
-                   initial={{ scale: 0 }}
-                   animate={{ scale: 1 }}
-                   transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
-                   className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-lime-600 mb-6 shadow-xl"
-                 >
-                    <CheckCircle2 size={40} strokeWidth={4} />
-                 </motion.div>
-                 <motion.h2 
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: 0.4 }}
-                   className="text-[22px] font-black text-dark tracking-tight mb-2"
-                 >
-                   Terima Kasih!
-                 </motion.h2>
-                 <motion.p 
-                   initial={{ opacity: 0 }}
-                   animate={{ opacity: 1 }}
-                   transition={{ delay: 0.6 }}
-                   className="text-dark/80 font-bold text-[10pt] max-w-xs leading-relaxed"
-                 >
-                   Kerana memberikan penilaian kepada Program Jabatan Agama Islam Sarawak.
-                 </motion.p>
-              </div>
-           </div>
+  // Render question inputs
+  const renderQuestionInput = () => {
+    if (!currentStep) return null;
 
-           {/* Social Poster Section */}
-           <div className="flex-1 px-6 pb-12 flex flex-col items-center -mt-10 relative z-20">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
-                className="w-full max-w-sm"
-              >
-                  <div className="bg-white rounded-[2rem] p-5 shadow-xl border border-gray-100">
-                      <div className="flex justify-between items-center mb-6 px-1">
-                        <div className="flex items-center gap-2.5">
-                            <div className="p-2 bg-lime-100 rounded-xl text-lime-700">
-                                <Sparkles size={16} fill="currentColor"/>
-                            </div>
-                            <div>
-                               <p className="text-[14pt] font-black text-dark tracking-wide">Kongsikan</p>
-                               <p className="text-[10pt] font-bold text-gray-400 uppercase tracking-wider">Media sosial</p>
-                            </div>
-                        </div>
-                        {/* Ratio Toggles */}
-                        <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
-                            <button onClick={() => setPosterRatio('square')} className={`p-1.5 rounded-lg transition-all ${posterRatio === 'square' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-gray-600'}`}><Square size={14} /></button>
-                            <button onClick={() => setPosterRatio('story')} className={`p-1.5 rounded-lg transition-all ${posterRatio === 'story' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-gray-600'}`}><Smartphone size={14} /></button>
-                        </div>
-                      </div>
+    const currentValue = formData[currentStep.field];
 
-                      {/* Poster Preview */}
-                      <div className="flex justify-center mb-6 bg-gray-50 rounded-2xl p-4 border border-gray-100 inner-shadow">
-                         <div 
-                            ref={posterRef}
-                            className={`
-                                w-full bg-[#0F0F0F] rounded-[1.5rem] p-6 flex flex-col justify-between relative overflow-hidden shadow-2xl border-[3px] border-lime-400
-                                ${posterRatio === 'square' ? 'aspect-square max-w-[260px]' : 'aspect-[9/16] max-w-[180px]'}
-                                transition-all duration-300
-                            `}
-                            >
-                            {/* Background Accents */}
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-lime-400/20 rounded-full blur-2xl -mr-6 -mt-6"></div>
-                            <div className="absolute bottom-0 left-0 w-20 h-20 bg-lime-400/10 rounded-full blur-2xl -ml-6 -mb-6"></div>
-                            
-                            <div className="relative z-10">
-                                <div className="bg-lime-400 text-black text-[10pt] font-black px-2 py-0.5 rounded-full tracking-wider inline-block mb-2">
-                                    Tamat program
-                                </div>
-                                <div className="flex items-center gap-1.5 text-lime-400 mb-1 opacity-90">
-                                    <Building2 size={10} className="shrink-0"/>
-                                    <span className="text-[10px] font-bold tracking-wider line-clamp-1">
-                                    {formData.penganjurUtama || "Penganjur"}
-                                    </span>
-                                </div>
-                                <h2 className={`text-white font-black leading-none tracking-tighter mb-2 break-words ${getTitleFontSize(formData.namaProgram || "")}`}>
-                                {formData.namaProgram || "Program"}
-                                </h2>
-                                <div className="space-y-1.5 mt-2 border-l-2 border-white/20 pl-2">
-                                    <div className="flex items-center gap-1.5 text-gray-300">
-                                        <MapPin size={10} className="text-white shrink-0"/>
-                                        <span className="text-[10px] font-bold tracking-wide leading-tight line-clamp-2">
-                                            {formData.tempatProgram || "Lokasi"}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-gray-300">
-                                        <Clock size={10} className="text-white shrink-0"/>
-                                        <span className="text-[10px] font-bold uppercase tracking-wide">
-                                            {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="relative z-10 pt-3 border-t border-white/10 mt-auto">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-white rounded p-0.5 flex items-center justify-center">
-                                       <LogoImage />
-                                    </div>
-                                    <div>
-                                    <div className="text-white font-bold text-[10px] leading-none mb-0.5">e-Penilaian JAIS</div>
-                                    <div className="text-gray-500 text-[8px] uppercase tracking-widest font-bold">Sarawak</div>
-                                    </div>
-                                </div>
-                            </div>
-                         </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="space-y-2.5">
-                         <button 
-                            onClick={handleSharePoster}
-                            disabled={isSharing}
-                            className="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold text-[10pt] shadow-md flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
-                         >
-                            {isSharing ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
-                            Share WhatsApp Status
-                         </button>
-                         <button 
-                            onClick={handleSaveToAlbum}
-                            disabled={isSaving}
-                            className="w-full bg-dark text-white py-3.5 rounded-xl font-bold text-[10pt] shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all"
-                         >
-                             {isSaving ? <Loader2 className="animate-spin text-lime-400" size={18} /> : <ImageIcon size={18} className="text-lime-400" />}
-                            Simpan ke Album
-                         </button>
-                      </div>
-                  </div>
-
-                  <button 
-                    onClick={onBack} 
-                    className="w-full mt-8 text-gray-400 hover:text-dark font-bold text-[10pt] py-2 flex items-center justify-center gap-2 transition-colors"
-                  >
-                     <RefreshCw size={14}/> Kembali ke Menu Utama
-                  </button>
-              </motion.div>
-           </div>
-        </motion.div>
-      );
-    }
-
-    // 2. REVIEW OVERLAY (Priority over confirmation)
-    if (isReviewing) {
-      return (
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 30 }}
-          className="absolute inset-0 bg-white z-30 flex flex-col"
-        >
-           <div className="bg-white/80 backdrop-blur-md p-4 flex items-center justify-between border-b border-gray-100 sticky top-0 z-10">
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-lime-100 rounded-2xl flex items-center justify-center text-lime-600">
-                    <PenLine size={20} />
-                 </div>
-                 <div>
-                    <h2 className="text-[14pt] font-black text-dark tracking-tight leading-none">Semak jawapan</h2>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Pastikan semua betul</p>
-                 </div>
-              </div>
-              <button 
-                onClick={() => setIsReviewing(false)}
-                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-dark transition-all active:scale-95"
-              >
-                <X size={24} />
-              </button>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 custom-scrollbar">
-              <div className="grid gap-3">
-                {steps.map((step, idx) => (
-                  <motion.div 
-                    key={step.field} 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-2xl p-4 border border-gray-100 hover:border-lime-400 transition-colors relative shadow-sm"
-                  >
-                    <div className="pr-10">
-                      <p className="text-[10pt] font-black text-gray-400 tracking-widest mb-1">
-                        {step.field.replace(/([A-Z])/g, ' $1').trim()}
-                      </p>
-                      <p className="text-[10pt] font-bold text-dark leading-snug">
-                        {step.field === 'ratingJamuan' && formData[step.field] === 0 
-                          ? 'Tiada jamuan' 
-                          : (formData[step.field]?.toString() || <span className="text-gray-300 italic">Tiada jawapan</span>)}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setCurrentStepIndex(idx);
-                        setIsReviewing(false);
-                        setReadyToSubmit(false);
-                        setIsEditing(true); // Enable edit mode
-                        addMessage('bot', `Sila masukkan jawapan baharu untuk: ${step.question}`);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-gray-50 rounded-xl text-lime-600 hover:bg-lime-600 hover:text-white transition-all active:scale-95 flex items-center gap-2 border border-gray-100"
-                    >
-                      <PenLine size={14} />
-                      <span className="text-[10pt] font-black uppercase tracking-wider">Edit</span>
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-           </div>
-
-           <div className="p-6 bg-white border-t border-gray-100">
-              <button
-                onClick={() => setIsReviewing(false)}
-                className="w-full bg-dark text-white py-4 rounded-2xl font-black text-[14pt] shadow-xl hover:bg-black active:scale-95 transition-all"
-              >
-                Selesai semak
-              </button>
-           </div>
-        </motion.div>
-      );
-    }
-
-    // 3. SUBMIT CONFIRMATION (Ready to Submit)
-    if (readyToSubmit) {
-       return (
-         <div className="p-2.5 sm:p-3 bg-white border-t border-gray-100 space-y-2">
-             <div className="bg-lime-50 border border-lime-200 rounded-xl p-2 sm:p-2.5 text-xs sm:text-sm text-lime-800 font-medium text-center">
-                Semua soalan telah dijawab. Sila semak jawapan anda sebelum menghantar.
-             </div>
-             <div className="flex gap-2">
-                <button
-                  onClick={() => setIsReviewing(true)}
-                  className="flex-1 bg-gray-100 text-dark py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                >
-                   <PenLine size={16} /> Semak & edit
-                </button>
-                <button
-                  onClick={handleFinalSubmit}
-                  disabled={isSubmitting}
-                  className="flex-[2] bg-lime-400 text-dark py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-sm shadow-glow hover:bg-lime-500 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                   {isSubmitting ? (
-                      <>
-                        <Loader2 className="animate-spin" size={20} />
-                        ...
-                      </>
-                   ) : (
-                      <>
-                        Hantar <Send size={16} strokeWidth={2.5} />
-                      </>
-                   )}
-                </button>
-             </div>
-         </div>
-       );
-    }
-    
-    // 3. SUBMITTING STATE (Block inputs)
-    if (isSubmitting) return null;
-
-    // 4. NORMAL INPUTS
     switch (currentStep.type) {
       case 'netflix-profile':
         return (
-          <div className="py-2 px-2 sm:p-3">
-             <div className="flex items-center justify-center gap-1.5 mb-2">
-               <Sparkles size={14} className="text-green-600" />
-               <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">Sila Pilih Status Sijil</span>
-             </div>
-             <div className="flex justify-center gap-3 max-w-xs mx-auto">
-                {/* ADA Option */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleNextStep('ADA')}
-                  className="flex-1 py-2.5 px-3 bg-white rounded-xl border-2 border-green-200 hover:border-green-500 flex items-center justify-center gap-2 transition-all shadow-sm group"
-                >
-                   <div className="w-7 h-7 bg-green-50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <CheckCircle2 size={16} className="text-green-600" />
-                   </div>
-                   <span className="text-xs sm:text-sm font-black text-dark group-hover:text-green-700">Ada</span>
-                </motion.button>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-1">
+            {/* ADA Option */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleNextStep('ADA')}
+              className={`
+                min-h-[56px] sm:min-h-[64px] p-4 rounded-xl sm:rounded-2xl border-2 font-bold text-sm sm:text-base flex items-center justify-between transition-all shadow-xs
+                ${currentValue === 'ADA' 
+                  ? 'bg-green-50/90 border-green-500 text-green-900 ring-2 ring-green-500/20' 
+                  : 'bg-white border-gray-200 text-gray-800 hover:border-green-400 hover:bg-green-50/30'
+                }
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentValue === 'ADA' ? 'bg-green-500 text-white' : 'bg-green-100 text-green-600'}`}>
+                  <Check size={18} strokeWidth={3} />
+                </div>
+                <span>Ada</span>
+              </div>
+              {currentValue === 'ADA' && <CheckCircle2 size={20} className="text-green-600 shrink-0" />}
+            </motion.button>
 
-                {/* TIADA Option */}
+            {/* TIADA Option */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleNextStep('TIADA')}
+              className={`
+                min-h-[56px] sm:min-h-[64px] p-4 rounded-xl sm:rounded-2xl border-2 font-bold text-sm sm:text-base flex items-center justify-between transition-all shadow-xs
+                ${currentValue === 'TIADA' 
+                  ? 'bg-red-50/90 border-red-500 text-red-900 ring-2 ring-red-500/20' 
+                  : 'bg-white border-gray-200 text-gray-800 hover:border-red-300 hover:bg-red-50/20'
+                }
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentValue === 'TIADA' ? 'bg-red-500 text-white' : 'bg-red-100 text-red-500'}`}>
+                  <X size={18} strokeWidth={3} />
+                </div>
+                <span>Tiada</span>
+              </div>
+              {currentValue === 'TIADA' && <CheckCircle2 size={20} className="text-red-500 shrink-0" />}
+            </motion.button>
+          </div>
+        );
+
+      case 'options':
+        const isShortList = (currentStep.options?.length || 0) <= 4 && currentStep.options?.every(o => o.length <= 15);
+        return (
+          <div className={`pt-1 ${isShortList ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-2.5'}`}>
+            {currentStep.options?.map((opt) => {
+              const isSelected = currentValue === opt;
+              return (
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  key={opt}
+                  type="button"
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleNextStep('TIADA')}
-                  className="flex-1 py-2.5 px-3 bg-white rounded-xl border-2 border-red-200 hover:border-red-500 flex items-center justify-center gap-2 transition-all shadow-sm group"
+                  onClick={() => handleNextStep(opt)}
+                  className={`
+                    min-h-[52px] sm:min-h-[56px] px-4 py-3 rounded-xl sm:rounded-2xl border transition-all text-left font-bold text-sm sm:text-base flex items-center justify-between shadow-xs group
+                    ${isSelected 
+                      ? 'bg-lime-50 border-lime-500 text-lime-950 ring-2 ring-lime-400/30' 
+                      : 'bg-white border-gray-200 text-gray-800 hover:border-lime-400 hover:bg-lime-50/20'
+                    }
+                  `}
                 >
-                   <div className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <X size={16} className="text-red-500" />
-                   </div>
-                   <span className="text-xs sm:text-sm font-black text-dark group-hover:text-red-600">Tiada</span>
+                  <span className="leading-snug pr-2">{opt}</span>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-lime-500 text-black' : 'border border-gray-300 group-hover:border-lime-400'}`}>
+                    {isSelected ? <Check size={14} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-transparent group-hover:bg-lime-400 transition-colors" />}
+                  </div>
                 </motion.button>
-             </div>
-             <div className="mt-2 text-center">
-                <p className="text-[10px] font-bold text-gray-400 italic">
-                   *Sila rujuk kaunter urussetia program
-                </p>
-             </div>
+              );
+            })}
           </div>
         );
 
       case 'select':
         return (
-          <div className="p-1.5 sm:p-2 space-y-1.5">
-            <div className="flex items-center gap-1.5 px-1">
-              <Sparkles size={12} className="text-green-600" />
-              <span className="text-[10px] font-black text-gray-500 tracking-wider">Sila pilih dari senarai</span>
-            </div>
-            <div className="relative group">
+          <div className="pt-1 space-y-3">
+            <div className="relative">
               <select
-                className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-xs sm:text-sm appearance-none cursor-pointer shadow-sm"
+                value={String(currentValue || '')}
                 onChange={(e) => {
                   if (e.target.value) {
                     handleNextStep(e.target.value);
                   }
                 }}
-                defaultValue=""
+                className="w-full min-h-[54px] bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl px-4 py-3 text-[#17201B] font-bold text-sm sm:text-base focus:ring-2 focus:ring-lime-400/50 focus:border-lime-500 transition-all appearance-none cursor-pointer shadow-xs"
               >
-                <option value="" disabled>-- Sila pilih penganjur --</option>
+                <option value="" disabled>-- Sila pilih dari senarai --</option>
                 {currentStep.options?.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                <ChevronLeft size={16} className="-rotate-90" />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <ChevronLeft size={18} className="-rotate-90" />
               </div>
             </div>
-          </div>
-        );
 
-      case 'options':
-        return (
-          <div className="p-1">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 mb-1">
-              <Sparkles size={12} className="text-green-600" />
-              <span className="text-[10px] font-black text-gray-500 tracking-wider">Sila pilih satu</span>
-            </div>
-            <div className="p-1 overflow-x-auto whitespace-nowrap flex gap-1.5 no-scrollbar">
-              {currentStep.options?.map((opt, idx) => (
-                <motion.button
-                  key={opt}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.03 }}
-                  onClick={() => handleNextStep(opt)}
-                  className="shrink-0 px-3.5 py-2 bg-white border border-gray-200 rounded-full text-dark text-xs sm:text-sm font-bold shadow-sm hover:border-green-400 hover:bg-green-50 transition-all active:scale-95 flex items-center gap-1.5 group"
-                >
-                  {opt}
-                </motion.button>
-              ))}
-            </div>
+            {/* Quick Option Cards for top organizers */}
+            {currentStep.options && currentStep.options.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">Atau pilih penganjur popular:</p>
+                <div className="grid gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                  {currentStep.options.slice(0, 8).map((opt) => {
+                    const isSelected = currentValue === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => handleNextStep(opt)}
+                        className={`
+                          p-3 rounded-xl border text-left text-xs sm:text-sm font-bold transition-all flex items-center justify-between
+                          ${isSelected 
+                            ? 'bg-lime-50 border-lime-500 text-lime-950' 
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-lime-400 hover:bg-lime-50/20'
+                          }
+                        `}
+                      >
+                        <span className="truncate pr-2">{opt}</span>
+                        {isSelected && <CheckCircle2 size={16} className="text-lime-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         );
 
       case 'rating':
         return (
-          <div className="p-1.5 sm:p-2">
-            <div className="flex items-center justify-center gap-1.5 mb-1.5">
-              <span className="text-[10px] font-black text-gray-500 tracking-wider">Skala penilaian (0-5)</span>
+          <div className="pt-1 space-y-3">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
+              {[0, 1, 2, 3, 4, 5].map((num) => {
+                const isSelected = currentValue === num;
+                return (
+                  <motion.button
+                    key={num}
+                    type="button"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleNextStep(num)}
+                    className={`
+                      min-h-[52px] sm:min-h-[60px] rounded-xl sm:rounded-2xl border-2 flex flex-col items-center justify-center transition-all shadow-xs
+                      ${isSelected 
+                        ? 'bg-lime-400 border-lime-500 text-black font-black ring-2 ring-lime-400/30' 
+                        : 'bg-white border-gray-200 text-gray-800 font-bold hover:border-lime-400 hover:bg-lime-50/30'
+                      }
+                    `}
+                  >
+                    <span className="text-lg sm:text-xl leading-none">{num}</span>
+                    <span className="text-[9px] sm:text-[10px] font-semibold opacity-75 mt-0.5">
+                      {num === 0 ? 'Tiada' : num === 5 ? 'Cemerlang' : `Skala ${num}`}
+                    </span>
+                  </motion.button>
+                );
+              })}
             </div>
-            <div className="flex justify-center gap-1.5 sm:gap-2.5">
-              {[0, 1, 2, 3, 4, 5].map((num, idx) => (
-                <motion.button
-                  key={num}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  onClick={() => handleNextStep(num)}
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white border border-gray-200 text-sm sm:text-base font-black text-dark hover:bg-green-500 hover:border-green-500 hover:text-white transition-all shadow-sm active:scale-90 flex items-center justify-center group"
-                >
-                  {num}
-                </motion.button>
-              ))}
+            <div className="flex justify-between items-center text-[11px] font-medium text-gray-500 px-1 pt-1">
+              <span>0 = Tidak Berkenaan / Rendah</span>
+              <span>5 = Cemerlang</span>
             </div>
           </div>
         );
 
       case 'date':
         return (
-           <form onSubmit={(e) => { 
-             e.preventDefault(); 
-             if(inputText) {
-               handleNextStep(inputText); 
-               setInputText('');
-             }
-           }} className="flex gap-2 items-center">
-              <input 
-                type="date" 
-                required
-                className="flex-1 bg-white border border-gray-200 rounded-full px-4 py-2 text-dark font-bold focus:ring-2 focus:ring-green-400/50 transition-all text-xs sm:text-sm shadow-sm"
-                onChange={(e) => setInputText(e.target.value)}
-              />
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                type="submit" 
-                className="bg-green-500 text-white w-10 h-10 rounded-full shadow-md flex items-center justify-center shrink-0 disabled:opacity-50" 
-                disabled={!inputText}
-              >
-                <Send size={18} strokeWidth={2.5} />
-              </motion.button>
-           </form>
-        );
-      case 'textarea':
-        return (
-          <div className="space-y-1.5">
-             {/* Quick Chips */}
-             {currentStep.options && (
-               <div className="flex overflow-x-auto gap-1.5 no-scrollbar py-0.5">
-                  {currentStep.options.map((opt, idx) => (
-                     <motion.button 
-                       key={opt} 
-                       initial={{ opacity: 0, x: 10 }}
-                       animate={{ opacity: 1, x: 0 }}
-                       transition={{ delay: idx * 0.03 }}
-                       onClick={() => handleNextStep(opt)}
-                       className="shrink-0 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[200px] truncate"
-                     >
-                       {opt}
-                     </motion.button>
-                  ))}
-                  <button onClick={() => handleNextStep('TIADA')} className="shrink-0 px-3 py-1.5 bg-gray-200 rounded-full text-xs font-black text-gray-600">Tiada</button>
-               </div>
-             )}
-             <form onSubmit={handleTextSubmit} className="flex gap-2 items-end">
-                <div className="flex-1 relative">
-                  <textarea
-                    rows={1}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value.toUpperCase())}
-                    placeholder="Taip komen anda..."
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2 pr-8 text-dark font-bold focus:ring-2 focus:ring-green-400/50 resize-none text-xs sm:text-sm transition-all min-h-[40px] max-h-28 shadow-sm"
-                    style={{ fieldSizing: 'content' } as any}
-                  />
-                  {inputText && (
-                    <button type="button" onClick={() => setInputText('')} className="absolute right-2.5 top-2.5 p-1 bg-gray-100 rounded-full text-gray-400">
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="submit" 
-                  className="bg-green-500 text-white w-10 h-10 rounded-full shadow-md flex items-center justify-center shrink-0"
-                >
-                  <Send size={18} strokeWidth={2.5} />
-                </motion.button>
-             </form>
+          <div className="pt-1 space-y-3">
+            <input 
+              type="date" 
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="w-full min-h-[54px] bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl px-4 py-3 text-gray-900 font-bold text-base sm:text-lg focus:ring-2 focus:ring-lime-400/50 focus:border-lime-500 transition-all shadow-xs"
+            />
           </div>
         );
 
-      default: // Text with potential suggestions
+      case 'textarea':
+        return (
+          <div className="pt-1 space-y-3">
+            <div className="relative">
+              <textarea
+                rows={3}
+                value={inputText}
+                onChange={(e) => setInputText(currentStep.uppercase ? e.target.value.toUpperCase() : e.target.value)}
+                placeholder="Taip jawapan atau maklum balas anda di sini..."
+                className="w-full bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 text-gray-900 font-medium text-sm sm:text-base focus:ring-2 focus:ring-lime-400/50 focus:border-lime-500 transition-all shadow-xs resize-none min-h-[100px]"
+              />
+              {inputText && (
+                <button 
+                  type="button" 
+                  onClick={() => setInputText('')} 
+                  className="absolute right-3 top-3 p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Chips */}
+            {currentStep.options && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">Pilihan Pantas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {currentStep.options.map((opt) => (
+                    <button 
+                      key={opt} 
+                      type="button"
+                      onClick={() => {
+                        setInputText(opt);
+                        handleNextStep(opt);
+                      }}
+                      className="px-3.5 py-2 bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 transition-all shadow-xs text-left"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setInputText('TIADA');
+                      handleNextStep('TIADA');
+                    }} 
+                    className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs sm:text-sm font-extrabold text-gray-700 transition-all"
+                  >
+                    Tiada
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      default: // 'text'
         const upperInputText = inputText.toUpperCase();
         const filteredOptions = currentStep.options?.filter(opt => 
           inputText.length > 0 && opt.toUpperCase().includes(upperInputText)
         ) || [];
 
         return (
-          <div className="relative space-y-1.5">
-            {/* Google Search Style Autocomplete */}
+          <div className="pt-1 space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(currentStep.uppercase ? e.target.value.toUpperCase() : e.target.value)}
+                placeholder="Taip jawapan anda..."
+                className="w-full min-h-[54px] bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl px-4 py-3 pr-10 text-gray-900 font-bold text-sm sm:text-base focus:ring-2 focus:ring-lime-400/50 focus:border-lime-500 transition-all shadow-xs"
+                autoFocus
+              />
+              {inputText && (
+                <button 
+                  type="button" 
+                  onClick={() => setInputText('')} 
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Filtered Search Results */}
             {filteredOptions.length > 0 && (
-              <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-white border border-gray-200 shadow-xl max-h-52 overflow-y-auto z-50 rounded-xl animate-in fade-in slide-in-from-bottom-2">
+              <div className="bg-white border-2 border-lime-400/50 rounded-xl sm:rounded-2xl shadow-lg max-h-48 overflow-y-auto divide-y divide-gray-100 custom-scrollbar">
                 {filteredOptions.map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     onClick={() => {
+                      setInputText(opt);
                       handleNextStep(opt);
-                      setInputText('');
                     }}
-                    className="w-full text-left p-2.5 hover:bg-green-50 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2"
+                    className="w-full text-left p-3 hover:bg-lime-50 text-xs sm:text-sm font-bold text-gray-800 transition-colors flex items-center justify-between"
                   >
-                    <div className="text-xs sm:text-sm font-bold text-dark leading-snug truncate">{opt}</div>
+                    <span className="pr-2">{opt}</span>
+                    <ArrowRight size={14} className="text-lime-600 shrink-0" />
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Static Suggestions */}
+            {/* Default Quick Options */}
             {currentStep.options && inputText.length === 0 && (
-              <div className="flex overflow-x-auto gap-1.5 no-scrollbar py-0.5">
-                {currentStep.options.slice(0, 10).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => handleNextStep(opt)}
-                    className="shrink-0 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-bold text-dark hover:border-green-400 hover:bg-green-50 transition-all shadow-sm max-w-[180px] truncate"
-                  >
-                    {opt}
-                  </button>
-                ))}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">Cadangan Nama/Lokasi:</p>
+                <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                  {currentStep.options.slice(0, 10).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        setInputText(opt);
+                        handleNextStep(opt);
+                      }}
+                      className="px-3.5 py-2 bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 rounded-xl text-xs font-bold text-gray-800 transition-all shadow-xs text-left"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-
-            <form onSubmit={handleTextSubmit} className="flex gap-2 items-center">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value.toUpperCase())}
-                  placeholder="Taip jawapan anda..."
-                  className="w-full bg-white border border-gray-200 rounded-full px-4 py-2 pr-8 text-dark font-bold focus:ring-2 focus:ring-green-400/50 text-xs sm:text-sm transition-all shadow-sm"
-                  autoFocus
-                />
-                {inputText && (
-                  <button type="button" onClick={() => setInputText('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 bg-gray-100 rounded-full text-gray-400">
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                type="submit" 
-                className="bg-green-500 text-white w-10 h-10 rounded-full shadow-md flex items-center justify-center shrink-0 disabled:opacity-50" 
-                disabled={!inputText.trim()}
-              >
-                <Send size={18} strokeWidth={2.5} />
-              </motion.button>
-            </form>
           </div>
         );
     }
   };
 
   return (
-    <div className="flex flex-col h-dvh sm:h-[680px] w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden sm:border border-gray-100 relative">
-      {/* Chat Header */}
-      <div className="bg-white/95 backdrop-blur-xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 flex items-center justify-between border-b border-gray-100 z-10 sticky top-0 shadow-sm">
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <motion.div 
-            initial={{ rotate: -10, scale: 0.8 }}
-            animate={{ rotate: 0, scale: 1 }}
-            className="relative"
-          >
-            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-lime-400 rounded-lg sm:rounded-xl flex items-center justify-center text-black shadow-md shadow-lime-400/20 border border-lime-500/20">
-              <Bot size={16} sm:size={20} strokeWidth={2.5} />
+    <div className="flex flex-col min-h-dvh w-full max-w-2xl mx-auto bg-[#F6F8F7] text-[#17201B] relative overflow-x-hidden">
+      {/* 1. STICKY HEADER */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E4E9E6] shadow-xs px-4 py-3">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          {/* Bot Branding */}
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-lime-400 rounded-xl flex items-center justify-center text-black shadow-xs border border-lime-500/20">
+                <Bot size={18} sm:size={20} strokeWidth={2.5} />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 border-2 border-white"></span>
+              </span>
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2 sm:h-2.5 sm:w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-green-500 border-2 border-white"></span>
-            </span>
-          </motion.div>
-          <div>
-            <h3 className="font-black text-dark text-xs sm:text-sm tracking-tight leading-none">AI JAIS</h3>
-            <div className="flex items-center gap-1 mt-0.5">
-               <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-               <p className="text-[10px] sm:text-xs text-gray-400 font-bold tracking-wider">Aktif</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-extrabold text-gray-900 text-sm sm:text-base tracking-tight leading-none">e-Penilaian Program JAIS</h1>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-bold border border-green-200/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  Aktif
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={onBack} 
-              className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-dark transition-all"
-            >
-              <X size={16} />
-            </motion.button>
-        </div>
-      </div>
 
-      {/* Messages Area */}
-      <div 
-        ref={scrollRef} 
-        className="flex-1 overflow-y-auto px-2 py-1.5 sm:px-4 sm:py-2 space-y-1.5 bg-white scroll-smooth no-scrollbar sm:custom-scrollbar overscroll-contain relative pb-1 sm:pb-3"
-      >
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={`flex items-end gap-1 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`
-                  max-w-[88%] px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm leading-snug sm:leading-relaxed shadow-xs relative group transition-all
-                  ${msg.sender === 'user' 
-                    ? 'bg-lime-400 text-dark rounded-xl rounded-tr-none' 
-                    : 'bg-gray-100 text-dark rounded-xl rounded-tl-none'
-                  }
-                `}
-              >
-                {msg.isTyping ? (
-                  <div className="flex gap-1 h-3.5 items-center px-1">
-                    <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.8, delay: 0 }} className="w-1 h-1 bg-gray-400 rounded-full" />
-                    <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.8, delay: 0.2 }} className="w-1 h-1 bg-gray-400 rounded-full" />
-                    <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }} className="w-1 h-1 bg-gray-400 rounded-full" />
-                  </div>
-                ) : (
-                  <div className="whitespace-pre-wrap font-medium text-xs sm:text-sm">{msg.text}</div>
+          {/* Step Count Badge & Back/Close */}
+          <div className="flex items-center gap-2">
+            {!isCompleted && !isReviewing && (
+              <div className="flex items-center gap-1.5">
+                {currentStepIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewing(true)}
+                    className="text-xs font-bold text-lime-800 bg-lime-100 hover:bg-lime-200 px-2.5 py-1 rounded-lg border border-lime-300/80 transition-all flex items-center gap-1"
+                    title="Semak semua jawapan"
+                  >
+                    <PenLine size={12} />
+                    <span>Semak</span>
+                  </button>
                 )}
-                
-                <div className="flex justify-end mt-0.5">
-                  <span className={`text-[9px] font-medium ${msg.sender === 'user' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
+                <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200/80">
+                  Soalan {currentStepIndex + 1} / {steps.length}
+                </span>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        
-        {/* Floating Progress Indicator */}
-        {!isCompleted && !readyToSubmit && (
-          <div className="sticky bottom-1 left-0 right-0 flex justify-center pointer-events-none z-10">
-             <div className="bg-white/90 backdrop-blur shadow-sm border border-gray-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-               <div className="flex gap-0.5">
-                  {STEPS.map((_, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`w-1 h-1 rounded-full transition-all ${idx === currentStepIndex ? 'bg-green-500 scale-125' : idx < currentStepIndex ? 'bg-green-200' : 'bg-gray-200'}`}
-                    />
-                  ))}
-               </div>
-               <span className="text-[10px] font-bold text-gray-400 ml-1 border-l border-gray-200 pl-1">
-                 {Math.round(((currentStepIndex + 1) / STEPS.length) * 100)}%
-               </span>
-             </div>
+            )}
+            <button 
+              type="button"
+              onClick={onBack} 
+              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700 transition-colors"
+              title="Tutup"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        {!isCompleted && !isReviewing && (
+          <div className="space-y-1">
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden border border-gray-200/50">
+              <motion.div 
+                className="bg-lime-500 h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              />
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 px-0.5">
+              <span>{progressPercent}% lengkap</span>
+              <span>Langkah {currentStepIndex + 1} daripada {steps.length}</span>
+            </div>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Input Area (Fixed/Sticky Bottom) */}
-      <div className="flex-none bg-white dark:bg-[#111b21] px-1.5 py-1 sm:p-2.5 border-t border-gray-100 dark:border-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
-        {renderInputArea()}
-      </div>
+      {/* 2. MAIN CONTENT AREA */}
+      <main className="flex-1 flex flex-col p-4 sm:p-6 pb-28 justify-start">
+        {/* SUCCESS VIEW */}
+        {isCompleted && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex-1 flex flex-col items-center my-auto space-y-6"
+          >
+            {/* Header Box */}
+            <div className="w-full bg-gradient-to-b from-lime-400 to-lime-500 p-8 rounded-3xl text-center shadow-lg relative overflow-hidden text-black space-y-3">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-green-600 mx-auto shadow-md">
+                <CheckCircle2 size={36} strokeWidth={3} />
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">Terima Kasih!</h2>
+              <p className="text-sm font-bold text-black/80 max-w-sm mx-auto leading-relaxed">
+                Penilaian anda terhadap Program Jabatan Agama Islam Sarawak telah berjaya dihantar.
+              </p>
+            </div>
 
-      {/* Countdown Overlay */}
+            {/* Poster / Certificate card */}
+            <div className="w-full bg-white rounded-3xl p-5 border border-gray-200 shadow-sm space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-lime-100 text-lime-700 rounded-xl">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-sm text-gray-900">Kongsikan Poster</p>
+                    <p className="text-xs text-gray-500 font-medium">Sijil penyertaan & tamat program</p>
+                  </div>
+                </div>
+                <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
+                  <button onClick={() => setPosterRatio('square')} className={`p-1.5 rounded-lg text-xs font-bold transition-all ${posterRatio === 'square' ? 'bg-white shadow-xs text-black' : 'text-gray-400'}`}><Square size={14} /></button>
+                  <button onClick={() => setPosterRatio('story')} className={`p-1.5 rounded-lg text-xs font-bold transition-all ${posterRatio === 'story' ? 'bg-white shadow-xs text-black' : 'text-gray-400'}`}><Smartphone size={14} /></button>
+                </div>
+              </div>
+
+              {/* Poster Preview Frame */}
+              <div className="flex justify-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <div 
+                  ref={posterRef}
+                  className={`
+                    w-full bg-[#0F0F0F] rounded-[1.5rem] p-5 flex flex-col justify-between relative overflow-hidden shadow-xl border-[3px] border-lime-400
+                    ${posterRatio === 'square' ? 'aspect-square max-w-[260px]' : 'aspect-[9/16] max-w-[190px]'}
+                    transition-all duration-300
+                  `}
+                >
+                  <div className="relative z-10">
+                    <div className="bg-lime-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full tracking-wider inline-block mb-2">
+                      Tamat Program
+                    </div>
+                    <div className="flex items-center gap-1 text-lime-400 mb-1">
+                      <Building2 size={10} className="shrink-0"/>
+                      <span className="text-[10px] font-bold line-clamp-1">
+                        {formData.penganjurUtama || "Penganjur"}
+                      </span>
+                    </div>
+                    <h3 className={`text-white font-black leading-tight tracking-tight mb-2 break-words ${getTitleFontSize(formData.namaProgram || "")}`}>
+                      {formData.namaProgram || "Program"}
+                    </h3>
+                    <div className="space-y-1 border-l-2 border-white/20 pl-2 mt-2">
+                      <div className="flex items-center gap-1 text-gray-300">
+                        <MapPin size={10} className="text-white shrink-0"/>
+                        <span className="text-[10px] font-medium line-clamp-1">
+                          {formData.tempatProgram || "Lokasi"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-300">
+                        <Clock size={10} className="text-white shrink-0"/>
+                        <span className="text-[10px] font-medium">
+                          {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="relative z-10 pt-2 border-t border-white/10 mt-auto flex items-center gap-2">
+                    <div className="w-5 h-5 bg-white rounded flex items-center justify-center p-0.5">
+                      <LogoImage />
+                    </div>
+                    <span className="text-white font-bold text-[9px]">e-Penilaian JAIS</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-2">
+                <button 
+                  onClick={handleSharePoster}
+                  disabled={isSharing}
+                  className="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
+                >
+                  {isSharing ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
+                  Kongsi ke WhatsApp Status
+                </button>
+                <button 
+                  onClick={handleSaveToAlbum}
+                  disabled={isSaving}
+                  className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all"
+                >
+                  {isSaving ? <Loader2 className="animate-spin text-lime-400" size={18} /> : <ImageIcon size={18} className="text-lime-400" />}
+                  Simpan Gambar
+                </button>
+              </div>
+            </div>
+
+            <button 
+              onClick={onBack} 
+              className="text-gray-500 hover:text-gray-800 font-bold text-sm py-2 flex items-center gap-2 transition-colors"
+            >
+              <RefreshCw size={14}/> Kembali ke Halaman Utama
+            </button>
+          </motion.div>
+        )}
+
+        {/* REVIEW OVERLAY */}
+        {!isCompleted && isReviewing && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Semakan Jawapan</h2>
+                <p className="text-xs text-gray-500 font-medium">Sila semak semula jawapan anda sebelum menghantar.</p>
+              </div>
+              <button 
+                onClick={() => setIsReviewing(false)}
+                className="p-2 bg-gray-100 rounded-xl text-gray-500 hover:text-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {steps.map((step, idx) => (
+                <div 
+                  key={step.field} 
+                  className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex justify-between items-center gap-3"
+                >
+                  <div className="space-y-0.5 flex-1 pr-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      Soalan {idx + 1} • {step.field.replace(/([A-Z])/g, ' $1').trim()}
+                    </p>
+                    <p className="text-xs font-semibold text-gray-600 line-clamp-1">{step.question}</p>
+                    <p className="text-sm font-black text-gray-900 pt-0.5">
+                      {step.field === 'ratingJamuan' && formData[step.field] === 0 
+                        ? 'Tiada jamuan' 
+                        : (formData[step.field]?.toString() || <span className="text-gray-400 italic font-normal">Tiada jawapan</span>)}
+                    </p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setCurrentStepIndex(idx);
+                      setIsReviewing(false);
+                      setReadyToSubmit(false);
+                      setIsEditing(true);
+                    }}
+                    className="px-3 py-1.5 bg-lime-50 text-lime-800 rounded-xl font-bold text-xs border border-lime-200 hover:bg-lime-400 hover:text-black transition-all flex items-center gap-1 shrink-0"
+                  >
+                    <PenLine size={12} />
+                    <span>Edit</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3">
+              <button
+                type="button"
+                onClick={handleFinalSubmit}
+                disabled={isSubmitting}
+                className="w-full bg-lime-400 text-black py-4 rounded-2xl font-black text-base shadow-md hover:bg-lime-500 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                <span>Sahkan & Hantar Sekarang</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ACTIVE QUESTION STEP (Conversational Survey Card) */}
+        {!isCompleted && !isReviewing && currentStep && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`step-${currentStepIndex}`}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="space-y-4 my-auto"
+            >
+              {/* Question Card */}
+              <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E4E9E6] shadow-sm p-5 sm:p-7 space-y-4">
+                {/* Header Badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-100 text-lime-800 text-xs font-extrabold border border-lime-200">
+                    <Sparkles size={12} />
+                    Soalan {currentStepIndex + 1} daripada {steps.length}
+                  </span>
+                  {formData[currentStep.field] && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200">
+                      <CheckCircle2 size={12} /> Dijawab
+                    </span>
+                  )}
+                </div>
+
+                {/* Question Text */}
+                <h2 className="text-lg sm:text-xl font-extrabold text-[#17201B] leading-snug tracking-tight">
+                  {currentStep.question}
+                </h2>
+
+                {/* Instruction Hint */}
+                <p className="text-xs sm:text-sm font-medium text-[#66736B]">
+                  {currentStep.type === 'rating' ? 'Sila pilih skala penilaian dari 0 hingga 5' :
+                   currentStep.type === 'options' || currentStep.type === 'netflix-profile' ? 'Sila pilih satu daripada pilihan berikut:' :
+                   currentStep.type === 'select' ? 'Sila pilih dari senarai penganjur:' :
+                   currentStep.type === 'date' ? 'Sila masukkan tarikh berkenaan:' :
+                   'Taip atau pilih jawapan anda di bawah:'}
+                </p>
+
+                {/* Options / Input Component */}
+                {renderQuestionInput()}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </main>
+
+      {/* 3. STICKY FOOTER NAVIGATION */}
+      {!isCompleted && !isReviewing && (
+        <footer 
+          className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E4E9E6] px-4 py-3 sm:px-6 sm:py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <div className="flex items-center gap-3 max-w-2xl mx-auto w-full">
+            {/* Back Button */}
+            <button
+              type="button"
+              onClick={handlePrevStep}
+              className="flex-1 min-h-[48px] sm:min-h-[52px] px-4 py-3 rounded-xl sm:rounded-2xl border border-gray-200 text-[#17201B] font-bold text-sm sm:text-base hover:bg-gray-100 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
+            >
+              <ChevronLeft size={18} />
+              <span>Kembali</span>
+            </button>
+
+            {/* Next / Submit Button */}
+            <button
+              type="button"
+              onClick={() => {
+                let valToSave: any = undefined;
+                if (currentStep.type === 'text' || currentStep.type === 'date' || currentStep.type === 'textarea') {
+                  if (inputText.trim()) {
+                    valToSave = currentStep.uppercase ? inputText.toUpperCase() : inputText;
+                  } else if (formData[currentStep.field]) {
+                    valToSave = formData[currentStep.field];
+                  } else if (currentStep.type === 'textarea') {
+                    valToSave = 'TIADA';
+                  }
+                } else {
+                  valToSave = formData[currentStep.field];
+                }
+
+                if (valToSave !== undefined && valToSave !== null && valToSave !== '') {
+                  handleNextStep(valToSave);
+                } else if (currentStepIndex === steps.length - 1 || readyToSubmit) {
+                  handleFinalSubmit();
+                }
+              }}
+              disabled={!isCurrentStepValid() || isSubmitting}
+              className="flex-[2] min-h-[48px] sm:min-h-[52px] px-4 py-3 rounded-xl sm:rounded-2xl bg-lime-400 text-[#17201B] font-extrabold text-sm sm:text-base hover:bg-lime-500 shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:active:scale-100"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Menghantar...</span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    {readyToSubmit || currentStepIndex === steps.length - 1 ? 'Hantar Penilaian' : 'Seterusnya'}
+                  </span>
+                  {readyToSubmit || currentStepIndex === steps.length - 1 ? (
+                    <Send size={18} />
+                  ) : (
+                    <ChevronRight size={18} />
+                  )}
+                </>
+              )}
+            </button>
+          </div>
+        </footer>
+      )}
+
+      {/* 4. COUNTDOWN OVERLAY DURING SUBMISSION */}
       <AnimatePresence>
         {isSubmitting && countdown !== null && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] bg-dark/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 rounded-[2rem]"
+            className="fixed inset-0 z-[100] bg-gray-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-6"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
@@ -1019,8 +1076,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
               transition={{ type: 'spring', damping: 20, stiffness: 200 }}
               className="text-center"
             >
-              {/* Animated Ring */}
-              <div className="relative w-36 h-36 mx-auto mb-8">
+              {/* Circular SVG Timer */}
+              <div className="relative w-36 h-36 mx-auto mb-6">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
                   <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
                   <circle
@@ -1039,15 +1096,13 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                 </div>
               </div>
 
-              {/* Loader Animation */}
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Loader2 className="animate-spin text-lime-400" size={20} />
-                <span className="text-white font-bold text-lg tracking-tight">Menghantar penilaian</span>
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <Loader2 className="animate-spin text-lime-400" size={22} />
+                <span className="text-white font-bold text-xl tracking-tight">Menghantar penilaian</span>
               </div>
 
-              {/* Subtitle */}
               <p className="text-gray-400 text-sm font-medium">
-                ...sedang menghantar penilaian kepada urus setia...
+                ...sedang menyimpan penilaian kepada pangkalan data...
               </p>
             </motion.div>
           </motion.div>
