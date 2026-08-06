@@ -165,28 +165,28 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 font-bold text-sm group relative overflow-hidden ${
+    className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl transition-all duration-200 font-bold text-sm group relative overflow-hidden ${
       active
-        ? 'bg-lime-400 text-dark shadow-[0_0_20px_rgba(208,242,64,0.3)]'
-        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+        ? 'bg-lime-400 text-[#171A18] shadow-xs'
+        : 'text-gray-300 hover:bg-white/10 hover:text-white'
     }`}
   >
     {active && (
       <motion.div 
         layoutId="nav-active-bg"
         className="absolute inset-0 bg-lime-400 z-0"
-        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
       />
     )}
-    <div className={`relative z-10 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
+    <div className={`relative z-10 transition-transform duration-200 ${active ? 'scale-105' : 'group-hover:scale-105'}`}>
       {icon}
     </div>
-    <span className="relative z-10 tracking-tight">{label}</span>
+    <span className="relative z-10 tracking-tight text-xs sm:text-sm">{label}</span>
     {active && (
       <motion.div 
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        className="absolute right-3 w-1.5 h-1.5 rounded-full bg-dark z-10"
+        className="absolute right-3 w-2 h-2 rounded-full bg-[#171A18] z-10"
       />
     )}
   </button>
@@ -198,6 +198,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<ProgramSelectionState | null>(null);
+
+  // Lock body scroll when mobile menu drawer is active
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isMobileMenuOpen]);
+
+  // Handle ESC key press to close drawer & dropdowns
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        setIsYearDropdownOpen(false);
+        setIsMonthDropdownOpen(false);
+        setIsQuarterDropdownOpen(false);
+        setIsOrganizerDropdownOpen(false);
+        setIsProgramNameDropdownOpen(false);
+        setIsPlaceDropdownOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const [programVariantPicker, setProgramVariantPicker] = useState<string | null>(null);
 
   // --- FILTER STATES & REFS (Updated for Custom Dropdowns) ---
@@ -1069,26 +1098,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex font-sans text-dark">
-      {/* Sidebar Desktop */}
+    <div className="min-h-screen bg-[#F6F7F6] flex font-sans text-dark overflow-x-hidden">
+      {/* Sidebar Desktop & Mobile */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-[280px] bg-[#1A1C1E] text-white transform transition-transform duration-300 lg:translate-x-0 lg:static lg:block
+        fixed inset-y-0 left-0 z-50 w-60 bg-[#171A18] text-white transform transition-transform duration-300 lg:translate-x-0 lg:static lg:block shrink-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="h-full flex flex-col p-8">
-          <div className="flex items-center gap-4 mb-12 mt-2">
-            <div className="w-12 h-12 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-glow">
+        <div className="h-full flex flex-col p-6">
+          <div className="flex items-center gap-3 mb-8 mt-1">
+            <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-xs">
               <LogoImage />
             </div>
             <div>
-              <span className="font-black text-2xl tracking-tight block leading-none">JAIS</span>
-              <span className="text-[10px] text-lime-400 uppercase tracking-[0.2em] font-bold">Admin Panel</span>
+              <span className="font-black text-xl tracking-tight block leading-none text-white">JAIS</span>
+              <span className="text-[10px] text-lime-400 uppercase tracking-widest font-extrabold">Admin Panel</span>
             </div>
           </div>
 
-          <nav className="flex-1 space-y-3">
+          <nav className="flex-1 space-y-2">
             <NavItem 
-              icon={<LayoutDashboard size={20} />} 
+              icon={<LayoutDashboard size={18} />} 
               label="Analisis Data" 
               active={currentTab === 'analysis'} 
               onClick={() => {
@@ -1100,7 +1129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               }}
             />
             <NavItem 
-              icon={<PieChart size={20} />} 
+              icon={<PieChart size={18} />} 
               label="Report BSC" 
               active={currentTab === 'bsc'} 
               onClick={() => {
@@ -1112,7 +1141,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               }}
             />
             <NavItem 
-              icon={<MessageSquare size={20} />} 
+              icon={<MessageSquare size={18} />} 
               label="Komen" 
               active={currentTab === 'comments'} 
               onClick={() => {
@@ -1125,12 +1154,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             />
           </nav>
 
-          <div className="pt-8 border-t border-gray-800 space-y-4">
+          <div className="pt-6 border-t border-gray-800/60 space-y-3">
             <button 
               onClick={onLogout}
-              className="flex items-center gap-3 px-6 py-4 text-red-400 hover:bg-white/5 rounded-2xl transition-all w-full text-sm font-bold group"
+              className="flex items-center gap-2.5 px-4 py-3 text-red-400 hover:bg-white/5 rounded-xl transition-all w-full text-xs font-bold group"
             >
-              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+              <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
               Log Keluar
             </button>
           </div>
@@ -1146,20 +1175,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen relative">
-        <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-30 px-6 sm:px-10 py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-gray-200/50">
-          <div className="flex items-center gap-4">
+      <main className="flex-1 overflow-y-auto h-screen relative min-w-0">
+        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-30 px-6 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#E6EAE7]">
+          <div className="flex items-center gap-3">
             <button 
               className="p-2 -ml-2 rounded-xl hover:bg-gray-100 lg:hidden text-dark"
               onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Buka Menu"
             >
-              <Menu size={24} />
+              <Menu size={22} />
             </button>
             <div>
-              <h1 className={TYPO.h2}>
+              <h1 className="text-xl sm:text-2xl font-black text-[#171A18] tracking-tight">
                 {currentTab === 'analysis' ? 'Analisis Program' : currentTab === 'bsc' ? 'Laporan BSC' : 'Komen Peserta'}
               </h1>
-              <p className={`${TYPO.small} text-gray-500 mt-1`}>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">
                 {currentTab === 'analysis' 
                   ? 'Dashboard prestasi dan maklum balas masa nyata' 
                   : currentTab === 'bsc' 
@@ -1169,31 +1199,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           </div>
           
-          <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
              <button 
                 onClick={handleExportDashboardPDF}
                 disabled={isExporting || filteredData.length === 0}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-dark text-lime-400 hover:bg-black transition-all text-xs font-bold shadow-lg shadow-lime-900/10 active:scale-95 disabled:opacity-50 group"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#171A18] text-lime-400 hover:bg-black transition-all text-xs font-bold shadow-xs active:scale-95 disabled:opacity-50"
              >
                 {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                <span className="hidden sm:inline">Export PDF</span>
+                <span>Export PDF</span>
              </button>
 
              <button 
                 onClick={() => refreshData()}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 transition-all text-xs font-bold text-gray-600 shadow-sm active:scale-95 group"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E6EAE7] hover:border-lime-400 hover:bg-lime-50 transition-all text-xs font-bold text-gray-700 shadow-xs active:scale-95 group"
              >
                 <RefreshCw size={14} className="group-hover:animate-spin text-lime-600" />
-                <span className="hidden sm:inline">Kemaskini</span>
+                <span>Kemas Kini</span>
              </button>
 
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lime-400 to-lime-600 shadow-lg shadow-lime-400/20 flex items-center justify-center text-white font-bold text-xs border-2 border-white">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lime-400 to-lime-600 flex items-center justify-center text-black font-extrabold text-xs border border-lime-500/30">
               AD
             </div>
           </div>
         </header>
 
-        <div className="p-6 sm:p-10 space-y-10 max-w-[1800px] mx-auto pb-20">
+        <div className="p-4 sm:p-6 xl:p-8 space-y-6 max-w-[1600px] w-full mx-auto pb-20 min-w-0">
           
             {/* FILTER BAR - Floating Card Design */}
             <div className="space-y-2">
@@ -1486,28 +1516,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           ) : (
             <>
 
-              {/* KPI CARDS - Clean & Bold - Updated Grid for 5 items */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+              {/* KPI CARDS - 6 Items aligned neatly across desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 min-w-0">
                 <StatCard 
                   title="Jumlah Responden" 
                   value={stats.totalRespondents}
-                  icon={<Users size={24} />}
+                  icon={<Users size={20} />}
                   trend="Timestamp Valid"
                   highlight 
                   className="h-full"
                 />
-                 {/* New Card: Bilangan Program */}
                  <StatCard 
                   title="Bilangan Program" 
                   value={stats.totalPrograms || 0}
-                  icon={<Layers size={24} />}
+                  icon={<Layers size={20} />}
                   trend="Unik"
                   className="h-full"
                 />
                  <StatCard 
                   title="Purata Skor" 
                   value={stats.avgKeseluruhan}
-                  icon={<Star size={24} />}
+                  icon={<Star size={20} />}
                   subtext={`Skor ${stats.avgKeseluruhan} — ${stats.totalRespondents} responden (Sasaran: 4.5+)`}
                   trend="Indeks"
                   className="h-full"
@@ -1515,7 +1544,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <StatCard 
                   title="Indeks BSC (AE)" 
                   value={stats.avgFormula}
-                  icon={<Bot size={24} />}
+                  icon={<Bot size={20} />}
                   subtext={`Skor ${stats.avgFormula} — ${stats.totalRespondents} responden`}
                   highlight
                   className="h-full"
@@ -1523,34 +1552,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                  <StatCard 
                   title="Kepuasan Pengisian" 
                   value={stats.avgPengisian}
-                  icon={<Activity size={24} />}
+                  icon={<Activity size={20} />}
                   subtext={`Skor ${stats.avgPengisian} — ${stats.totalRespondents} responden`}
                   className="h-full"
                 />
                  <StatCard 
                   title="Prestasi Fasilitator" 
                   value={stats.avgFasilitator}
-                  icon={<Award size={24} />}
+                  icon={<Award size={20} />}
                   subtext={`Skor ${stats.avgFasilitator} — ${stats.totalRespondents} responden`}
                   className="h-full"
                 />
               </div>
 
-              {/* CHARTS ROW 1 */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Main Score Bar Chart */}
-                  <div className="lg:col-span-2 bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 flex flex-col">
-                    <div className="mb-6">
-                        <h3 className={`${TYPO.h3} flex items-center gap-3 text-dark`}>
-                          <div className="p-2 bg-lime-100 rounded-lg text-lime-700"><TrendingUp size={20} /></div>
-                          Prestasi Kategori
-                        </h3>
-                        <p className={`${TYPO.small} text-gray-400 mt-1 pl-12`}>Analisis purata skor bagi setiap aspek (Berdasarkan {stats.totalRespondents} responden)</p>
+              {/* CHARTS ROW 1 (12 Columns) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
+                  {/* Main Score Bar Chart (8 Columns) */}
+                  <div className="lg:col-span-8 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                    <div className="mb-5 flex justify-between items-start gap-2">
+                        <div>
+                            <h3 className="text-base font-extrabold text-[#171A18] flex items-center gap-2.5">
+                              <div className="p-2 bg-lime-100 rounded-xl text-lime-800"><TrendingUp size={18} /></div>
+                              Prestasi Kategori
+                            </h3>
+                            <p className="text-xs text-gray-500 font-medium mt-1">Analisis purata skor bagi setiap aspek (Berdasarkan {stats.totalRespondents} responden)</p>
+                        </div>
                     </div>
                     
-                    <div className="flex-1 w-full h-[250px]">
+                    <div className="flex-1 w-full h-[280px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={charts.scores} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
+                        <BarChart data={charts.scores} margin={{ top: 25, right: 10, left: -10, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                           <XAxis 
                             dataKey="name" 
@@ -1576,8 +1607,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             <LabelList 
                               dataKey="value" 
                               position="top" 
-                              style={{ fill: COLORS.dark, fontSize: '12px', fontWeight: '800' }}
-                              offset={12}
+                              style={{ fill: COLORS.dark, fontSize: '11px', fontWeight: '800' }}
+                              offset={10}
                             />
                             {charts.scores.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={index % 2 === 0 ? COLORS.limeDark : COLORS.dark} />
@@ -1588,24 +1619,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Gender Bar Chart */}
-                  <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 flex flex-col">
-                    <div className="mb-6 flex justify-between items-start">
+                  {/* Gender Bar Chart (4 Columns) */}
+                  <div className="lg:col-span-4 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                    <div className="mb-5 flex justify-between items-start">
                       <div>
-                        <h3 className={`${TYPO.h3} text-dark flex items-center gap-3`}>
-                          <div className="p-2 bg-gray-100 rounded-lg text-dark"><Users size={20} /></div>
+                        <h3 className="text-base font-extrabold text-[#171A18] flex items-center gap-2.5">
+                          <div className="p-2 bg-gray-100 rounded-xl text-gray-800"><Users size={18} /></div>
                           Demografi
                         </h3>
-                        <p className={`${TYPO.small} text-gray-400 mt-1 pl-12`}>Pecahan Jantina</p>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Pecahan Jantina Peserta</p>
                       </div>
                     </div>
                     
-                    <div className="flex-1 h-[200px] w-full relative">
+                    <div className="flex-1 h-[280px] w-full relative min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart 
                           data={charts.jantina} 
                           layout="horizontal"
-                          margin={{ top: 30, right: 10, left: -20, bottom: 0 }}
+                          margin={{ top: 25, right: 10, left: -20, bottom: 0 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                           <XAxis 
@@ -1624,15 +1655,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <Bar 
                             dataKey="value" 
                             name="Peserta" 
-                            radius={[8, 8, 8, 8]} 
-                            barSize={48}
+                            radius={[6, 6, 6, 6]} 
+                            barSize={44}
                             animationDuration={1500}
                           >
                             <LabelList 
                               dataKey="value" 
                               position="top" 
                               style={{ fill: COLORS.dark, fontSize: '11px', fontWeight: '800' }}
-                              offset={12}
+                              offset={10}
                             />
                             {charts.jantina.map((entry, index) => (
                               <Cell 
@@ -1649,31 +1680,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
               {/* CHARTS ROW 2 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Age Group */}
-                  <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
-                     <div className="flex items-center gap-3 mb-8">
-                        <div className="p-2 bg-gray-100 rounded-lg text-dark">
-                           <Calendar size={20} />
+                  {/* Age Group (6 Columns) */}
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                     <div className="flex items-center gap-2.5 mb-5">
+                        <div className="p-2 bg-gray-100 rounded-xl text-gray-800">
+                           <Calendar size={18} />
                         </div>
                         <div>
-                           <h3 className={TYPO.h3}>Taburan Umur</h3>
-                           <p className={`${TYPO.micro} text-gray-400 mt-1`}>Mengikut Kategori</p>
+                           <h3 className="text-base font-extrabold text-[#171A18]">Taburan Umur</h3>
+                           <p className="text-xs text-gray-500 font-medium mt-0.5">Mengikut Kategori</p>
                         </div>
                      </div>
                      
-                     <div className="h-[250px]">
+                     <div className="h-[280px] min-w-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart 
                             data={charts.umur} 
                             layout="vertical"
-                            margin={{ left: 10, right: 60 }}
+                            margin={{ left: 10, right: 50, top: 10, bottom: 0 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f3f4f6" />
                             <XAxis type="number" hide />
                             <YAxis 
                               dataKey="name" 
                               type="category" 
-                              width={140}
+                              width={130}
                               tick={{ fill: '#4B5563', fontSize: 11, fontWeight: 600 }} 
                               axisLine={false} 
                               tickLine={false} 
@@ -1684,7 +1715,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               name="Peserta"
                               fill={COLORS.dark} 
                               radius={[0, 6, 6, 0]} 
-                              barSize={24} 
+                              barSize={22} 
                               background={{ fill: '#F9FAFB', radius: [0, 6, 6, 0] } as any}
                             >
                               <LabelList 
@@ -1696,52 +1727,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
+                     </div>
                   </div>
 
-                  {/* Top Places */}
-                  <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 flex flex-col">
-                     <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-lime-100 rounded-lg text-lime-700">
-                                <Trophy size={20} />
+                  {/* Top Places (6 Columns) */}
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                     <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-2 bg-lime-100 rounded-xl text-lime-800">
+                                <Trophy size={18} />
                             </div>
                             <div>
-                                <h3 className={TYPO.h3}>Lokasi Popular</h3>
-                                <p className={`${TYPO.micro} text-gray-400 mt-1`}>Top 3 Tempat</p>
+                                <h3 className="text-base font-extrabold text-[#171A18]">Lokasi Popular</h3>
+                                <p className="text-xs text-gray-500 font-medium mt-0.5">Top 3 Tempat Program</p>
                             </div>
                         </div>
                      </div>
                      
-                     <div className="flex-1 flex flex-col justify-center gap-4">
+                     <div className="flex-1 flex flex-col justify-center gap-3">
                         {topPlaces.length > 0 ? (
                             topPlaces.map((place, index) => (
                                 <div 
                                     key={place.name} 
                                     className={`
-                                        relative p-5 rounded-2xl flex items-center justify-between gap-4 transition-all
+                                        relative p-4 rounded-xl flex items-center justify-between gap-3 transition-all
                                         ${index === 0 
-                                            ? 'bg-[#1A1C1E] text-white shadow-xl shadow-gray-200' 
+                                            ? 'bg-[#171A18] text-white shadow-md' 
                                             : 'bg-gray-50 text-dark border border-gray-100'
                                         }
                                     `}
                                 >
-                                    <div className="flex items-center gap-4 overflow-hidden">
+                                    <div className="flex items-center gap-3 overflow-hidden">
                                         <div className={`
-                                            flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-black text-xs
-                                            ${index === 0 ? 'bg-lime-400 text-black' : 'bg-white text-gray-400 border border-gray-200'}
+                                            shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-black text-xs
+                                            ${index === 0 ? 'bg-lime-400 text-black' : 'bg-white text-gray-500 border border-gray-200'}
                                         `}>
                                             {index + 1}
                                         </div>
-                                        <span className={`font-bold uppercase text-xs sm:text-sm truncate ${index === 0 ? 'text-gray-200' : 'text-gray-600'}`}>
+                                        <span className={`font-bold uppercase text-xs truncate ${index === 0 ? 'text-gray-100' : 'text-gray-700'}`}>
                                             {place.name}
                                         </span>
                                     </div>
-                                    <div className="font-black text-lg sm:text-xl">
+                                    <div className="font-black text-base sm:text-lg">
                                         {place.value}
                                     </div>
                                     {index === 0 && (
-                                        <div className="absolute top-0 right-0 -mt-2 -mr-2 text-lime-400">
-                                            <Medal size={28} fill="currentColor" />
+                                        <div className="absolute top-0 right-0 -mt-1.5 -mr-1.5 text-lime-400">
+                                            <Medal size={24} fill="currentColor" />
                                         </div>
                                     )}
                                 </div>
@@ -1753,27 +1785,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                              </div>
                         )}
                      </div>
-                     </div>
                   </div>
+              </div>
 
-                  {/* Generasi Demografi */}
-                  <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
-                     <div className="flex items-center gap-3 mb-8">
-                        <div className="p-2 bg-lime-100 rounded-lg text-lime-700">
-                           <Users size={20} />
+              {/* CHARTS ROW 3 (12 Columns) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
+                  {/* Generasi Demografi (6 Columns) */}
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                     <div className="flex items-center gap-2.5 mb-5">
+                        <div className="p-2 bg-lime-100 rounded-xl text-lime-800">
+                           <Users size={18} />
                         </div>
                         <div>
-                           <h3 className={TYPO.h3}>Generasi Demografi</h3>
-                           <p className={`${TYPO.micro} text-gray-400 mt-1`}>Mengikut Generasi</p>
+                           <h3 className="text-base font-extrabold text-[#171A18]">Generasi Demografi</h3>
+                           <p className="text-xs text-gray-500 font-medium mt-0.5">Mengikut Generasi</p>
                         </div>
                      </div>
                      
-                     <div className="h-[250px]">
+                     <div className="h-[280px] min-w-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart 
                             data={charts.generasi} 
                             layout="vertical"
-                            margin={{ left: 10, right: 60 }}
+                            margin={{ left: 10, right: 50, top: 10, bottom: 0 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f3f4f6" />
                             <XAxis type="number" hide />
@@ -1791,7 +1825,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               name="Peserta"
                               fill={COLORS.limeDark} 
                               radius={[0, 6, 6, 0]} 
-                              barSize={24} 
+                              barSize={22} 
                               background={{ fill: '#F9FAFB', radius: [0, 6, 6, 0] } as any}
                             >
                               <LabelList 
@@ -1805,59 +1839,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         </ResponsiveContainer>
                      </div>
                   </div>
-              </div>
 
-              {/* BAHAGIAN CHART */}
-              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
-                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-gray-100 rounded-lg text-dark">
-                       <MapPin size={20} />
-                    </div>
-                    <div>
-                       <h3 className={TYPO.h3}>Analisis Bahagian</h3>
-                       <p className={`${TYPO.micro} text-gray-400 mt-1`}>Taburan Program</p>
-                    </div>
-                 </div>
-                 
-                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={charts.bahagian} margin={{ top: 30, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 600 }} 
-                          axisLine={false} 
-                          tickLine={false}
-                          dy={10}
-                        />
-                        <YAxis 
-                          tick={{ fill: '#9CA3AF', fontSize: 11 }} 
-                          axisLine={false} 
-                          tickLine={false} 
-                        />
-                        <Tooltip cursor={{ fill: '#F9FAFB' }} content={<CustomTooltip />} />
-                        <Bar 
-                          dataKey="value" 
-                          name="Program"
-                          fill={COLORS.limeDark} 
-                          radius={[6, 6, 6, 6]} 
-                          barSize={32}
-                          animationDuration={1500}
-                        >
-                          <LabelList 
-                            dataKey="value" 
-                            position="top" 
-                            style={{ fill: COLORS.dark, fontSize: '11px', fontWeight: '800' }}
-                            offset={12}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                 </div>
+                  {/* Analisis Bahagian (6 Columns) */}
+                  <div className="lg:col-span-6 bg-white p-6 rounded-2xl shadow-xs border border-[#E6EAE7] flex flex-col min-w-0">
+                     <div className="flex items-center gap-2.5 mb-5">
+                        <div className="p-2 bg-gray-100 rounded-xl text-gray-800">
+                           <Building size={18} />
+                        </div>
+                        <div>
+                           <h3 className="text-base font-extrabold text-[#171A18]">Analisis Bahagian</h3>
+                           <p className="text-xs text-gray-500 font-medium mt-0.5">Taburan Program Mengikut Bahagian</p>
+                        </div>
+                     </div>
+                     
+                     <div className="h-[280px] w-full min-w-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={charts.bahagian} margin={{ top: 25, right: 20, left: -10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 600 }} 
+                              axisLine={false} 
+                              tickLine={false}
+                              dy={10}
+                            />
+                            <YAxis 
+                              tick={{ fill: '#9CA3AF', fontSize: 11 }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                            />
+                            <Tooltip cursor={{ fill: '#F9FAFB' }} content={<CustomTooltip />} />
+                            <Bar 
+                              dataKey="value" 
+                              name="Program"
+                              fill={COLORS.limeDark} 
+                              radius={[6, 6, 6, 6]} 
+                              barSize={28}
+                              animationDuration={1500}
+                            >
+                              <LabelList 
+                                dataKey="value" 
+                                position="top" 
+                                style={{ fill: COLORS.dark, fontSize: '11px', fontWeight: '800' }}
+                                offset={10}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                     </div>
+                  </div>
               </div>
 
               {/* TABLE SECTION */}
-              <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden mt-2">
+              <div className="bg-white rounded-2xl border border-[#E6EAE7] shadow-xs overflow-hidden mt-2 min-w-0">
                 <SubmissionTable 
                    data={programSummaries} 
                    onSelect={handleProgramSelect}

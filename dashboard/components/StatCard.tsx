@@ -21,47 +21,38 @@ export const StatCard: React.FC<StatCardProps> = ({
 }) => {
   return (
     <div className={`
-      relative overflow-hidden p-5 sm:p-6 rounded-3xl transition-all duration-300 group
-      ${highlight 
-        ? 'bg-dark text-white shadow-xl shadow-lime-400/20' 
-        : 'bg-white text-dark shadow-sm border border-gray-100 hover:shadow-md'
-      } 
+      relative overflow-hidden p-5 rounded-2xl transition-all duration-200 group flex flex-col justify-between
+      bg-white text-[#171A18] border border-[#E6EAE7] shadow-xs hover:border-lime-300 hover:shadow-md
       ${className}
     `}>
       {highlight && (
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-lime-400 rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
+        <div className="absolute top-0 right-0 w-20 h-20 bg-lime-400/10 rounded-bl-full pointer-events-none"></div>
       )}
       
       <div className="relative z-10 flex flex-col h-full justify-between">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-start mb-3 gap-2">
           <div className={`
-            p-3 rounded-2xl flex items-center justify-center transition-colors
-            ${highlight ? 'bg-white/10 text-lime-400' : 'bg-gray-50 text-dark group-hover:bg-lime-50 group-hover:text-lime-700'}
+            p-2.5 rounded-xl flex items-center justify-center transition-colors shrink-0
+            ${highlight ? 'bg-lime-100 text-lime-800' : 'bg-gray-100 text-gray-700 group-hover:bg-lime-100 group-hover:text-lime-800'}
           `}>
             {icon}
           </div>
           {trend && (
-             <span className={`
-               text-xs font-bold px-2.5 py-1 rounded-full
-               ${highlight ? 'bg-lime-400 text-black' : 'bg-lime-100 text-lime-800'}
-             `}>
+             <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-lime-100 text-lime-900 border border-lime-300/60 shrink-0">
                {trend}
              </span>
           )}
         </div>
         
         <div>
-          <h3 className={`
-            font-extrabold tracking-tight mb-1
-            ${typeof value === 'string' && value.length > 15 ? 'text-lg sm:text-xl' : 'text-3xl sm:text-4xl'}
-          `}>
+          <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-[#171A18] mb-1 tabular-nums">
             {value}
           </h3>
-          <p className={`text-sm font-semibold ${highlight ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className="text-xs sm:text-sm font-bold text-gray-700 leading-snug">
             {title}
           </p>
           {subtext && (
-            <p className={`text-xs mt-1 ${highlight ? 'text-gray-500' : 'text-gray-400'}`}>
+            <p className="text-[11px] font-medium text-gray-500 mt-1 leading-tight line-clamp-2">
               {subtext}
             </p>
           )}
@@ -70,3 +61,4 @@ export const StatCard: React.FC<StatCardProps> = ({
     </div>
   );
 };
+
