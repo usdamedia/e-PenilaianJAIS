@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2, Sparkles, ChevronLeft } from 'lucide-react';
 import ReactConfetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import { Analytics } from '@vercel/analytics/react';
@@ -14,6 +14,7 @@ import { RatingScale } from './components/RatingScale';
 import { submitEvaluation } from './services/api';
 import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
+import { ChangelogPage } from './admin/ChangelogPage';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
 import LogoImage from './components/LogoImage';
 import html2canvas from 'html2canvas';
@@ -104,8 +105,8 @@ class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminE
 }
 
 function App() {
-  // Navigation State: 'form' | 'adminLogin' | 'adminPanel'
-  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
+  // Navigation State: 'form' | 'adminLogin' | 'adminPanel' | 'changelog'
+  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel' | 'changelog'>('form');
   
   // NEW: Flow Step State
   const [flowStep, setFlowStep] = useState<'modeSelection' | 'filling'>('modeSelection');
@@ -362,6 +363,24 @@ function App() {
       <AdminErrorBoundary onBack={() => setView('form')}>
         <AdminDashboard onLogout={() => setView('form')} />
       </AdminErrorBoundary>
+    );
+  }
+
+  if (view === 'changelog') {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA]">
+        <div className="bg-[#111827] text-white px-4 py-3 flex items-center justify-between border-b border-gray-800">
+          <button
+            onClick={() => setView('form')}
+            className="inline-flex items-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-lime-400 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+          >
+            <ChevronLeft size={16} />
+            Kembali ke Borang Utama
+          </button>
+          <span className="text-xs font-mono text-gray-400">e-Penilaian JAIS v2.4.0</span>
+        </div>
+        <ChangelogPage onBack={() => setView('form')} />
+      </div>
     );
   }
 
@@ -1191,8 +1210,16 @@ function App() {
         )
         )}
       </div>
-      <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500">
-        RUJUKAN KAMI: BPNP/UPS/B/NILAI/02
+      <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+        <span>RUJUKAN KAMI: BPNP/UPS/B/NILAI/02</span>
+        <span className="hidden sm:inline text-gray-300">•</span>
+        <button
+          onClick={() => setView('changelog')}
+          className="text-lime-700 hover:text-dark font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <Sparkles size={13} className="text-lime-600" />
+          <span>Sejarah Penambahbaikan (13 Ogos 2026)</span>
+        </button>
       </div>
       <Analytics />
     </div>

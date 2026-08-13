@@ -18,6 +18,7 @@ import { SubmissionTable, ProgramSummary } from './SubmissionTable';
 import { ProgramDetail } from './ProgramDetail';
 import { ReportBSC } from './ReportBSC';
 import { CommentsPage } from './CommentsPage';
+import { ChangelogPage } from './ChangelogPage';
 import BSCReportPDF from './BSCReportPDF';
 import { DashboardData } from '../dashboard/types';
 import { MONTHS } from '../constants';
@@ -195,7 +196,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { rawData: dashboardRawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
   const rawData = dashboardRawData || [];
-  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments'>('analysis');
+  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments' | 'changelog'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<ProgramSelectionState | null>(null);
 
@@ -1355,6 +1356,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 window.scrollTo(0,0);
               }}
             />
+            <NavItem 
+              icon={<Sparkles size={18} />} 
+              label="Penambahbaikan App" 
+              active={currentTab === 'changelog'} 
+              onClick={() => {
+                setCurrentTab('changelog');
+                setSelectedProgram(null);
+                setProgramVariantPicker(null);
+                setIsMobileMenuOpen(false);
+                window.scrollTo(0,0);
+              }}
+            />
           </nav>
 
           <div className="pt-6 border-t border-gray-800/60 space-y-3">
@@ -1390,14 +1403,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </button>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-[#171A18] tracking-tight">
-                {currentTab === 'analysis' ? 'Analisis Program' : currentTab === 'bsc' ? 'Laporan BSC' : 'Komen Peserta'}
+                {currentTab === 'analysis' ? 'Analisis Program' : currentTab === 'bsc' ? 'Laporan BSC' : currentTab === 'comments' ? 'Komen Peserta' : 'Sejarah Penambahbaikan Aplikasi'}
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 font-medium">
                 {currentTab === 'analysis' 
                   ? 'Dashboard prestasi dan maklum balas masa nyata' 
                   : currentTab === 'bsc' 
                     ? 'Analisis strategik Penilaian Keseluruhan Program'
-                    : 'Maklum balas jujur dan cadangan daripada peserta'}
+                    : currentTab === 'comments'
+                      ? 'Maklum balas jujur dan cadangan daripada peserta'
+                      : 'Log kemaskini rasmi, penambahbaikan ciri & kelajuan sistem'}
               </p>
             </div>
           </div>
@@ -1952,7 +1967,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             )}
 
 
-          {currentTab === 'comments' ? (
+          {currentTab === 'changelog' ? (
+            <ChangelogPage />
+          ) : currentTab === 'comments' ? (
             <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
           ) : currentTab === 'bsc' ? (
             <ReportBSC data={filteredData} onExportPDF={handleExportBSCPDF} isExporting={isExporting} />
