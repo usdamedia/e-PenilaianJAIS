@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Users, FileText, Settings as SettingsIcon, LogOut, Bell, Menu, Shield, RefreshCw, Filter, 
   Calendar, Building, Search, Star, Activity, Award, TrendingUp, MapPin, ChevronDown, X, PieChart, Trophy, Medal,
-  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot, MessageSquare, AlertCircle
+  CalendarDays, Check, SlidersHorizontal, Layers, FileDown, Loader2, Bot, MessageSquare, AlertCircle, Sparkles, CheckCircle2, ArrowRight
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -266,11 +266,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
 
+  // --- AUTOCOMPLETE SEARCH REFS & STATES ---
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const summaryPanelRef = useRef<HTMLDivElement>(null);
+  const kpiSectionRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRecentlySelected, setIsRecentlySelected] = useState(false);
+
   // Unified "Click Outside" Handler to close any open dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
       
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(target)) {
+        setIsSearchFocused(false);
+      }
       if (yearDropdownRef.current && !yearDropdownRef.current.contains(target)) {
         setIsYearDropdownOpen(false);
       }
@@ -293,6 +307,195 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [yearDropdownRef, monthDropdownRef, quarterDropdownRef, organizerDropdownRef]);
+
+  // --- AUTOCOMPLETE DATA & SEARCH LOGIC ---
+  const allProgramNames = useMemo(() => {
+    const names = new Set<string>();
+    rawData.forEach(item => {
+      if (item.programName && item.programName !== '-' && item.programName !== 'PROGRAM TIDAK DINYATAKAN') {
+        names.add(item.programName);
+      }
+    });
+    return Array.from(names).sort();
+  }, [rawData]);
+
+  // Matching suggestions for autocomplete
+  const searchResults = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return [];
+    const query = searchTerm.trim().toLowerCase();
+    const matches = allProgramNames.filter(p => p.toLowerCase().includes(query));
+    return matches.slice(0, 8); // Max 8 suggestions
+  }, [allProgramNames, searchTerm]);
+
+  // Highlight matching string
+  const highlightMatch = (text: string, match: string) => {
+    if (!match.trim()) return text;
+    const parts = text.split(new RegExp(`(${match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+    return (
+      <span>
+        {parts.map((part, i) =>
+          part.toLowerCase() === match.toLowerCase() ? (
+            <mark key={i} className="bg-lime-300 text-lime-950 font-extrabold px-1 rounded-sm">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </span>
+    );
+  };
+
+  // Sync state with URL Query Parameters
+  const updateUrlParams = useCallback((overrides?: Record<string, string | null>) => {
+    const params = new URLSearchParams(window.location.search);
+    
+    const prog = overrides && 'program' in overrides ? overrides.program : (selectedProgramName !== 'SEMUA' ? selectedProgramName : null);
+    if (prog) params.set('program', prog); else params.delete('program');
+
+    const yr = overrides && 'year' in overrides ? overrides.year : (selectedYears.length > 0 ? selectedYears.join(',') : null);
+    if (yr) params.set('year', yr); else params.delete('year');
+
+    const mo = overrides && 'month' in overrides ? overrides.month : (selectedMonth !== 'SEMUA' ? selectedMonth : null);
+    if (mo) params.set('month', mo); else params.delete('month');
+
+    const qt = overrides && 'quarter' in overrides ? overrides.quarter : (selectedQuarter !== 'SEMUA' ? selectedQuarter : null);
+    if (qt) params.set('quarter', qt); else params.delete('quarter');
+
+    const org = overrides && 'organizer' in overrides ? overrides.organizer : (selectedOrganizer !== 'SEMUA' ? selectedOrganizer : null);
+    if (org) params.set('organizer', org); else params.delete('organizer');
+
+    const newSearch = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState(null, '', newSearch);
+  }, [selectedProgramName, selectedYears, selectedMonth, selectedQuarter, selectedOrganizer]);
+
+  // Restore filter values from URL params on load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlProgram = params.get('program');
+    const urlYear = params.get('year');
+    const urlMonth = params.get('month');
+    const urlQuarter = params.get('quarter');
+    const urlOrganizer = params.get('organizer');
+
+    if (urlProgram) {
+      setSelectedProgramName(urlProgram);
+      setSearchTerm(urlProgram);
+    }
+    if (urlYear) {
+      setSelectedYears(urlYear.split(','));
+    }
+    if (urlMonth) {
+      setSelectedMonth(urlMonth);
+    }
+    if (urlQuarter) {
+      setSelectedQuarter(urlQuarter);
+    }
+    if (urlOrganizer) {
+      setSelectedOrganizer(urlOrganizer);
+    }
+  }, []);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlProgram = params.get('program') || 'SEMUA';
+      setSelectedProgramName(urlProgram);
+      setSearchTerm(urlProgram !== 'SEMUA' ? urlProgram : '');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Program selection handler with smooth scroll & feedback
+  const selectProgramFromSearch = (progName: string) => {
+    setSelectedProgramName(progName);
+    setSearchTerm(progName);
+    setIsSearchFocused(false);
+    setHighlightedSuggestionIndex(-1);
+
+    updateUrlParams({ program: progName });
+
+    setToastMessage(`Analisis program berjaya dipaparkan.`);
+    setTimeout(() => setToastMessage(null), 3500);
+
+    setIsRecentlySelected(true);
+    setTimeout(() => setIsRecentlySelected(false), 1200);
+
+    setTimeout(() => {
+      if (summaryPanelRef.current) {
+        summaryPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (kpiSectionRef.current) {
+        kpiSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  // Keyboard navigation inside search input
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isSearchFocused) setIsSearchFocused(true);
+      if (searchResults.length > 0) {
+        setHighlightedSuggestionIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : 0));
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (searchResults.length > 0) {
+        setHighlightedSuggestionIndex(prev => (prev > 0 ? prev - 1 : searchResults.length - 1));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchResults.length > 0) {
+        const targetProg = highlightedSuggestionIndex >= 0 ? searchResults[highlightedSuggestionIndex] : searchResults[0];
+        if (targetProg) {
+          selectProgramFromSearch(targetProg);
+        }
+      } else if (searchTerm.trim()) {
+        const match = allProgramNames.find(p => p.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+        if (match) {
+          selectProgramFromSearch(match);
+        } else {
+          setToastMessage('Tiada program ditemui untuk carian ini.');
+          setTimeout(() => setToastMessage(null), 3000);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchFocused(false);
+    }
+  };
+
+  // Details of Selected Program for Summary Panel
+  const selectedProgramDetails = useMemo(() => {
+    if (selectedProgramName === 'SEMUA') return null;
+    const programRecords = rawData.filter(i => i.programName === selectedProgramName);
+    if (programRecords.length === 0) {
+      return {
+        name: selectedProgramName,
+        tempat: 'Tidak Dinyatakan',
+        penganjur: 'Tidak Dinyatakan',
+        tahun: selectedYears.length > 0 ? selectedYears.join(', ') : 'Semua Tahun',
+        tarikh: null,
+        totalRespondents: 0
+      };
+    }
+
+    const first = programRecords[0];
+    const uniquePlaces = Array.from(new Set(programRecords.map(r => r.tempat).filter(t => t && t !== '-'))).join(', ');
+    const uniqueOrganizers = Array.from(new Set(programRecords.map(r => r.penganjur).filter(p => p && p !== '-'))).join(', ');
+    const uniqueYears = Array.from(new Set(programRecords.map(r => r.filterTahun).filter(y => y))).join(', ');
+    const dateFormatted = formatProgramDateLabel(first.programDate);
+
+    return {
+      name: selectedProgramName,
+      tempat: uniquePlaces || first.tempat || 'Tidak Dinyatakan',
+      penganjur: uniqueOrganizers || first.penganjur || 'Tidak Dinyatakan',
+      tahun: uniqueYears || 'Semua Tahun',
+      tarikh: dateFormatted !== '-' ? dateFormatted : null,
+      totalRespondents: programRecords.length
+    };
+  }, [rawData, selectedProgramName, selectedYears]);
 
   // Data Processing - Generate Options
   const { years, months, quarters, organizers } = useMemo(() => {
@@ -1230,18 +1433,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               {/* BARIS ATAS: Carian, Tahun, Bulan & Reset */}
               <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-2">
                 
-                {/* Search - Dominant */}
-                <div className="relative flex-1 w-full group">
-                   <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                      <Search size={18} className="text-gray-400 group-focus-within:text-lime-600 transition-colors" />
+                {/* Search Bar - Autocomplete Enabled */}
+                <div className="relative flex-1 w-full group" ref={searchDropdownRef}>
+                   <div className="relative flex items-center">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                         <Search size={18} className="text-gray-400 group-focus-within:text-lime-600 transition-colors" />
+                      </div>
+                      <input 
+                         ref={searchInputRef}
+                         type="text"
+                         value={searchTerm}
+                         onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setIsSearchFocused(true);
+                            setHighlightedSuggestionIndex(-1);
+                         }}
+                         onFocus={() => setIsSearchFocused(true)}
+                         onKeyDown={handleSearchKeyDown}
+                         placeholder="Cari nama program, tempat atau bahagian..."
+                         className="w-full pl-11 pr-28 py-3.5 bg-gray-50 hover:bg-gray-100/80 focus:bg-white rounded-2xl text-xs sm:text-sm font-semibold text-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40 transition-all border border-transparent shadow-2xs"
+                      />
+
+                      <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1 z-10">
+                         {searchTerm && (
+                            <button
+                               type="button"
+                               onClick={() => {
+                                  setSearchTerm('');
+                                  setSelectedProgramName('SEMUA');
+                                  setIsSearchFocused(false);
+                                  updateUrlParams({ program: null });
+                               }}
+                               className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-xl transition-colors cursor-pointer"
+                               title="Kosongkan carian"
+                            >
+                               <X size={15} />
+                            </button>
+                         )}
+
+                         <button
+                            type="button"
+                            onClick={() => {
+                               if (searchResults.length > 0) {
+                                  const targetProg = highlightedSuggestionIndex >= 0 ? searchResults[highlightedSuggestionIndex] : searchResults[0];
+                                  selectProgramFromSearch(targetProg);
+                               } else if (searchTerm.trim()) {
+                                  const match = allProgramNames.find(p => p.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+                                  if (match) {
+                                     selectProgramFromSearch(match);
+                                  } else {
+                                     setToastMessage('Tiada program ditemui untuk carian ini.');
+                                     setTimeout(() => setToastMessage(null), 3000);
+                                  }
+                               }
+                            }}
+                            className="px-3.5 py-2 bg-[#171A18] hover:bg-black text-lime-400 font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                         >
+                            <span>Cari</span>
+                         </button>
+                      </div>
                    </div>
-                   <input 
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Cari program, tempat atau bahagian..."
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 hover:bg-gray-100 focus:bg-white rounded-2xl text-sm font-semibold text-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-lime-400/20 transition-all border border-transparent"
-                   />
+
+                   {/* Autocomplete Dropdown List */}
+                   {isSearchFocused && searchTerm.trim().length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex justify-between items-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                            <span>Cadangan Program ({searchResults.length})</span>
+                            <span className="text-[10px] text-gray-400 font-normal hidden sm:inline">Guna ↑↓ & Enter</span>
+                         </div>
+
+                         {searchResults.length > 0 ? (
+                            <div className="max-h-[320px] overflow-y-auto divide-y divide-gray-100 custom-scrollbar">
+                               {searchResults.map((progName, idx) => {
+                                  const isHighlighted = idx === highlightedSuggestionIndex;
+                                  return (
+                                     <button
+                                        key={progName}
+                                        type="button"
+                                        onClick={() => selectProgramFromSearch(progName)}
+                                        onMouseEnter={() => setHighlightedSuggestionIndex(idx)}
+                                        className={`
+                                           w-full text-left px-4 py-3 flex items-start gap-3 transition-colors cursor-pointer text-xs
+                                           ${isHighlighted ? 'bg-lime-50 text-black font-bold' : 'hover:bg-gray-50 text-gray-700'}
+                                        `}
+                                     >
+                                        <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${isHighlighted ? 'bg-lime-400 text-black' : 'bg-gray-100 text-gray-500'}`}>
+                                           <FileText size={14} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                           <div className="font-semibold text-xs leading-snug">
+                                              {highlightMatch(progName, searchTerm)}
+                                           </div>
+                                        </div>
+                                        <Check size={14} className={`shrink-0 mt-1 ${selectedProgramName === progName ? 'text-lime-600 opacity-100' : 'opacity-0'}`} />
+                                     </button>
+                                  );
+                               })}
+                            </div>
+                         ) : (
+                            <div className="p-6 text-center text-xs text-gray-500 space-y-1">
+                               <p className="font-bold text-gray-700">Tiada program ditemui</p>
+                               <p className="text-[11px] text-gray-400">Sila semak ejaan nama program atau kata kunci carian anda.</p>
+                            </div>
+                         )}
+                      </div>
+                   )}
                 </div>
 
                 {/* Filters - Pills (Custom Dropdowns) */}
@@ -1508,6 +1804,153 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
 
+            {/* SELECTED PROGRAM SUMMARY PANEL */}
+            {selectedProgramDetails && (
+              <div 
+                ref={summaryPanelRef}
+                className={`
+                  scroll-mt-28 bg-gradient-to-br from-[#171A18] via-gray-900 to-[#171A18] border border-lime-500/30 text-white p-5 sm:p-6 rounded-[24px] shadow-xl transition-all duration-700 relative overflow-hidden min-w-0 my-4
+                  ${isRecentlySelected ? 'ring-4 ring-lime-400/80 shadow-2xl shadow-lime-400/20 scale-[1.002]' : ''}
+                `}
+              >
+                {/* Ambient Glow Accent */}
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-lime-400/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+                  
+                  {/* Information Section */}
+                  <div className="space-y-3 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-lime-400 text-black uppercase tracking-wider shadow-xs">
+                        <Sparkles size={13} />
+                        Ringkasan Program Dipilih
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-lime-300 border border-white/10 backdrop-blur-md">
+                        <CheckCircle2 size={13} className="text-lime-400" />
+                        1 Program Ditemui ({stats.totalRespondents} Responden)
+                      </span>
+                    </div>
+
+                    <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug break-words">
+                      {selectedProgramDetails.name}
+                    </h2>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 text-xs text-gray-300 font-medium">
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2.5 rounded-xl border border-white/5 min-w-0">
+                        <Building size={15} className="text-lime-400 shrink-0" />
+                        <span className="truncate" title={selectedProgramDetails.penganjur}>
+                          <strong className="text-gray-400">Penganjur:</strong> {selectedProgramDetails.penganjur}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2.5 rounded-xl border border-white/5 min-w-0">
+                        <MapPin size={15} className="text-lime-400 shrink-0" />
+                        <span className="truncate" title={selectedProgramDetails.tempat}>
+                          <strong className="text-gray-400">Tempat:</strong> {selectedProgramDetails.tempat}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2.5 rounded-xl border border-white/5 min-w-0">
+                        <Calendar size={15} className="text-lime-400 shrink-0" />
+                        <span className="truncate">
+                          <strong className="text-gray-400">Tahun/Tarikh:</strong> {selectedProgramDetails.tarikh || selectedProgramDetails.tahun}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2.5 rounded-xl border border-white/5 min-w-0">
+                        <Users size={15} className="text-lime-400 shrink-0" />
+                        <span className="truncate">
+                          <strong className="text-gray-400">Jumlah Data:</strong> {stats.totalRespondents} Responden
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap sm:flex-row lg:flex-col gap-2 shrink-0 justify-end">
+                    <button
+                      onClick={() => {
+                        const text = `Assalamualaikum/ Salam Sejahtera \n\nTuan/Puan Dilampirkan Laporan Penilaian ${selectedProgramDetails.name}\nTarikh ${selectedProgramDetails.tarikh || selectedProgramDetails.tahun || '-'}\nTempat Program ${selectedProgramDetails.tempat || '-'}\nBilangan Responden ${stats.totalRespondents}`;
+                        navigator.clipboard.writeText(text);
+                        setToastMessage('Teks laporan WhatsApp berjaya disalin!');
+                        setTimeout(() => setToastMessage(null), 2500);
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white hover:text-black transition-all font-black text-xs shadow-md active:scale-95 cursor-pointer"
+                      title="Salin ayat laporan ke WhatsApp"
+                    >
+                      <MessageSquare size={15} />
+                      <span>Salin WhatsApp</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProgram({
+                          programName: selectedProgramDetails.name
+                        });
+                        window.scrollTo(0, 0);
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-lime-400 text-black hover:bg-lime-300 transition-all font-black text-xs shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <FileText size={15} />
+                      <span>Lihat Detail Laporan</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (kpiSectionRef.current) {
+                          kpiSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all font-bold text-xs active:scale-95 cursor-pointer"
+                    >
+                      <TrendingUp size={15} />
+                      <span>Lihat Analisis</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProgramName('SEMUA');
+                        setSearchTerm('');
+                        updateUrlParams({ program: null });
+                        setToastMessage('Pilihan program dikosongkan.');
+                        setTimeout(() => setToastMessage(null), 2500);
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all font-bold text-xs active:scale-95 cursor-pointer"
+                    >
+                      <X size={15} />
+                      <span>Kosongkan</span>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* EMPTY STATE FOR PROGRAM WITH ZERO RESPONDENTS */}
+            {selectedProgramName !== 'SEMUA' && stats.totalRespondents === 0 && (
+              <div className="bg-amber-50/90 border border-amber-200 rounded-[24px] p-6 text-amber-950 shadow-sm flex flex-col sm:flex-row items-center gap-4 my-4">
+                <div className="p-3 bg-amber-100 rounded-2xl text-amber-700 shrink-0">
+                  <AlertCircle size={32} />
+                </div>
+                <div className="flex-1 text-center sm:text-left space-y-1">
+                  <h3 className="font-extrabold text-base text-amber-950">Program Ditemui (Tiada Data Penilaian)</h3>
+                  <p className="text-xs text-amber-800 font-medium">
+                    Program ini ditemui dalam pangkalan data, tetapi tiada rekod responden bagi kombinasi penapis semasa.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedProgramName('SEMUA');
+                    setSearchTerm('');
+                    updateUrlParams({ program: null });
+                  }}
+                  className="px-4 py-2.5 bg-amber-200/90 hover:bg-amber-300 text-amber-950 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                >
+                  Kosongkan Penapis
+                </button>
+              </div>
+            )}
+
 
           {currentTab === 'comments' ? (
             <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
@@ -1517,7 +1960,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <>
 
               {/* KPI CARDS - 6 Items aligned neatly across desktop */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 min-w-0">
+              <div ref={kpiSectionRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 min-w-0 scroll-mt-28">
                 <StatCard 
                   title="Jumlah Responden" 
                   value={stats.totalRespondents}
@@ -1901,6 +2344,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </>
           )}
         </div>
+
+        {/* TOAST NOTIFICATION */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed bottom-6 right-6 z-50 bg-[#171A18] text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-lime-400/40 flex items-center gap-3 max-w-md text-xs font-bold"
+            >
+              <div className="p-1.5 bg-lime-400 text-black rounded-lg shrink-0">
+                <CheckCircle2 size={16} />
+              </div>
+              <span className="flex-1 text-gray-200">{toastMessage}</span>
+              <button 
+                onClick={() => setToastMessage(null)} 
+                className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

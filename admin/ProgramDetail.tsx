@@ -1,13 +1,13 @@
-
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip 
 } from 'recharts';
 import { 
   ArrowLeft, MessageSquare, Lightbulb, MapPin, Building2, 
-  Calendar, FileDown, TrendingUp, AlertCircle, Quote, Users, UserCheck, Filter, Award, Star,
-  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon, Save, CheckCircle2
+  Calendar, FileDown, TrendingUp, AlertCircle, Users, UserCheck, Filter, Award, Star,
+  Sparkles, Bot, Loader2, RefreshCw, Plus, Minus, Image as ImageIcon, Save, CheckCircle2,
+  Copy, Share2, Search, X, Check, Bookmark, FileText, ChevronRight, SlidersHorizontal, Trash2
 } from 'lucide-react';
 import { DashboardData } from '../dashboard/types';
 import html2canvas from 'html2canvas';
@@ -51,18 +51,10 @@ interface StoredFeedbackHighlights {
   savedAt: string;
 }
 
-interface HighlightableFeedbackRowProps {
-  index: number;
-  text: string;
-  type: 'comment' | 'suggestion';
-  isHighlighted: boolean;
-  onToggle: () => void;
-}
-
 const COLORS = {
   lime: '#D0F240',
-  dark: '#1A1C1E',
-  limeDark: '#9AB820',
+  dark: '#111827',
+  limeDark: '#84A600',
   gray: '#F3F4F6',
   white: '#FFFFFF'
 };
@@ -79,55 +71,6 @@ const setsAreEqual = (first: Set<number>, second: Set<number>) => {
     if (!second.has(value)) return false;
   }
   return true;
-};
-
-const HighlightableFeedbackRow: React.FC<HighlightableFeedbackRowProps> = ({
-  index,
-  text,
-  type,
-  isHighlighted,
-  onToggle,
-}) => {
-  const isComment = type === 'comment';
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onToggle();
-    }
-  };
-
-  return (
-    <tr
-      role="button"
-      tabIndex={0}
-      aria-pressed={isHighlighted}
-      aria-label={`${isHighlighted ? 'Buang highlight' : 'Highlight'} ${isComment ? 'komen' : 'cadangan'} nombor ${index + 1}`}
-      onClick={onToggle}
-      onKeyDown={handleKeyDown}
-      className={[
-        'cursor-pointer transition-all group outline-none',
-        isHighlighted
-          ? 'bg-yellow-50 hover:bg-yellow-100/80 ring-1 ring-inset ring-yellow-300'
-          : 'hover:bg-gray-50/50 focus:bg-gray-50/70',
-      ].join(' ')}
-      title="Klik untuk tanda sebagai perlu diberi perhatian"
-    >
-      <td className={`px-6 py-4 text-[10px] font-black w-12 align-top pt-5 ${isHighlighted ? 'text-yellow-700' : 'text-gray-300'}`}>
-        {String(index + 1).padStart(2, '0')}
-      </td>
-      <td className="px-6 py-4 text-xs sm:text-sm text-gray-600 leading-relaxed align-top font-medium">
-        <div className="flex items-start gap-3">
-          <span className={`mt-0.5 shrink-0 transition-colors ${isHighlighted ? 'text-yellow-500' : 'text-gray-200 group-hover:text-gray-300'}`}>
-            <Star size={15} fill={isHighlighted ? 'currentColor' : 'none'} />
-          </span>
-          <span className={isComment ? 'italic' : undefined}>
-            {isComment ? `"${text}"` : text}
-          </span>
-        </div>
-      </td>
-    </tr>
-  );
 };
 
 // Helper untuk format tarikh (ISO -> DD/MM/YYYY)
@@ -152,6 +95,13 @@ const getVariantSummaryLabel = (variant: ProgramVariantOption) => {
   return parts.join(' • ');
 };
 
+const getScoreRating = (score: number) => {
+  if (score >= 4.5) return { label: 'Cemerlang', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+  if (score >= 4.0) return { label: 'Sangat Baik', color: 'bg-lime-100 text-lime-800 border-lime-200' };
+  if (score >= 3.0) return { label: 'Baik', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+  return { label: 'Perlu Perhatian', color: 'bg-rose-100 text-rose-800 border-rose-200' };
+};
+
 export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data, onBack, onRefresh, initialFilters }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
@@ -159,18 +109,27 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   // Ref for capturing the report content
   const reportRef = useRef<HTMLDivElement>(null);
   
-  // Font Size State: 0 = Normal, 1 = Large, 2 = Extra Large
-  const [fontSizeLevel, setFontSizeLevel] = useState(0);
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2800);
+  }, []);
 
-  // AI States for General Analysis
+  // AI States
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
 
-  // NEW: Appendix Scale State (0.5 to 1.5)
+  // Display Scale State (50% to 150%)
   const [appendixScale, setAppendixScale] = useState(1);
 
-  // --- WYSIWYG EDITABLE STATES ---
-  const [editableProgramName, setEditableProgramName] = useState(programName);
+  // Active sticky nav section
+  const [activeSection, setActiveSection] = useState<string>('section-summary');
+
+  // WYSIWYG EDITABLE STATES
+  const [editableProgramName, setEditableProgramName] = useState<string>(
+    programName && programName !== 'UNKNOWN' && programName !== 'SEMUA' ? programName : ''
+  );
   const [editablePenganjur, setEditablePenganjur] = useState('');
   const [editableAnalysis, setEditableAnalysis] = useState<string | null>(null);
   const [editableComments, setEditableComments] = useState<string[]>([]);
@@ -181,10 +140,22 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
   const [savedHighlightedSuggestionIndexes, setSavedHighlightedSuggestionIndexes] = useState<Set<number>>(new Set<number>());
   const [highlightSavedAt, setHighlightSavedAt] = useState<string | null>(null);
 
+  // Feedback section search and filter states
+  const [feedbackTab, setFeedbackTab] = useState<'all' | 'comments' | 'suggestions' | 'saved'>('all');
+  const [feedbackSearch, setFeedbackSearch] = useState('');
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'highlighted' | 'unhighlighted'>('all');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   useEffect(() => {
-    // Handle "UNKNOWN" case: Set to empty string to trigger fallback text
-    setEditableProgramName(programName === 'UNKNOWN' ? '' : programName);
-  }, [programName]);
+    if (programName && programName !== 'UNKNOWN' && programName !== 'SEMUA') {
+      setEditableProgramName(programName);
+    } else {
+      const found = data.find(d => d.programName && d.programName !== '-' && d.programName !== 'SEMUA');
+      if (found?.programName) {
+        setEditableProgramName(found.programName);
+      }
+    }
+  }, [programName, data]);
 
   useEffect(() => {
     if (aiAnalysisResult) {
@@ -211,33 +182,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     setSelectedPenganjur(initialFilters?.penganjur || 'SEMUA');
   }, [programName, initialFilters]);
 
-  // --- FONT SIZE LOGIC ---
-  const fontSizes = {
-    headerTitle: ['text-3xl sm:text-4xl', 'text-4xl sm:text-5xl', 'text-5xl sm:text-6xl'],
-    sectionTitle: ['text-xl', 'text-2xl', 'text-3xl'],
-    subHeader: ['text-xs', 'text-sm', 'text-base'],
-    body: ['text-sm', 'text-base', 'text-lg'],
-    bodySmall: ['text-xs', 'text-sm', 'text-base'],
-    kpiValue: ['text-4xl', 'text-5xl', 'text-6xl'],
-    kpiLabel: ['text-[10px]', 'text-xs', 'text-sm'],
-  };
-
-  const fs = (type: keyof typeof fontSizes) => fontSizes[type][fontSizeLevel];
-
-  const handleFontSizeChange = (increment: boolean) => {
-    setFontSizeLevel(prev => {
-      const newValue = increment ? prev + 1 : prev - 1;
-      return Math.min(Math.max(newValue, 0), 2);
-    });
-  };
-
-  // 1. RAW DATA (Base Set for this Program)
+  // RAW DATA (Base Set for this Program)
   const allProgramData = useMemo(() => {
     return data.filter(d => {
-      // Handle "UNKNOWN" case from Dashboard to match empty/null data
       const dataName = d.programName || "UNKNOWN";
       const isProgramMatch = dataName === programName;
-      
       const isNotHeader = d.programName !== 'NAMA PROGRAM' && d.tarafPendidikan !== 'TARAF PENDIDIKAN TERTINGGI';
       return isProgramMatch && isNotHeader;
     });
@@ -284,9 +233,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     });
   }, [allProgramData]);
 
-  // 2. DYNAMIC FILTER OPTIONS
-
-  // A. Unique Years (Level 1)
+  // DYNAMIC FILTER OPTIONS
   const uniqueYears = useMemo(() => {
     const set = new Set(
       allProgramData
@@ -296,7 +243,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort((a, b) => Number(b) - Number(a));
   }, [allProgramData]);
 
-  // B. Unique Quarters (Level 2 - Depends on Year)
   const uniqueMonths = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
@@ -315,7 +261,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort((a, b) => Number(a) - Number(b));
   }, [allProgramData, selectedYear]);
 
-  // B. Unique Quarters (Level 2 - Depends on Year & Month)
   const uniqueQuarters = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
@@ -336,7 +281,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort();
   }, [allProgramData, selectedYear, selectedMonth]);
 
-  // C. Unique Dates (Depends on Year, Month & Quarter)
   const uniqueDates = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') {
@@ -357,40 +301,29 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         label: formatDateKey(d.programDate)
     }));
     
-    // Remove duplicates based on label
     const unique = Array.from(new Set(dates.map(d => d.label)))
         .map(label => {
             return dates.find(d => d.label === label);
         })
         .filter(Boolean)
-        .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime()); // Sort Descending
+        .sort((a, b) => new Date(b!.iso).getTime() - new Date(a!.iso).getTime());
 
     return unique as { iso: string, label: string }[];
   }, [allProgramData, selectedYear, selectedMonth, selectedQuarter]);
 
-  // D. Unique Bahagian
   const uniqueBahagian = useMemo(() => {
     let source = allProgramData;
-    if (selectedYear !== 'SEMUA') {
-        source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
-    }
-    if (selectedMonth !== 'SEMUA') {
-        source = source.filter(d => {
-          const parsed = new Date(d.programDate);
-          return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
-        });
-    }
-    if (selectedQuarter !== 'SEMUA') {
-        source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
-    }
-    if (selectedDate !== 'SEMUA') {
-        source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
-    }
+    if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
+    if (selectedMonth !== 'SEMUA') source = source.filter(d => {
+      const parsed = new Date(d.programDate);
+      return !isNaN(parsed.getTime()) && String(parsed.getMonth()) === selectedMonth;
+    });
+    if (selectedQuarter !== 'SEMUA') source = source.filter(d => String(d.quarter || '').trim().toUpperCase() === selectedQuarter);
+    if (selectedDate !== 'SEMUA') source = source.filter(d => formatDateKey(d.programDate) === selectedDate);
     const set = new Set(source.map(d => d.bahagian).filter(Boolean));
     return Array.from(set).sort();
   }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate]);
 
-  // E. Unique Locations
   const uniqueLocations = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
@@ -406,7 +339,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort();
   }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian]);
 
-  // F. Unique Penganjur
   const uniquePenganjur = useMemo(() => {
     let source = allProgramData;
     if (selectedYear !== 'SEMUA') source = source.filter(d => String(d.filterTahun || '').trim() === selectedYear);
@@ -423,7 +355,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return Array.from(set).sort();
   }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation]);
 
-  // Reset Filters logic when parent filter changes
   useEffect(() => {
     if (selectedMonth !== 'SEMUA' && !uniqueMonths.includes(selectedMonth)) setSelectedMonth('SEMUA');
     if (selectedQuarter !== 'SEMUA' && !uniqueQuarters.includes(selectedQuarter)) setSelectedQuarter('SEMUA');
@@ -432,19 +363,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
     if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
   }, [selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur, uniqueMonths, uniqueQuarters, uniqueDates, uniqueBahagian, uniqueLocations, uniquePenganjur]);
-
-  useEffect(() => {
-      if (selectedBahagian !== 'SEMUA') {
-          if (selectedLocation !== 'SEMUA' && !uniqueLocations.includes(selectedLocation)) setSelectedLocation('SEMUA');
-          if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
-      }
-  }, [selectedBahagian, uniqueLocations, selectedLocation, uniquePenganjur, selectedPenganjur]);
-
-  useEffect(() => {
-      if (selectedLocation !== 'SEMUA') {
-          if (selectedPenganjur !== 'SEMUA' && !uniquePenganjur.includes(selectedPenganjur)) setSelectedPenganjur('SEMUA');
-      }
-  }, [selectedLocation, uniquePenganjur, selectedPenganjur]);
 
   const selectedVariantId = useMemo(() => {
     if (
@@ -496,8 +414,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     setSelectedPenganjur(variant.penganjur !== '-' ? variant.penganjur : 'SEMUA');
   };
 
-
-  // 3. FINAL FILTERED DATA
+  // FINAL FILTERED DATA
   const filteredData = useMemo(() => {
     return allProgramData.filter(d => {
       const matchYear = selectedYear === 'SEMUA' || String(d.filterTahun || '').trim() === selectedYear;
@@ -514,7 +431,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     });
   }, [allProgramData, selectedYear, selectedMonth, selectedQuarter, selectedDate, selectedBahagian, selectedLocation, selectedPenganjur]);
 
-  // 4. DERIVE LOCATION & PENGANJUR AUTOMATICALLY (Based on filteredData)
+  // DERIVE LOCATION & PENGANJUR AUTOMATICALLY
   const displayedLocation = useMemo(() => {
     if (selectedLocation !== 'SEMUA') return selectedLocation;
     if (filteredData.length === 0) return '-';
@@ -542,69 +459,53 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     return `${uniqueDates.length} TARIKH BERBEZA`;
   }, [selectedDate, uniqueDates]);
 
-  const activeFilterSummary = useMemo(() => {
-    const yearLabel = selectedYear !== 'SEMUA'
-      ? selectedYear
-      : uniqueYears.length === 1
-        ? uniqueYears[0]
-        : `${uniqueYears.length} TAHUN`;
+  const effectiveProgramName = useMemo(() => {
+    if (editableProgramName && editableProgramName.trim() && editableProgramName !== 'UNKNOWN' && editableProgramName !== 'SEMUA' && editableProgramName !== '-') {
+      return editableProgramName.trim();
+    }
+    if (programName && programName !== 'UNKNOWN' && programName !== 'SEMUA' && programName !== '-') {
+      return programName;
+    }
+    const found = filteredData.find(d => d.programName && d.programName !== '-' && d.programName !== 'SEMUA');
+    return found?.programName || 'PROGRAM TIDAK DINYATAKAN';
+  }, [editableProgramName, programName, filteredData]);
 
-    const monthLabel = selectedMonth !== 'SEMUA'
-      ? (MONTHS[Number(selectedMonth)] || selectedMonth)
-      : uniqueMonths.length === 1
-        ? (MONTHS[Number(uniqueMonths[0])] || uniqueMonths[0])
-        : `${uniqueMonths.length} BULAN`;
+  const effectiveProgramDate = useMemo(() => {
+    if (selectedDate !== 'SEMUA') return selectedDate;
+    if (uniqueDates.length === 1 && uniqueDates[0]?.label) return uniqueDates[0].label;
+    if (filteredData.length > 0 && filteredData[0].programDate) {
+      return formatDateKey(filteredData[0].programDate);
+    }
+    return displayedProgramDate !== '-' ? displayedProgramDate : 'Tidak Dinyatakan';
+  }, [selectedDate, uniqueDates, filteredData, displayedProgramDate]);
 
-    const dateLabel = displayedProgramDate;
+  const effectiveLocation = useMemo(() => {
+    if (selectedLocation !== 'SEMUA') return selectedLocation;
+    const locations = Array.from(new Set(filteredData.map(d => d.tempat).filter(t => t && t !== '-')));
+    if (locations.length === 1) return locations[0];
+    if (locations.length > 1) return locations.join(', ');
+    return displayedLocation !== '-' ? displayedLocation : 'Tidak Dinyatakan';
+  }, [filteredData, selectedLocation, displayedLocation]);
 
-    const quarterLabel = selectedQuarter !== 'SEMUA'
-      ? selectedQuarter
-      : uniqueQuarters.length === 1
-        ? (uniqueQuarters[0] || '-')
-        : `${uniqueQuarters.length} SUKU`;
+  const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
-    const bahagianLabel = selectedBahagian !== 'SEMUA'
-      ? selectedBahagian
-      : uniqueBahagian.length === 1
-        ? (uniqueBahagian[0] || '-')
-        : `${uniqueBahagian.length} BAHAGIAN`;
+  const whatsappText = useMemo(() => {
+    return `Assalamualaikum/ Salam Sejahtera \n\nTuan/Puan Dilampirkan Laporan Penilaian ${effectiveProgramName}\nTarikh ${effectiveProgramDate}\nTempat Program ${effectiveLocation}\nBilangan Responden ${filteredData.length}`;
+  }, [effectiveProgramName, effectiveProgramDate, effectiveLocation, filteredData.length]);
 
-    const locationLabel = selectedLocation !== 'SEMUA'
-      ? selectedLocation
-      : displayedLocation;
+  const handleCopyWhatsApp = () => {
+    navigator.clipboard.writeText(whatsappText);
+    setCopiedWhatsApp(true);
+    showToast('Ayat WhatsApp berjaya disalin!');
+    setTimeout(() => setCopiedWhatsApp(false), 2500);
+  };
 
-    const penganjurLabel = selectedPenganjur !== 'SEMUA'
-      ? selectedPenganjur
-      : displayedPenganjur;
+  const handleOpenWhatsApp = () => {
+    const encoded = encodeURIComponent(whatsappText);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
 
-    return [
-      { label: 'Tahun', value: yearLabel },
-      { label: 'Bulan', value: monthLabel },
-      { label: 'Suku', value: quarterLabel },
-      { label: 'Tarikh', value: dateLabel },
-      { label: 'Bahagian', value: bahagianLabel },
-      { label: 'Lokasi', value: locationLabel },
-      { label: 'Penganjur', value: penganjurLabel }
-    ];
-  }, [
-    selectedYear,
-    uniqueYears,
-    selectedMonth,
-    uniqueMonths,
-    selectedQuarter,
-    uniqueQuarters,
-    selectedDate,
-    uniqueDates,
-    displayedProgramDate,
-    selectedBahagian,
-    uniqueBahagian,
-    selectedLocation,
-    displayedLocation,
-    selectedPenganjur,
-    displayedPenganjur
-  ]);
-
-  // 5. ANALISIS COMPUTATION
+  // ANALISIS COMPUTATION
   const analysis = useMemo(() => {
     if (filteredData.length === 0) return null;
     
@@ -629,7 +530,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     };
   }, [filteredData]);
 
-  // 6. DEMOGRAFI COMPUTATION
+  // DEMOGRAFI COMPUTATION
   const getCounts = (key: keyof DashboardData) => {
     const counts: Record<string, number> = {};
     filteredData.forEach(item => {
@@ -642,13 +543,27 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       .sort((a, b) => b.value - a.value);
   };
 
-  const demographics = useMemo(() => ({
-    jantina: getCounts('jantina'),
-    umur: getCounts('umur'),
-    pendidikan: getCounts('tarafPendidikan')
-  }), [filteredData]);
+  const demographics = useMemo(() => {
+    const rawUmur = getCounts('umur');
+    // Sort age brackets logically
+    const sortedUmur = [...rawUmur].sort((a, b) => {
+      const getNum = (str: string) => {
+        const match = str.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 999;
+      };
+      if (a.name.includes('BAWAH') || a.name.includes('<')) return -1;
+      if (b.name.includes('BAWAH') || b.name.includes('<')) return 1;
+      return getNum(a.name) - getNum(b.name);
+    });
 
-  // 7. COMMENTS & SUGGESTIONS LISTS
+    return {
+      jantina: getCounts('jantina'),
+      umur: sortedUmur,
+      pendidikan: getCounts('tarafPendidikan')
+    };
+  }, [filteredData]);
+
+  // COMMENTS & SUGGESTIONS LISTS
   const commentList = useMemo(() => {
     return filteredData
       .filter(d => d.komen && d.komen.trim().length > 2 && d.komen !== 'KOMEN PROGRAM')
@@ -766,17 +681,33 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
 
   const toggleHighlightedIndex = (
     index: number,
-    setHighlightedIndexes: React.Dispatch<React.SetStateAction<Set<number>>>
+    type: 'comment' | 'suggestion'
   ) => {
-    setHighlightedIndexes((currentIndexes) => {
-      const nextIndexes = new Set(currentIndexes);
-      if (nextIndexes.has(index)) {
-        nextIndexes.delete(index);
-      } else {
-        nextIndexes.add(index);
-      }
-      return nextIndexes;
-    });
+    if (type === 'comment') {
+      setHighlightedCommentIndexes((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) {
+          next.delete(index);
+          showToast('Komen dikeluarkan daripada pilihan PDF.');
+        } else {
+          next.add(index);
+          showToast('Komen disimpan untuk PDF.');
+        }
+        return next;
+      });
+    } else {
+      setHighlightedSuggestionIndexes((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) {
+          next.delete(index);
+          showToast('Cadangan dikeluarkan daripada pilihan PDF.');
+        } else {
+          next.add(index);
+          showToast('Cadangan disimpan untuk PDF.');
+        }
+        return next;
+      });
+    }
   };
 
   const handleSaveFeedbackHighlights = () => {
@@ -794,35 +725,47 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       setSavedHighlightedCommentIndexes(new Set(storedHighlights.commentIndexes));
       setSavedHighlightedSuggestionIndexes(new Set(storedHighlights.suggestionIndexes));
       setHighlightSavedAt(savedAt);
+      showToast('Highlight maklum balas berjaya disimpan!');
     } catch (error) {
       console.error('Failed to save feedback highlights:', error);
       alert('Maaf, highlight gagal disimpan sementara. Sila cuba lagi.');
     }
   };
 
-  const displayInfo = filteredData.length > 0 ? filteredData[0] : allProgramData[0];
-  const displayPenganjur = displayInfo?.penganjur || "PENGANJUR TIDAK DINYATAKAN";
+  const handleClearHighlights = () => {
+    setHighlightedCommentIndexes(new Set());
+    setHighlightedSuggestionIndexes(new Set());
+    try {
+      window.localStorage.removeItem(highlightStorageKey);
+      setSavedHighlightedCommentIndexes(new Set());
+      setSavedHighlightedSuggestionIndexes(new Set());
+      setHighlightSavedAt(null);
+      showToast('Semua highlight telah dikosongkan.');
+      setShowClearConfirm(false);
+    } catch (e) {
+      console.error('Failed to clear highlights:', e);
+    }
+  };
 
-  // --- AI LOGIC (DISABLED TO SAVE TOKENS) ---
+  // AI LOGIC
   const handleGenerateAI = async () => {
     setAiAnalysisResult("Analisis AI telah dinyahaktifkan untuk menjimatkan penggunaan token. Sila semak data secara manual.");
   };
 
-  // --- JPEG DOWNLOAD LOGIC (New) ---
+  // JPEG DOWNLOAD LOGIC
   const handleGenerateJPEG = async () => {
     if (!reportRef.current) return;
     setIsDownloadingImage(true);
     
     try {
-      // Small delay to ensure rendering is stable
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(reportRef.current, {
-        scale: 2, // Higher scale for better quality (Retina/Presentation)
-        useCORS: true, // Allow loading external images if any
-        backgroundColor: '#FFFFFF', // Ensure background is white
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
         logging: false,
-        windowWidth: 1200 // Force desktop width for consistency
+        windowWidth: 1200
       });
 
       const image = canvas.toDataURL("image/jpeg", 1.0);
@@ -832,6 +775,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast('Imej JPEG berjaya dimuat turun!');
 
     } catch (error) {
       console.error("JPEG Export Error:", error);
@@ -841,8 +785,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     }
   };
 
-
-  // --- PDF GENERATION LOGIC (Professional @react-pdf/renderer) ---
+  // PDF GENERATION LOGIC
   const handleGeneratePDF = async () => {
     if (hasUnsavedHighlights) {
       alert('Sila tekan "Simpan Sementara" dahulu supaya komen/cadangan yang di-highlight dibawa masuk ke PDF.');
@@ -883,7 +826,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
         avgScore: Number(analysis?.avgTotal.toFixed(2)) || 0,
         radarData: analysis?.spiderData || [],
         demographics: demographics,
-        // Pass raw comments and suggestions for the new grid layout
         rawComments: editableComments,
         rawSuggestions: editableSuggestions,
         highlightedCommentIndexes: Array.from(savedHighlightedCommentIndexes),
@@ -918,6 +860,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      showToast('Laporan PDF berjaya dimuat turun!');
 
     } catch (error) {
       console.error('PDF Generation Error:', error);
@@ -927,817 +870,997 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({ programName, data,
     }
   };
 
+  // Scroll to Section Helper
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const yOffset = -125;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  // Combined Feedback List for Filtering
+  const filteredFeedbackList = useMemo(() => {
+    let items: Array<{ text: string; index: number; type: 'comment' | 'suggestion'; isHighlighted: boolean }> = [];
+
+    if (feedbackTab === 'all' || feedbackTab === 'comments') {
+      commentList.forEach((text, idx) => {
+        items.push({
+          text,
+          index: idx,
+          type: 'comment',
+          isHighlighted: highlightedCommentIndexes.has(idx),
+        });
+      });
+    }
+
+    if (feedbackTab === 'all' || feedbackTab === 'suggestions') {
+      suggestionList.forEach((text, idx) => {
+        items.push({
+          text,
+          index: idx,
+          type: 'suggestion',
+          isHighlighted: highlightedSuggestionIndexes.has(idx),
+        });
+      });
+    }
+
+    if (feedbackTab === 'saved') {
+      commentList.forEach((text, idx) => {
+        if (highlightedCommentIndexes.has(idx)) {
+          items.push({ text, index: idx, type: 'comment', isHighlighted: true });
+        }
+      });
+      suggestionList.forEach((text, idx) => {
+        if (highlightedSuggestionIndexes.has(idx)) {
+          items.push({ text, index: idx, type: 'suggestion', isHighlighted: true });
+        }
+      });
+    }
+
+    // Filter by Search
+    if (feedbackSearch.trim()) {
+      const q = feedbackSearch.toLowerCase();
+      items = items.filter(item => item.text.toLowerCase().includes(q));
+    }
+
+    // Filter by Highlight status
+    if (feedbackFilter === 'highlighted') {
+      items = items.filter(item => item.isHighlighted);
+    } else if (feedbackFilter === 'unhighlighted') {
+      items = items.filter(item => !item.isHighlighted);
+    }
+
+    return items;
+  }, [commentList, suggestionList, highlightedCommentIndexes, highlightedSuggestionIndexes, feedbackTab, feedbackSearch, feedbackFilter]);
 
   if (allProgramData.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center p-8 bg-white rounded-3xl shadow-sm border border-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-sm border border-gray-100 max-w-md w-full">
           <AlertCircle size={48} className="mx-auto text-gray-300 mb-4" />
-          <h2 className="text-xl font-bold text-dark">Data Tidak Dijumpai</h2>
-          <button onClick={onBack} className="text-lime-600 font-bold hover:underline mt-4">Kembali</button>
+          <h2 className="text-xl font-bold text-gray-900">Data Tidak Dijumpai</h2>
+          <p className="text-xs text-gray-500 mt-2">Tiada rekod penilaian untuk program ini.</p>
+          <button 
+            onClick={onBack} 
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all cursor-pointer"
+          >
+            <ArrowLeft size={16} /> Kembali ke Analisis
+          </button>
         </div>
       </div>
     );
   }
 
+  const scoreRating = analysis ? getScoreRating(analysis.avgTotal) : null;
+
   return (
-    <div className="bg-[#F8F9FA] h-screen flex flex-col font-sans overflow-hidden">
-      {/* Top Action Bar - Sticky */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-4 sm:px-8 py-4 flex justify-between items-center shadow-sm print:hidden">
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans text-gray-900 pb-16">
+      
+      {/* Toast Notification Floating Banner */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[100] bg-gray-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-lime-400/40 flex items-center gap-3 text-xs font-bold"
+          >
+            <CheckCircle2 size={18} className="text-lime-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Modal for Clearing Highlights */}
+      <AnimatePresence>
+        {showClearConfirm && (
+          <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center"
+            >
+              <Trash2 size={36} className="mx-auto text-rose-500 mb-3" />
+              <h3 className="text-base font-bold text-gray-900">Kosongkan Semua Highlight?</h3>
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Tindakan ini akan memadamkan semua tanda pilihan komen dan cadangan untuk PDF.
+              </p>
+              <div className="flex gap-2.5 mt-6">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleClearHighlights}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition-all cursor-pointer"
+                >
+                  Ya, Kosongkan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* TASK 1: STICKY TOOLBAR ATAS */}
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/80 px-4 sm:px-6 py-2.5 transition-all print:hidden shadow-xs">
+        <div className="max-w-[1500px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+          
+          {/* Top Bar / Row 1 */}
+          <div className="flex items-center justify-between md:justify-start gap-3 min-w-0">
+            {/* Kembali Button */}
             <motion.button 
               whileHover={{ x: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={onBack} 
-              className="flex items-center gap-2 text-gray-500 hover:text-dark font-bold text-xs sm:text-sm transition-all hover:bg-gray-100 px-4 py-2.5 rounded-xl border border-transparent hover:border-gray-200"
+              className="flex items-center gap-2 text-gray-700 hover:text-black font-bold text-xs transition-all bg-gray-100 hover:bg-gray-200/80 px-3.5 py-2 rounded-xl border border-gray-200/60 min-h-[44px] cursor-pointer shrink-0"
+              title="Kembali ke Analisis Dashboard"
             >
-              <ArrowLeft size={18} /> <span className="hidden sm:inline">KEMBALI</span>
+              <ArrowLeft size={16} />
+              <span className="inline">Kembali ke Analisis</span>
             </motion.button>
 
-            <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
+            <div className="h-6 w-px bg-gray-200 hidden lg:block shrink-0"></div>
 
             {/* Program Name Display - Sticky Context */}
-            <div className="hidden lg:flex flex-col max-w-[300px] xl:max-w-[500px]">
-               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">SEDANG DILIHAT</span>
-               <span className="text-xs font-black text-dark uppercase truncate">
-                  {editableProgramName || 'PROGRAM TIDAK DINYATAKAN'}
-               </span>
+            <div className="hidden sm:flex flex-col min-w-0 max-w-[280px] lg:max-w-[420px]">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">SEDANG DILIHAT</span>
+              <span className="text-xs font-bold text-gray-900 truncate" title={editableProgramName}>
+                {editableProgramName || 'PROGRAM TIDAK DINYATAKAN'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right Action Bar / Row 2 */}
+          <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 shrink-0 border-t md:border-t-0 border-gray-100 pt-2 md:pt-0">
+            
+            {/* Display Scale Control */}
+            <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl border border-gray-200/70 min-h-[44px]">
+              <span className="text-[10px] font-bold text-gray-500 uppercase px-2 hidden lg:inline">Skala Paparan:</span>
+              <button 
+                onClick={() => setAppendixScale(prev => Math.max(0.5, parseFloat((prev - 0.1).toFixed(1))))}
+                disabled={appendixScale <= 0.5}
+                className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg border border-gray-200/80 text-gray-700 disabled:opacity-30 transition-all cursor-pointer shadow-2xs"
+                title="Kurangkan Skala Paparan"
+              >
+                <Minus size={13} />
+              </button>
+              <span className="w-11 text-center font-bold text-xs text-gray-900">
+                {Math.round(appendixScale * 100)}%
+              </span>
+              <button 
+                onClick={() => setAppendixScale(prev => Math.min(1.5, parseFloat((prev + 0.1).toFixed(1))))}
+                disabled={appendixScale >= 1.5}
+                className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded-lg border border-gray-200/80 text-gray-700 disabled:opacity-30 transition-all cursor-pointer shadow-2xs"
+                title="Tambah Skala Paparan"
+              >
+                <Plus size={13} />
+              </button>
             </div>
 
-            <div className="h-8 w-px bg-gray-200 hidden lg:block"></div>
+            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
-            {/* FONT SIZE CONTROLS */}
-            <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl border border-gray-200">
-                <button 
-                  onClick={() => handleFontSizeChange(false)} 
-                  disabled={fontSizeLevel === 0} 
-                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg disabled:opacity-30 transition-all"
-                >
-                  <Minus size={14}/>
-                </button>
-                <div className="px-2 flex flex-col items-center">
-                  <span className="text-[10px] font-black text-gray-400 leading-none mb-0.5">SAIZ</span>
-                  <span className="text-[10px] font-bold text-dark leading-none">{fontSizeLevel + 1}</span>
-                </div>
-                <button 
-                  onClick={() => handleFontSizeChange(true)} 
-                  disabled={fontSizeLevel === 2} 
-                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg disabled:opacity-30 transition-all"
-                >
-                  <Plus size={14}/>
-                </button>
-            </div>
-        </div>
+            {/* Refresh Button */}
+            <motion.button 
+              whileHover={{ rotate: 180 }}
+              transition={{ duration: 0.4 }}
+              onClick={onRefresh} 
+              className="p-2.5 bg-gray-100 hover:bg-lime-100/70 text-gray-700 hover:text-lime-800 rounded-xl border border-gray-200/80 transition-all cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center" 
+              title="Muat Semula Data"
+            >
+              <RefreshCw size={16} />
+            </motion.button>
 
-        <div className="flex items-center gap-3">
-          <motion.button 
-            whileHover={{ rotate: 180 }}
-            transition={{ duration: 0.5 }}
-            onClick={onRefresh} 
-            className="p-3 bg-gray-50 hover:bg-lime-50 text-gray-600 hover:text-lime-600 rounded-xl border border-gray-200 transition-all shadow-sm" 
-            title="Refresh"
-          >
-             <RefreshCw size={18} />
-          </motion.button>
-          
-          <div className="h-8 w-px bg-gray-200 hidden sm:block mx-1"></div>
+            {/* Export JPEG Button */}
+            <motion.button 
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleGenerateJPEG} 
+              disabled={isDownloadingImage} 
+              className="bg-white border border-gray-200/90 text-gray-800 px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-gray-50 hover:border-lime-400 transition-all shadow-2xs disabled:opacity-50 min-h-[44px] cursor-pointer"
+            >
+              {isDownloadingImage ? <Loader2 size={15} className="animate-spin text-lime-600"/> : <ImageIcon size={15} className="text-lime-600" />}
+              <span>Muat Turun JPEG</span>
+            </motion.button>
 
-          {/* JPEG Button */}
-          <motion.button 
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleGenerateJPEG} 
-            disabled={isDownloadingImage} 
-            className="bg-white border border-gray-200 text-dark px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 hover:border-lime-400 transition-all shadow-sm disabled:opacity-50"
-          >
-            {isDownloadingImage ? <Loader2 size={18} className="animate-spin"/> : <ImageIcon size={18} className="text-lime-500" />}
-            <span className="hidden sm:inline">JPEG</span>
-          </motion.button>
+            {/* Export PDF Button (Primary Action) */}
+            <motion.button 
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleGeneratePDF} 
+              disabled={isDownloading} 
+              className="bg-gray-900 text-lime-400 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-black transition-all shadow-md shadow-gray-900/10 disabled:opacity-50 min-h-[44px] cursor-pointer"
+            >
+              {isDownloading ? <Loader2 size={15} className="animate-spin text-lime-400"/> : <FileDown size={15} className="text-lime-400" />}
+              <span>Muat Turun PDF</span>
+            </motion.button>
+          </div>
 
-          {/* PDF Button */}
-          <motion.button 
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleGeneratePDF} 
-            disabled={isDownloading} 
-            className="bg-dark text-lime-400 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-black transition-all shadow-lg shadow-lime-900/10 disabled:opacity-50"
-          >
-            {isDownloading ? <Loader2 size={18} className="animate-spin"/> : <FileDown size={18} />}
-            <span className="hidden sm:inline">PDF</span>
-          </motion.button>
         </div>
       </nav>
 
-      {/* Main Report Container */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center custom-scrollbar">
-        {/* Added ref here to capture this container */}
-        <div ref={reportRef} className="w-full max-w-6xl bg-white shadow-xl shadow-gray-200/50 rounded-none sm:rounded-3xl min-h-[297mm] flex flex-col">
+      {/* TASK 6: IN-PAGE STICKY NAVIGATION TABS */}
+      <nav data-html2canvas-ignore className="sticky top-[61px] z-40 bg-white/90 backdrop-blur-md border-b border-gray-200/70 px-4 sm:px-6 py-1.5 print:hidden shadow-2xs">
+        <div className="max-w-[1500px] mx-auto flex items-center gap-2 overflow-x-auto custom-scrollbar">
+          <button
+            onClick={() => scrollToSection('section-summary')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'section-summary' 
+                ? 'bg-gray-900 text-lime-400 shadow-2xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            Ringkasan Eksekutif
+          </button>
+          <button
+            onClick={() => scrollToSection('section-analysis')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'section-analysis' 
+                ? 'bg-gray-900 text-lime-400 shadow-2xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            Analisis Radar
+          </button>
+          <button
+            onClick={() => scrollToSection('section-profile')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'section-profile' 
+                ? 'bg-gray-900 text-lime-400 shadow-2xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            Profil Peserta
+          </button>
+          <button
+            onClick={() => scrollToSection('section-feedback')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              activeSection === 'section-feedback' 
+                ? 'bg-gray-900 text-lime-400 shadow-2xs' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <span>Komen & Cadangan</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-lime-400/20 text-lime-700 text-[10px] font-black">
+              {commentList.length + suggestionList.length}
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* MAIN REPORT VIEW CONTAINER (Captured by html2canvas for JPEG) */}
+      <main className="flex-1 p-3 sm:p-6 md:p-8 max-w-[1500px] mx-auto w-full">
+        <div 
+          ref={reportRef} 
+          className="w-full bg-white shadow-xl shadow-gray-200/60 rounded-2xl sm:rounded-3xl border border-gray-200/80 flex flex-col overflow-hidden transition-all"
+        >
           
-          {/* MODERN HEADER SECTION - Principle: Hierarchy & Clarity */}
-          <div className="bg-[#1A1C1E] text-white p-12 sm:p-20 relative overflow-hidden rounded-t-none sm:rounded-t-[2.5rem]">
-             {/* Abstract Background */}
-             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-lime-400/10 rounded-full blur-[150px] pointer-events-none -mr-40 -mt-40"></div>
-             <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-lime-400/5 rounded-full blur-[100px] pointer-events-none -ml-20 -mb-20"></div>
-             
-             <div className="relative z-10 flex flex-col gap-10">
-                {/* Meta Tag */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <motion.div 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-lime-400 text-black text-[11px] font-black px-6 py-2 rounded-full tracking-[0.2em] uppercase shadow-xl shadow-lime-400/30 break-words max-w-full leading-relaxed"
-                  >
-                     LAPORAN: {editableProgramName || 'PROGRAM'} | {selectedBahagian !== 'SEMUA' ? selectedBahagian : (uniqueBahagian.length === 1 ? (uniqueBahagian[0] || '-') : `${uniqueBahagian.length} BAHAGIAN`)} | {displayedLocation} | {displayedProgramDate}
-                  </motion.div>
-                  <div className="h-px w-8 bg-white/20 hidden md:block"></div>
-                  <span className="text-gray-500 text-[10px] font-black tracking-[0.2em] uppercase mt-2 md:mt-0">
-                     ID: {filteredData[0]?.id || 'N/A'}
-                  </span>
-                </div>
-                
-                {/* Title & Organizer */}
-                <div className="max-w-4xl">
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className="max-h-[400px] overflow-y-auto custom-scrollbar pr-6 mb-6 group"
-                    >
-                      <textarea
-                        value={editableProgramName}
-                        onChange={(e) => setEditableProgramName(e.target.value)}
-                        className={`${fs('headerTitle')} font-black uppercase leading-[1.1] tracking-tight text-white drop-shadow-2xl w-full bg-transparent border-none focus:ring-0 resize-none p-0 placeholder:text-white/20 selection:bg-lime-400/30`}
-                        placeholder="NAMA PROGRAM TIDAK DINYATAKAN"
-                        spellCheck={false}
-                        rows={1}
-                        onFocus={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = target.scrollHeight + 'px';
-                        }}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = target.scrollHeight + 'px';
-                        }}
-                        ref={(el) => {
-                          if (el) {
-                            el.style.height = 'auto';
-                            el.style.height = el.scrollHeight + 'px';
-                          }
-                        }}
-                      />
-                    </motion.div>
-                  
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-center gap-3 text-lime-400 border-l-4 border-lime-400 pl-5 py-1 group"
-                  >
-                       <input
-                         type="text"
-                         value={editablePenganjur}
-                         onChange={(e) => setEditablePenganjur(e.target.value)}
-                         className={`${fs('subHeader')} font-black uppercase tracking-[0.1em] opacity-90 bg-transparent border-none focus:ring-0 p-0 w-full placeholder:text-lime-400/30`}
-                         placeholder="PENGANJUR TIDAK DINYATAKAN"
-                       />
-                  </motion.div>
+          {/* TASK 2: REDESIGN HEADER PROGRAM */}
+          <div className="bg-[#111827] text-white p-6 sm:p-8 md:p-10 relative overflow-hidden">
+            {/* Subtle Gradient Highlights */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-lime-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none -ml-20 -mb-20"></div>
+            
+            <div className="relative z-10 space-y-6">
+              
+              {/* Breadcrumb / Eyebrow */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-gray-400">
+                <span className="text-lime-400 font-black">ANALISIS DATA</span>
+                <span>/</span>
+                <span>PROGRAM DETAIL</span>
+                <span className="bg-lime-400/20 text-lime-300 text-[10px] px-2.5 py-0.5 rounded-md font-black ml-2 border border-lime-400/30">
+                  ID: {filteredData[0]?.id || 'N/A'}
+                </span>
+              </div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                    className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl"
-                  >
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
-                        <Calendar size={14} className="text-lime-400" />
-                        Tarikh Program
-                      </div>
-                      <div className="text-sm font-black uppercase tracking-wide text-white">
-                        {displayedProgramDate}
-                      </div>
-                    </div>
+              {/* Title & Subtitle */}
+              <div className="space-y-3 max-w-5xl">
+                <textarea
+                  value={editableProgramName}
+                  onChange={(e) => setEditableProgramName(e.target.value)}
+                  className="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight text-white drop-shadow-xs w-full bg-transparent border-none focus:ring-0 resize-none p-0 placeholder:text-white/30 selection:bg-lime-400/40 font-sans tracking-tight"
+                  placeholder="NAMA PROGRAM TIDAK DINYATAKAN"
+                  spellCheck={false}
+                  rows={1}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = target.scrollHeight + 'px';
+                  }}
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = el.scrollHeight + 'px';
+                    }
+                  }}
+                />
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
-                        <MapPin size={14} className="text-lime-400" />
-                        Lokasi Program
-                      </div>
-                      <div className="text-sm font-black uppercase tracking-wide text-white line-clamp-2" title={displayedLocation}>
-                        {displayedLocation}
-                      </div>
-                    </div>
-                  </motion.div>
+                <div className="flex items-center gap-2 text-lime-400 text-sm font-bold pt-1">
+                  <Award size={16} className="shrink-0 text-lime-400" />
+                  <input
+                    type="text"
+                    value={editablePenganjur}
+                    onChange={(e) => setEditablePenganjur(e.target.value)}
+                    className="bg-transparent border-none focus:ring-0 p-0 w-full text-lime-300 font-bold placeholder:text-lime-400/30 text-sm tracking-wide"
+                    placeholder="PENGANJUR TIDAK DINYATAKAN"
+                  />
                 </div>
-                
-                {/* Filter Section Header - Principle: Interactive Analysis */}
-                <div className="flex items-center gap-3 mt-12 mb-6">
-                   <div className="p-1.5 bg-lime-400/10 rounded-lg">
-                      <Filter size={14} className="text-lime-400" />
-                   </div>
-                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Tapis Mengikut Keperluan</span>
+              </div>
+
+              {/* Metadata Chips Bar */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
+                <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-200 backdrop-blur-xs">
+                  <Building2 size={14} className="text-lime-400" />
+                  <span>{selectedBahagian !== 'SEMUA' ? selectedBahagian : `${uniqueBahagian.length} Bahagian`}</span>
                 </div>
 
-                {programVariants.length > 1 && (
-                  <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Variasi Program</span>
-                        <p className="mt-1 truncate text-xs font-bold text-white/70">
-                          {programVariants.length} variasi tersedia
-                          {selectedVariantId !== 'SEMUA' ? ` • ${getVariantSummaryLabel(programVariants.find((variant) => variant.id === selectedVariantId) || programVariants[0])}` : ''}
-                        </p>
-                      </div>
-                      <div className="relative w-full md:max-w-[360px]">
-                        <select
-                          value={selectedVariantId}
-                          onChange={(e) => handleVariantSelect(e.target.value)}
-                          className="w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 pr-9 text-xs font-black uppercase tracking-wider text-white hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400"
-                        >
-                          <option value="SEMUA" className="bg-white text-dark">
-                            Semua Variasi ({programVariants.length})
-                          </option>
-                          {programVariants.map((variant, idx) => (
-                            <option key={variant.id} value={variant.id} className="bg-white text-dark">
-                              {`${idx + 1}. ${variant.date} | ${variant.location} (${variant.totalRespondents})`}
-                            </option>
-                          ))}
-                        </select>
-                        <Filter size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      </div>
-                    </div>
+                <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-200 backdrop-blur-xs">
+                  <MapPin size={14} className="text-lime-400" />
+                  <span className="truncate max-w-[200px]" title={displayedLocation}>{displayedLocation}</span>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-200 backdrop-blur-xs">
+                  <Calendar size={14} className="text-lime-400" />
+                  <span>{displayedProgramDate}</span>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 bg-lime-400/20 border border-lime-400/40 px-3 py-1.5 rounded-xl text-xs font-extrabold text-lime-300 backdrop-blur-xs">
+                  <Users size={14} className="text-lime-400" />
+                  <span>{filteredData.length} Responden Sah</span>
+                </div>
+              </div>
+
+              {/* Collapsible WhatsApp Quick Share Card */}
+              <div className="bg-emerald-950/60 border border-emerald-500/30 rounded-2xl p-4 backdrop-blur-sm print:hidden shadow-md mt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                    <MessageSquare size={15} className="text-emerald-400 shrink-0" />
+                    <span>Salin Laporan WhatsApp</span>
                   </div>
-                )}
-
-                {/* Info Grid - Refined for Scanning */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-6 pb-10 border-b border-white/10">
-                   {/* Year Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tahun</span>
-                       <div className="relative">
-                          {uniqueYears.length > 1 ? (
-                            <div className="group">
-                                <select
-                                  value={selectedYear}
-                                  onChange={(e) => setSelectedYear(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                                >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TAHUN ({uniqueYears.length})</option>
-                                  {uniqueYears.map(year => (
-                                    <option key={year} value={year} className="text-dark bg-white">{year}</option>
-                                  ))}
-                                </select>
-                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
-                            </div>
-                          ) : (
-                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
-                                <Calendar size={16} className="text-lime-400" />
-                                <span className="uppercase tracking-wider">{uniqueYears[0] || '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Month Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Bulan</span>
-                       <div className="relative">
-                          {uniqueMonths.length > 1 ? (
-                            <div className="group">
-                                <select
-                                  value={selectedMonth}
-                                  onChange={(e) => setSelectedMonth(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                                >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA BULAN ({uniqueMonths.length})</option>
-                                  {uniqueMonths.map(month => (
-                                    <option key={month} value={month} className="text-dark bg-white">{MONTHS[Number(month)] || month}</option>
-                                  ))}
-                                </select>
-                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
-                            </div>
-                          ) : (
-                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
-                                <Calendar size={16} className="text-lime-400" />
-                                <span className="uppercase tracking-wider">{uniqueMonths[0] !== undefined ? (MONTHS[Number(uniqueMonths[0])] || uniqueMonths[0]) : '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Quarter Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Suku</span>
-                       <div className="relative">
-                          {uniqueQuarters.length > 1 ? (
-                            <div className="group">
-                                <select
-                                  value={selectedQuarter}
-                                  onChange={(e) => setSelectedQuarter(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                                >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA SUKU ({uniqueQuarters.length})</option>
-                                  {uniqueQuarters.map(quarter => (
-                                    <option key={quarter} value={quarter} className="text-dark bg-white">{quarter}</option>
-                                  ))}
-                                </select>
-                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
-                            </div>
-                          ) : (
-                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
-                                <Calendar size={16} className="text-lime-400" />
-                                <span className="uppercase tracking-wider">{uniqueQuarters[0] || '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Date Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Tarikh</span>
-                       <div className="relative">
-                          {uniqueDates.length > 1 ? (
-                            <div className="group">
-                                <select 
-                                  value={selectedDate}
-                                  onChange={(e) => setSelectedDate(e.target.value)}
-                                  className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                                >
-                                  <option value="SEMUA" className="text-dark bg-white">SEMUA TARIKH ({uniqueDates.length})</option>
-                                  {uniqueDates.map(d => (
-                                    <option key={d.label} value={d.label} className="text-dark bg-white">{d.label}</option>
-                                  ))}
-                                </select>
-                                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-400 transition-colors" />
-                            </div>
-                          ) : (
-                             <div className="flex items-center gap-3 text-white font-black text-xs py-2.5 bg-white/5 px-4 rounded-xl border border-white/5">
-                                <Calendar size={16} className="text-lime-400" />
-                                <span className="uppercase tracking-wider">{uniqueDates[0]?.label || '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Bahagian Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Bahagian</span>
-                       <div className="relative">
-                          {uniqueBahagian.length > 1 ? (
-                            <>
-                              <select 
-                                value={selectedBahagian}
-                                onChange={(e) => setSelectedBahagian(e.target.value)}
-                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                              >
-                                <option value="SEMUA" className="text-dark bg-white">SEMUA BAHAGIAN ({uniqueBahagian.length})</option>
-                                {uniqueBahagian.map(b => (
-                                  <option key={b} value={b} className="text-dark bg-white">{b}</option>
-                                ))}
-                              </select>
-                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
-                          ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5">
-                                <Building2 size={14} className="text-lime-500" />
-                                {uniqueBahagian[0] || '-'}
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Location Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Lokasi</span>
-                       <div className="relative">
-                          {uniqueLocations.length > 1 ? (
-                            <>
-                              <select 
-                                value={selectedLocation}
-                                onChange={(e) => setSelectedLocation(e.target.value)}
-                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                              >
-                                <option value="SEMUA" className="text-dark bg-white">SEMUA LOKASI ({uniqueLocations.length})</option>
-                                {uniqueLocations.map(l => (
-                                  <option key={l} value={l} className="text-dark bg-white">{l}</option>
-                                ))}
-                              </select>
-                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
-                          ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
-                                <MapPin size={14} className="text-lime-500 shrink-0" />
-                                <span className="truncate" title={uniqueLocations[0]}>{uniqueLocations[0] || '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-
-                   {/* Penganjur Filter - DYNAMIC */}
-                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Penganjur</span>
-                       <div className="relative">
-                          {uniquePenganjur.length > 1 ? (
-                            <>
-                              <select 
-                                value={selectedPenganjur}
-                                onChange={(e) => setSelectedPenganjur(e.target.value)}
-                                className="bg-white/5 text-white border border-white/10 rounded-xl px-4 py-2.5 w-full text-xs font-black appearance-none cursor-pointer hover:bg-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all pr-10 truncate uppercase tracking-wider"
-                              >
-                                <option value="SEMUA" className="text-dark bg-white">SEMUA PENGANJUR ({uniquePenganjur.length})</option>
-                                {uniquePenganjur.map(p => (
-                                  <option key={p} value={p} className="text-dark bg-white">{p}</option>
-                                ))}
-                              </select>
-                              <Filter size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                            </>
-                          ) : (
-                             <div className="flex items-center gap-2 text-white font-bold text-sm py-1.5 truncate">
-                                <Award size={14} className="text-lime-500 shrink-0" />
-                                <span className="truncate" title={uniquePenganjur[0]}>{uniquePenganjur[0] || '-'}</span>
-                             </div>
-                          )}
-                       </div>
-                   </motion.div>
-                </div>
-
-                <div className="flex flex-wrap gap-3 pt-6">
-                  {activeFilterSummary.map((item) => (
-                    <div
-                      key={item.label}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85"
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCopyWhatsApp}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                        copiedWhatsApp 
+                          ? 'bg-lime-400 text-black' 
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-white hover:text-black'
+                      }`}
                     >
-                      <span className="text-gray-500">{item.label}</span>
-                      <span className="text-lime-400 truncate max-w-[220px]" title={item.value}>{item.value || '-'}</span>
-                    </div>
-                  ))}
+                      {copiedWhatsApp ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                      <span>{copiedWhatsApp ? 'Disalin!' : 'Salin WhatsApp'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenWhatsApp}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      title="Buka terus di WhatsApp"
+                    >
+                      <Share2 size={13} />
+                      <span>Buka App</span>
+                    </button>
+                  </div>
                 </div>
-             </div>
+
+                <div className="bg-black/60 border border-emerald-500/20 rounded-xl p-3 font-mono text-xs text-emerald-200/90 whitespace-pre-wrap leading-relaxed select-all">
+                  {whatsappText}
+                </div>
+              </div>
+
+              {/* Compact Filter Bar */}
+              <div className="pt-4 border-t border-white/10">
+                <div className="flex items-center gap-2 mb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <Filter size={13} className="text-lime-400" />
+                  <span>Penapis Maklumat Penilaian</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5">
+                  {/* Year */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Tahun</span>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Tahun</option>
+                      {uniqueYears.map(y => <option key={y} value={y} className="text-gray-900 bg-white">{y}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Month */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Bulan</span>
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Bulan</option>
+                      {uniqueMonths.map(m => <option key={m} value={m} className="text-gray-900 bg-white">{MONTHS[Number(m)] || m}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Quarter */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Suku</span>
+                    <select
+                      value={selectedQuarter}
+                      onChange={(e) => setSelectedQuarter(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Suku</option>
+                      {uniqueQuarters.map(q => <option key={q} value={q} className="text-gray-900 bg-white">{q}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Date */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Tarikh</span>
+                    <select
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Tarikh</option>
+                      {uniqueDates.map(d => <option key={d.label} value={d.label} className="text-gray-900 bg-white">{d.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Bahagian */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Bahagian</span>
+                    <select
+                      value={selectedBahagian}
+                      onChange={(e) => setSelectedBahagian(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Bahagian</option>
+                      {uniqueBahagian.map(b => <option key={b} value={b} className="text-gray-900 bg-white">{b}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Lokasi</span>
+                    <select
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Lokasi</option>
+                      {uniqueLocations.map(l => <option key={l} value={l} className="text-gray-900 bg-white">{l}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Penganjur */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Penganjur</span>
+                    <select
+                      value={selectedPenganjur}
+                      onChange={(e) => setSelectedPenganjur(e.target.value)}
+                      className="w-full bg-white/10 text-white border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold appearance-none cursor-pointer hover:bg-white/15 focus:border-lime-400 focus:ring-0 transition-all truncate"
+                    >
+                      <option value="SEMUA" className="text-gray-900 bg-white">Semua Penganjur</option>
+                      {uniquePenganjur.map(p => <option key={p} value={p} className="text-gray-900 bg-white">{p}</option>)}
+                    </select>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
           </div>
 
           {!analysis ? (
-             <div className="p-16 text-center text-gray-400 flex flex-col items-center gap-4">
-               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
-                 <Filter size={24} className="opacity-20"/>
-               </div>
-               <p className="text-sm font-medium">Tiada data untuk gabungan filter ini.</p>
-             </div>
+            <div className="p-12 text-center text-gray-400 flex flex-col items-center gap-3">
+              <AlertCircle size={36} className="text-gray-300"/>
+              <p className="text-sm font-bold text-gray-600">Tiada data untuk gabungan tapisan ini.</p>
+            </div>
           ) : (
-          <>
-            {/* 1. EXECUTIVE SUMMARY (KPIs) - High Visibility */}
-            <div className="border-b border-gray-100 bg-white p-8 sm:p-10">
-               <div className="flex items-center gap-3 mb-8">
-                  <div className="h-px flex-1 bg-gray-100"></div>
-                  <h3 className="text-[11px] font-black uppercase text-gray-400 tracking-[0.4em] bg-gray-50 px-6 py-2 rounded-full border border-gray-100 shadow-sm">Ringkasan Eksekutif</h3>
-                  <div className="h-px flex-1 bg-gray-100"></div>
-               </div>
-               
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="bg-gradient-to-br from-lime-50 to-white rounded-[2.5rem] p-8 border border-lime-100 flex items-center justify-between group hover:shadow-xl hover:shadow-lime-900/5 transition-all duration-500"
-                  >
-                      <div>
-                        <div className={`${fs('kpiLabel')} font-black text-lime-700 uppercase tracking-widest mb-2 opacity-70`}>Purata Skor</div>
-                        <div className="flex items-baseline gap-2">
-                           <span className={`${fs('kpiValue')} font-black text-dark tracking-tighter`}>{analysis.avgTotal.toFixed(2)}</span>
-                           <span className="text-gray-400 font-bold text-lg">/ 5.0</span>
-                        </div>
-                        <div className="mt-2 inline-block rounded-full bg-lime-100/80 px-3 py-1 text-xs font-bold text-lime-900 border border-lime-200">
-                          Skor {analysis.avgTotal.toFixed(2)} — {analysis.totalRespondents} responden
-                        </div>
-                      </div>
-                      <div className="bg-white p-5 rounded-3xl text-lime-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
-                         <Star size={32} fill="currentColor" />
-                      </div>
-                  </motion.div>
-
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-gray-50 to-white rounded-[2.5rem] p-8 border border-gray-100 flex items-center justify-between group hover:shadow-xl hover:shadow-gray-900/5 transition-all duration-500"
-                  >
-                      <div>
-                        <div className={`${fs('kpiLabel')} font-black text-gray-500 uppercase tracking-widest mb-2 opacity-70`}>Jumlah Responden</div>
-                        <div className={`${fs('kpiValue')} font-black text-dark tracking-tighter`}>{analysis.totalRespondents}</div>
-                      </div>
-                      <div className="bg-white p-5 rounded-3xl text-gray-400 shadow-sm group-hover:scale-110 transition-transform duration-500">
-                         <Users size={32} />
-                      </div>
-                  </motion.div>
-               </div>
-            </div>
-
-            {/* 2. VISUAL ANALYSIS - Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 border-b border-gray-100 bg-white">
+            <div className="divide-y divide-gray-100">
               
-              {/* Radar Chart (3/5 Width) */}
-              <div className="lg:col-span-3 p-10 border-b lg:border-b-0 lg:border-r border-gray-100">
-                  <div className="flex justify-between items-center mb-10">
-                     <h3 className={`${fs('sectionTitle')} font-black text-dark flex items-center gap-3`}>
-                        <div className="p-2 bg-lime-100 rounded-xl text-lime-600">
-                           <TrendingUp size={20}/>
-                        </div>
-                        Analisis Radar
-                     </h3>
+              {/* TASK 3: RINGKASAN EKSEKUTIF (KPI CARDS) */}
+              <section id="section-summary" className="p-6 sm:p-8 bg-white">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-1.5 bg-lime-100 rounded-lg text-lime-700">
+                    <TrendingUp size={16} />
                   </div>
-                  <div className="h-[400px] w-full relative" id="radar-chart">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={analysis.spiderData} outerRadius={130}>
-                        <PolarGrid stroke="#F3F4F6" strokeWidth={2} />
-                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 800, fill: '#6B7280', letterSpacing: '0.05em' }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
-                        <Radar 
-                          name="Skor" 
-                          dataKey="A" 
-                          stroke={COLORS.limeDark} 
-                          fill={COLORS.lime} 
-                          fillOpacity={0.4} 
-                          strokeWidth={4} 
-                          animationDuration={2000}
-                        />
-                        <Tooltip 
-                          contentStyle={{
-                            borderRadius: '20px', 
-                            border: '1px solid #F3F4F6', 
-                            boxShadow: '0 20px 50px rgba(0,0,0,0.08)', 
-                            padding: '12px 20px'
-                          }} 
-                          itemStyle={{fontWeight: '900', color: '#111', fontSize: '14px'}} 
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-              </div>
-
-              {/* Demographics Summary (2/5 Width) */}
-              <div className="lg:col-span-2 p-10 bg-gray-50/30">
-                  <h3 className={`${fs('sectionTitle')} font-black text-dark mb-8 flex items-center gap-3`}>
-                     <div className="p-2 bg-gray-100 rounded-xl text-gray-600">
-                        <UserCheck size={20}/>
-                     </div>
-                     Profil Peserta
-                  </h3>
-                  
-                  <div className="space-y-8">
-                     {/* Jantina Section */}
-                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Jantina</div>
-                        <div className="space-y-3">
-                            {demographics.jantina.length > 0 ? demographics.jantina.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
-                                <span className="font-bold text-sm text-dark">{item.name}</span>
-                                <span className="bg-lime-50 text-lime-700 text-[10px] font-black px-3 py-1.5 rounded-lg border border-lime-100">{item.value}</span>
-                                </div>
-                            )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
-                        </div>
-                     </motion.div>
-
-                     {/* Umur Section */}
-                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Umur</div>
-                        <div className="space-y-3">
-                            {demographics.umur.length > 0 ? demographics.umur.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
-                                <span className="font-bold text-sm text-dark truncate pr-2">{item.name}</span>
-                                <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-3 py-1.5 rounded-lg border border-gray-200">{item.value}</span>
-                                </div>
-                            )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
-                        </div>
-                     </motion.div>
-
-                     {/* Pendidikan Section */}
-                     <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Taraf Pendidikan</div>
-                         <div className="space-y-3">
-                            {demographics.pendidikan.length > 0 ? demographics.pendidikan.map((item, idx) => (
-                                <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl flex justify-between items-center shadow-sm hover:border-lime-300 hover:shadow-md transition-all duration-300">
-                                <span className="font-bold text-sm text-dark truncate pr-2">{item.name}</span>
-                                <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-3 py-1.5 rounded-lg border border-gray-200">{item.value}</span>
-                                </div>
-                            )) : <div className="text-gray-400 text-xs italic">Tiada data</div>}
-                        </div>
-                     </motion.div>
-                  </div>
-              </div>
-            </div>
-
-            {/* 3. AI PREMIUM ANALYSIS CARD - Light Mode */}
-            <div className="p-8 sm:p-12 bg-white">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="bg-white rounded-[3rem] overflow-hidden relative shadow-2xl shadow-gray-200/50 border border-gray-100"
-              >
-                  {/* Decorative Gradient */}
-                  <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-lime-50/50 to-transparent"></div>
-                  <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-lime-100/40 rounded-full blur-[100px]"></div>
-
-                  <div className="relative z-10 p-10 sm:p-14">
-                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-10">
-                        <div>
-                           <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2 bg-lime-400 rounded-lg shadow-lg shadow-lime-400/20">
-                                 <Sparkles size={16} className="text-black fill-black animate-pulse" />
-                              </div>
-                              <span className="text-lime-600 font-black text-[10px] uppercase tracking-[0.2em]">Gemini AI Intelligence</span>
-                           </div>
-                           <h3 className="text-3xl font-black text-gray-900 tracking-tight">Analisis Pintar Program</h3>
-                           <p className="text-gray-500 text-sm mt-2 max-w-xl font-medium leading-relaxed">
-                              Rumusan automatik mengenai kekuatan, kelemahan, dan cadangan penambahbaikan yang dijana secara pintar daripada maklum balas peserta.
-                           </p>
-                        </div>
-
-                        {!aiAnalysisResult && !isAnalyzing && (
-                           <motion.button 
-                              whileHover={{ scale: 1.02, y: -2 }}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={handleGenerateAI}
-                              className="bg-black text-white px-8 py-4 rounded-2xl font-black text-sm flex items-center gap-3 transition-all shadow-xl hover:bg-gray-800"
-                           >
-                              <Bot size={20} className="text-lime-400" /> JANA ANALISIS (TL;DR)
-                           </motion.button>
-                        )}
-                     </div>
-
-                     {isAnalyzing && (
-                        <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-100 rounded-[2.5rem] bg-gray-50/50">
-                           <div className="relative">
-                              <Loader2 size={48} className="text-lime-500 animate-spin mb-4" />
-                              <Sparkles size={16} className="absolute top-0 right-0 text-lime-400 animate-bounce" />
-                           </div>
-                           <p className="text-gray-500 font-black text-xs uppercase tracking-widest">Sedang memproses data...</p>
-                        </div>
-                     )}
-
-                      {aiAnalysisResult && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="bg-white rounded-[2rem] p-8 sm:p-10 border border-gray-100 shadow-sm relative group"
-                        >
-                             <div className={`prose prose-stone max-w-none prose-p:text-gray-600 prose-headings:text-gray-900 prose-strong:text-gray-900 ${fs('body')}`}>
-                                {(editableAnalysis || aiAnalysisResult).split('\n').map((line, idx) => {
-                                   if (line.trim().startsWith('**') || line.trim().startsWith('#')) 
-                                      return <h4 key={idx} className="text-lime-600 font-black text-lg mt-8 mb-4 uppercase tracking-wide flex items-center gap-2">
-                                         <span className="w-1.5 h-6 bg-lime-400 rounded-full"></span>
-                                         {line.replace(/\*\*/g, '').replace(/#/g, '')}
-                                      </h4>;
-                                   if (line.trim().startsWith('-')) 
-                                      return <li key={idx} className="ml-6 text-gray-700 mb-2 list-disc marker:text-lime-500 font-medium">{line.replace('-', '')}</li>;
-                                   return <p key={idx} className="mb-4 leading-relaxed font-medium">{line}</p>;
-                                })}
-                             </div>
-                            <div className="flex justify-end mt-8 pt-6 border-t border-gray-50" data-html2canvas-ignore>
-                              <button 
-                                onClick={handleGenerateAI} 
-                                className="text-[10px] font-black text-gray-400 hover:text-lime-600 flex items-center gap-2 transition-all uppercase tracking-widest"
-                              >
-                                <RefreshCw size={14}/> Jana Semula Analisis
-                              </button>
-                           </div>
-                        </motion.div>
-                       )}
-                   </div>
-               </motion.div>
-            </div>
-
-            {/* 5. APPENDIX - RAW DATA TABLES (SIDE BY SIDE) */}
-            <div className="p-10 sm:p-16 bg-white border-t border-gray-100 break-before-page">
-               <div className="mb-12 border-b border-gray-100 pb-8 flex flex-col md:flex-row justify-between items-end gap-6">
                   <div>
-                    <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-3">Lampiran Maklum Balas</h3>
-                    <h2 className={`${fs('sectionTitle')} font-black text-dark tracking-tight`}>Senarai Penuh Komen & Cadangan</h2>
-                    <p className="text-xs text-gray-400 mt-3 font-semibold">
-                      Klik mana-mana komen atau cadangan untuk tanda sebagai perlu diberi perhatian. Tanda ini akan dibawa ke PDF.
+                    <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Ringkasan Eksekutif</h2>
+                    <p className="text-xs text-gray-500 font-medium">Metrik prestasi utama laporan penilaian program</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Purata Skor Card */}
+                  <div className="bg-gradient-to-br from-lime-50/80 to-white p-4 sm:p-5 rounded-2xl border border-lime-200/80 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-lime-800 uppercase tracking-wider">Purata Skor</span>
+                      <div className="p-2 bg-lime-400/30 rounded-xl text-lime-900">
+                        <Star size={18} fill="currentColor" />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{analysis.avgTotal.toFixed(2)}</span>
+                        <span className="text-xs font-bold text-gray-400">/ 5.00</span>
+                      </div>
+                      {scoreRating && (
+                        <div className={`mt-2 inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black border uppercase tracking-wider ${scoreRating.color}`}>
+                          Prestasi: {scoreRating.label}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Jumlah Responden Card */}
+                  <div className="bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-200/80 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Jumlah Responden</span>
+                      <div className="p-2 bg-white rounded-xl text-gray-700 shadow-2xs">
+                        <Users size={18} />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{analysis.totalRespondents}</div>
+                      <p className="text-[11px] font-semibold text-gray-500 mt-1">Maklum balas sah</p>
+                    </div>
+                  </div>
+
+                  {/* Bilangan Bahagian Card */}
+                  <div className="bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-200/80 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Bahagian</span>
+                      <div className="p-2 bg-white rounded-xl text-gray-700 shadow-2xs">
+                        <Building2 size={18} />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{uniqueBahagian.length}</div>
+                      <p className="text-[11px] font-semibold text-gray-500 mt-1 truncate" title={selectedBahagian !== 'SEMUA' ? selectedBahagian : 'Bahagian Terlibat'}>
+                        {selectedBahagian !== 'SEMUA' ? selectedBahagian : 'Bahagian Terlibat'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Lokasi Program Card */}
+                  <div className="bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-200/80 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Lokasi / Tarikh</span>
+                      <div className="p-2 bg-white rounded-xl text-gray-700 shadow-2xs">
+                        <MapPin size={18} />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{uniqueLocations.length}</div>
+                      <p className="text-[11px] font-semibold text-gray-500 mt-1 truncate" title={displayedLocation}>
+                        {uniqueDates.length} Tarikh Berbeza
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* TASK 4 & 5: SUSUNAN ANALISIS RADAR DAN PROFIL PESERTA */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 bg-white">
+                
+                {/* TASK 4: ANALISIS RADAR (60% Width on Desktop) */}
+                <section id="section-analysis" className="lg:col-span-3 p-6 sm:p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-lime-100 rounded-lg text-lime-800">
+                          <TrendingUp size={16} />
+                        </div>
+                        <h3 className="text-base font-extrabold text-gray-900">Analisis Radar</h3>
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium mt-0.5">Prestasi mengikut 5 komponen penilaian utama</p>
+                    </div>
+                  </div>
+
+                  {/* Radar Chart Container (Controlled Height & Preserved ID for PDF capture) */}
+                  <div className="bg-gray-50/50 border border-gray-200/70 rounded-2xl p-4 flex items-center justify-center relative min-h-[360px] max-h-[440px]">
+                    <div className="w-full h-[360px] relative" id="radar-chart">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={analysis.spiderData} outerRadius={115}>
+                          <PolarGrid stroke="#E5E7EB" strokeWidth={1.5} />
+                          <PolarAngleAxis 
+                            dataKey="subject" 
+                            tick={{ fontSize: 11, fontWeight: 800, fill: '#374151' }} 
+                          />
+                          <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
+                          <Radar 
+                            name="Skor Purata" 
+                            dataKey="A" 
+                            stroke={COLORS.limeDark} 
+                            fill={COLORS.lime} 
+                            fillOpacity={0.5} 
+                            strokeWidth={3} 
+                            animationDuration={1000}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              borderRadius: '14px', 
+                              border: '1px solid #E5E7EB', 
+                              boxShadow: '0 10px 25px rgba(0,0,0,0.08)', 
+                              padding: '10px 14px'
+                            }} 
+                            itemStyle={{ fontWeight: '800', color: '#111827', fontSize: '13px' }} 
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </section>
+
+                {/* TASK 5: PROFIL PESERTA (40% Width on Desktop) */}
+                <section id="section-profile" className="lg:col-span-2 p-6 sm:p-8 bg-gray-50/30">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="p-1.5 bg-gray-100 rounded-lg text-gray-700">
+                      <UserCheck size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-gray-900">Profil Peserta</h3>
+                      <p className="text-xs text-gray-500 font-medium">Demografi responden program ({analysis.totalRespondents})</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    
+                    {/* 1. JANTINA */}
+                    <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-2xs">
+                      <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-3">
+                        Pecahan Jantina
+                      </div>
+                      <div className="space-y-2.5">
+                        {demographics.jantina.length > 0 ? demographics.jantina.map((item, idx) => {
+                          const pct = analysis.totalRespondents > 0 ? ((item.value / analysis.totalRespondents) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-gray-800">{item.name}</span>
+                                <span className="font-extrabold text-gray-900">{item.value} <span className="text-gray-400 font-medium">({pct}%)</span></span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-lime-500 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        }) : <p className="text-xs text-gray-400 italic">Tiada data jantina</p>}
+                      </div>
+                    </div>
+
+                    {/* 2. KUMPULAN UMUR */}
+                    <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-2xs">
+                      <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-3">
+                        Kumpulan Umur
+                      </div>
+                      <div className="space-y-2.5">
+                        {demographics.umur.length > 0 ? demographics.umur.map((item, idx) => {
+                          const pct = analysis.totalRespondents > 0 ? ((item.value / analysis.totalRespondents) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-gray-800 truncate pr-2">{item.name}</span>
+                                <span className="font-extrabold text-gray-900 shrink-0">{item.value} <span className="text-gray-400 font-medium">({pct}%)</span></span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        }) : <p className="text-xs text-gray-400 italic">Tiada data umur</p>}
+                      </div>
+                    </div>
+
+                    {/* 3. TARAF PENDIDIKAN */}
+                    <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-2xs">
+                      <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-3">
+                        Taraf Pendidikan
+                      </div>
+                      <div className="space-y-2.5 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                        {demographics.pendidikan.length > 0 ? demographics.pendidikan.map((item, idx) => {
+                          const pct = analysis.totalRespondents > 0 ? ((item.value / analysis.totalRespondents) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-gray-800 truncate pr-2" title={item.name}>{item.name}</span>
+                                <span className="font-extrabold text-gray-900 shrink-0">{item.value} <span className="text-gray-400 font-medium">({pct}%)</span></span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-gray-800 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        }) : <p className="text-xs text-gray-400 italic">Tiada data pendidikan</p>}
+                      </div>
+                    </div>
+
+                  </div>
+                </section>
+
+              </div>
+
+              {/* GEMINI AI ANALYSIS CARD */}
+              <div className="p-6 sm:p-8 bg-white">
+                <div className="bg-gradient-to-r from-gray-900 via-gray-900 to-black text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl border border-gray-800">
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-lime-400/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles size={16} className="text-lime-400" />
+                        <span className="text-lime-400 font-black text-xs uppercase tracking-wider">Gemini AI Intelligence</span>
+                      </div>
+                      <h3 className="text-2xl font-black text-white tracking-tight">Analisis Pintar Program</h3>
+                      <p className="text-gray-400 text-xs mt-1 max-w-xl font-medium leading-relaxed">
+                        Rumusan automatik mengenai kekuatan, kelemahan, dan cadangan penambahbaikan program.
+                      </p>
+                    </div>
+
+                    {!aiAnalysisResult && !isAnalyzing && (
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleGenerateAI}
+                        className="bg-lime-400 text-black px-6 py-3 rounded-2xl font-black text-xs flex items-center gap-2 hover:bg-lime-300 transition-all cursor-pointer shadow-md shrink-0"
+                      >
+                        <Bot size={16} /> JANA ANALISIS
+                      </motion.button>
+                    )}
+                  </div>
+
+                  {aiAnalysisResult && (
+                    <div className="bg-white/10 border border-white/10 rounded-2xl p-5 text-gray-200 text-xs leading-relaxed backdrop-blur-xs">
+                      {aiAnalysisResult}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* TASK 7: KOMEN DAN CADANGAN PESERTA */}
+              <section id="section-feedback" className="p-6 sm:p-8 bg-white">
+                
+                {/* Section Header */}
+                <div className="mb-6 border-b border-gray-100 pb-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-lime-700 tracking-widest block mb-1">LAMPIRAN MAKLUM BALAS</span>
+                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Komen dan Cadangan Peserta</h2>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">
+                      Tekan ikon bintang pada mana-mana maklum balas untuk tanda sebagai perlu perhatian bagi laporan PDF.
                     </p>
                   </div>
-                  
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3" data-html2canvas-ignore>
-                    <div className="flex items-center gap-3 bg-yellow-50 p-2 rounded-2xl border border-yellow-100">
+
+                  {/* Highlight Actions */}
+                  <div className="flex flex-wrap items-center gap-2" data-html2canvas-ignore>
+                    <button
+                      onClick={handleSaveFeedbackHighlights}
+                      className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                        hasUnsavedHighlights
+                          ? 'bg-amber-400 text-black hover:bg-amber-300 shadow-sm animate-pulse'
+                          : 'bg-gray-100 text-gray-700 border border-gray-200'
+                      }`}
+                    >
+                      {hasUnsavedHighlights ? <Save size={14} /> : <CheckCircle2 size={14} className="text-emerald-600" />}
+                      <span>{hasUnsavedHighlights ? 'Simpan Sementara' : 'Highlight Disimpan'}</span>
+                    </button>
+
+                    {(highlightedCommentIndexes.size > 0 || highlightedSuggestionIndexes.size > 0) && (
                       <button
-                        onClick={handleSaveFeedbackHighlights}
-                        className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
-                          hasUnsavedHighlights
-                            ? 'bg-yellow-400 text-black hover:bg-yellow-300 shadow-sm'
-                            : 'bg-white text-yellow-700 border border-yellow-100'
+                        onClick={() => setShowClearConfirm(true)}
+                        className="px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                        title="Kosongkan Semua Highlight"
+                      >
+                        <Trash2 size={14} />
+                        <span>Kosongkan</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Feedback Controls Bar: Tabs + Search + Filter */}
+                <div className="space-y-4 mb-6" data-html2canvas-ignore>
+                  
+                  {/* Row 1: Main Tabs */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3">
+                    <button
+                      onClick={() => setFeedbackTab('all')}
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                        feedbackTab === 'all' 
+                          ? 'bg-gray-900 text-white shadow-2xs' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      Semua ({commentList.length + suggestionList.length})
+                    </button>
+
+                    <button
+                      onClick={() => setFeedbackTab('comments')}
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                        feedbackTab === 'comments' 
+                          ? 'bg-lime-500 text-black font-extrabold shadow-2xs' 
+                          : 'bg-lime-50 text-lime-900 hover:bg-lime-100'
+                      }`}
+                    >
+                      <MessageSquare size={13} />
+                      <span>Komen Peserta ({commentList.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setFeedbackTab('suggestions')}
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                        feedbackTab === 'suggestions' 
+                          ? 'bg-orange-500 text-white font-extrabold shadow-2xs' 
+                          : 'bg-orange-50 text-orange-900 hover:bg-orange-100'
+                      }`}
+                    >
+                      <Lightbulb size={13} />
+                      <span>Cadangan Peserta ({suggestionList.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setFeedbackTab('saved')}
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                        feedbackTab === 'saved' 
+                          ? 'bg-amber-400 text-black font-extrabold shadow-2xs' 
+                          : 'bg-amber-50 text-amber-900 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Star size={13} fill="currentColor" />
+                      <span>Disimpan untuk PDF ({highlightedCommentIndexes.size + highlightedSuggestionIndexes.size})</span>
+                    </button>
+                  </div>
+
+                  {/* Row 2: Search Box & Filter Toggle */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-md">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={feedbackSearch}
+                        onChange={(e) => setFeedbackSearch(e.target.value)}
+                        placeholder="Cari dalam komen & cadangan..."
+                        className="w-full pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:border-gray-900 focus:ring-0 transition-all"
+                      />
+                      {feedbackSearch && (
+                        <button 
+                          onClick={() => setFeedbackSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Segmented Control */}
+                    <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0 text-xs font-bold">
+                      <button
+                        onClick={() => setFeedbackFilter('all')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          feedbackFilter === 'all' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500 hover:text-gray-900'
                         }`}
                       >
-                        {hasUnsavedHighlights ? <Save size={14} /> : <CheckCircle2 size={14} />}
-                        {hasUnsavedHighlights ? 'Simpan Sementara' : 'Highlight Disimpan'}
+                        Semua Status
                       </button>
-                      <div className="hidden md:block pr-2 text-[10px] font-bold text-yellow-700">
-                        {hasUnsavedHighlights
-                          ? 'Perlu simpan sebelum export PDF'
-                          : highlightSavedAt
-                            ? `Disimpan ${new Date(highlightSavedAt).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}`
-                            : 'Tiada highlight disimpan'}
-                      </div>
+                      <button
+                        onClick={() => setFeedbackFilter('highlighted')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          feedbackFilter === 'highlighted' ? 'bg-amber-400 text-black shadow-2xs' : 'text-gray-500 hover:text-gray-900'
+                        }`}
+                      >
+                        Ditanda Sahaja
+                      </button>
                     </div>
 
-                    {/* Scale Control */}
-                    <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Skala Kandungan:</span>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setAppendixScale(prev => Math.max(0.5, prev - 0.1))}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <div className="w-12 text-center font-black text-dark text-xs">
-                          {Math.round(appendixScale * 100)}%
+                  </div>
+
+                </div>
+
+                {/* Feedback List Grid */}
+                <div 
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  style={{ transform: `scale(${appendixScale})`, transformOrigin: 'top left', width: `${100 / appendixScale}%` }}
+                >
+                  {filteredFeedbackList.length > 0 ? filteredFeedbackList.map((item, keyIdx) => {
+                    const isComment = item.type === 'comment';
+                    return (
+                      <div
+                        key={`${item.type}-${item.index}-${keyIdx}`}
+                        onClick={() => toggleHighlightedIndex(item.index, item.type)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3 group relative ${
+                          item.isHighlighted 
+                            ? 'bg-amber-50/90 border-amber-300 ring-1 ring-amber-300/80 shadow-xs' 
+                            : 'bg-white border-gray-200/80 hover:border-gray-300 hover:shadow-2xs'
+                        }`}
+                      >
+                        <div>
+                          {/* Header badge & star */}
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-gray-400">#{String(item.index + 1).padStart(2, '0')}</span>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
+                                isComment ? 'bg-lime-100 text-lime-900 border border-lime-200' : 'bg-orange-100 text-orange-900 border border-orange-200'
+                              }`}>
+                                {isComment ? 'Komen' : 'Cadangan'}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleHighlightedIndex(item.index, item.type);
+                              }}
+                              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                item.isHighlighted ? 'text-amber-500 bg-amber-100' : 'text-gray-300 hover:text-amber-400 hover:bg-gray-100'
+                              }`}
+                              title={item.isHighlighted ? 'Buang dari PDF' : 'Tanda untuk PDF'}
+                            >
+                              <Star size={16} fill={item.isHighlighted ? 'currentColor' : 'none'} />
+                            </button>
+                          </div>
+
+                          {/* Text content */}
+                          <p className="text-xs text-gray-700 leading-relaxed font-medium">
+                            {item.text}
+                          </p>
                         </div>
-                        <button 
-                          onClick={() => setAppendixScale(prev => Math.min(1.5, prev + 0.1))}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-lime-600 transition-colors"
-                        >
-                          <Plus size={14} />
-                        </button>
                       </div>
+                    );
+                  }) : (
+                    <div className="col-span-full py-12 text-center text-gray-400 text-xs font-medium italic bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                      Tiada maklum balas dijumpai mengikut tapisan semasa.
                     </div>
-                  </div>
-               </div>
+                  )}
+                </div>
 
-               <div 
-                 className="grid grid-cols-1 lg:grid-cols-2 gap-12"
-                 style={{ transform: `scale(${appendixScale})`, transformOrigin: 'top left', width: `${100 / appendixScale}%` }}
-               >
-                  {/* Raw Comments Column */}
-                  <div className="flex flex-col h-full">
-                     <div className="flex items-center gap-3 mb-6 p-4 bg-lime-50 rounded-2xl border border-lime-100">
-                        <div className="p-2 bg-white rounded-lg text-lime-600 shadow-sm">
-                           <MessageSquare size={18} />
-                        </div>
-                        <span className="font-black text-xs uppercase tracking-widest text-lime-800">Komen Peserta</span>
-                     </div>
-                     <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
-                        <table className="w-full text-left border-collapse">
-                           <tbody className="divide-y divide-gray-50">
-                              {editableComments.length > 0 ? editableComments.map((comment, index) => (
-                                 <HighlightableFeedbackRow
-                                   key={`${index}-${comment}`}
-                                   index={index}
-                                   text={comment}
-                                   type="comment"
-                                   isHighlighted={highlightedCommentIndexes.has(index)}
-                                   onToggle={() => toggleHighlightedIndex(index, setHighlightedCommentIndexes)}
-                                 />
-                              )) : (
-                                 <tr>
-                                    <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada komen direkodkan.</td>
-                                 </tr>
-                              )}
-                           </tbody>
-                        </table>
-                     </div>
-                  </div>
+              </section>
 
-                  {/* Raw Suggestions Column */}
-                  <div className="flex flex-col h-full">
-                     <div className="flex items-center gap-3 mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                        <div className="p-2 bg-white rounded-lg text-orange-600 shadow-sm">
-                           <Lightbulb size={18} />
-                        </div>
-                        <span className="font-black text-xs uppercase tracking-widest text-orange-800">Cadangan Peserta</span>
-                     </div>
-                     <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm flex-1 bg-white">
-                        <table className="w-full text-left border-collapse">
-                           <tbody className="divide-y divide-gray-50">
-                              {editableSuggestions.length > 0 ? editableSuggestions.map((suggestion, index) => (
-                                 <HighlightableFeedbackRow
-                                   key={`${index}-${suggestion}`}
-                                   index={index}
-                                   text={suggestion}
-                                   type="suggestion"
-                                   isHighlighted={highlightedSuggestionIndexes.has(index)}
-                                   onToggle={() => toggleHighlightedIndex(index, setHighlightedSuggestionIndexes)}
-                                 />
-                              )) : (
-                                 <tr>
-                                    <td colSpan={2} className="px-8 py-20 text-center text-gray-400 text-xs font-medium italic">Tiada cadangan direkodkan.</td>
-                                 </tr>
-                              )}
-                           </tbody>
-                        </table>
-                     </div>
-                  </div>
-               </div>
             </div>
-
-
-          </>
           )}
-          
+
         </div>
-      </div>
+      </main>
+
     </div>
   );
 };
