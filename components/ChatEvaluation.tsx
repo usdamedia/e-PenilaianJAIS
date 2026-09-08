@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Send, Bot, ChevronLeft, ChevronRight, Share2, Loader2, Square, Smartphone, 
   Clock, PenLine, Image as ImageIcon, MapPin, Building2, CheckCircle2, 
-  Sparkles, RefreshCw, X, Check, ArrowRight
+  Sparkles, RefreshCw, X, Check, ArrowRight, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EvaluationFormData } from '../types';
@@ -549,14 +549,113 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
         );
 
       case 'date':
+        // Calculate date presets (Today, Yesterday)
+        const todayObj = new Date();
+        const todayStr = todayObj.toISOString().split('T')[0];
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+        // Format selected date nicely in Malay
+        let formattedDatePreview = '';
+        if (inputText) {
+          const parts = inputText.split('-');
+          if (parts.length === 3) {
+            const y = Number(parts[0]);
+            const m = Number(parts[1]);
+            const d = Number(parts[2]);
+            if (y && m && d) {
+              const dateObj = new Date(y, m - 1, d);
+              formattedDatePreview = dateObj.toLocaleDateString('ms-MY', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              }).toUpperCase();
+            }
+          }
+        }
+
         return (
           <div className="pt-1 space-y-3">
-            <input 
-              type="date" 
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="w-full min-h-[54px] bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl px-4 py-3 text-gray-900 font-bold text-base sm:text-lg focus:ring-2 focus:ring-lime-400/50 focus:border-lime-500 transition-all shadow-xs"
-            />
+            {/* Main Styled Date Input Card */}
+            <div className="bg-white border-2 border-gray-200 focus-within:border-lime-500 focus-within:ring-4 focus-within:ring-lime-400/20 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 transition-all shadow-xs flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-lime-100 text-lime-800 flex items-center justify-center shrink-0 border border-lime-300/60 shadow-2xs">
+                  <Calendar size={20} strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 relative">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-0.5">
+                    Pilih Tarikh Mula Program
+                  </label>
+                  <input 
+                    type="date" 
+                    value={inputText}
+                    onChange={(e) => {
+                      setInputText(e.target.value);
+                      handleNextStep(e.target.value);
+                    }}
+                    className="w-full bg-transparent text-gray-900 font-extrabold text-base sm:text-lg focus:outline-none cursor-pointer"
+                  />
+                </div>
+                {inputText && (
+                  <button 
+                    type="button" 
+                    onClick={() => setInputText('')} 
+                    className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+                    title="Kosongkan"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Formatted Date Banner Preview */}
+              {formattedDatePreview && (
+                <div className="bg-lime-50 border border-lime-200/80 rounded-xl p-2.5 flex items-center gap-2 text-lime-950 font-bold text-xs sm:text-sm animate-in fade-in duration-200">
+                  <CheckCircle2 size={16} className="text-lime-600 shrink-0" />
+                  <span>{formattedDatePreview}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Date Presets */}
+            <div className="space-y-1.5 pt-1">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">Pilihan Pantas Tarikh:</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputText(todayStr);
+                    handleNextStep(todayStr);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer ${
+                    inputText === todayStr
+                      ? 'bg-lime-400 text-black font-extrabold shadow-sm'
+                      : 'bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 text-gray-800'
+                  }`}
+                >
+                  <Sparkles size={13} className={inputText === todayStr ? 'text-black' : 'text-lime-600'} />
+                  <span>Hari Ini ({todayObj.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputText(yesterdayStr);
+                    handleNextStep(yesterdayStr);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer ${
+                    inputText === yesterdayStr
+                      ? 'bg-lime-400 text-black font-extrabold shadow-sm'
+                      : 'bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 text-gray-800'
+                  }`}
+                >
+                  <Clock size={13} className={inputText === yesterdayStr ? 'text-black' : 'text-gray-500'} />
+                  <span>Semalam ({yesterdayDate.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })})</span>
+                </button>
+              </div>
+            </div>
           </div>
         );
 
