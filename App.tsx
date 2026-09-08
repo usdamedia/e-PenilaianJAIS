@@ -165,12 +165,12 @@ function App() {
   const [fontSizeLevel, setFontSizeLevel] = useState(0);
 
   const fontSizes = {
-    base: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
-    input: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'], // Standardized to 10pt
-    header: ['text-[14pt]', 'text-[14pt]', 'text-[14pt]'], // Standardized to 14pt
-    subHeader: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
-    label: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
-    sectionTitle: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    base: ['text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-lg sm:text-[10pt]'],
+    input: ['text-base sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-base sm:text-[10pt]'], // Ensure 16px on mobile to prevent iOS auto-zoom
+    header: ['text-[14pt]', 'text-[14pt]', 'text-[14pt]'],
+    subHeader: ['text-xs sm:text-[10pt]', 'text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]'],
+    label: ['text-xs sm:text-[10pt]', 'text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]'],
+    sectionTitle: ['text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-lg sm:text-[10pt]'],
   };
 
   const currentFontSize = (type: keyof typeof fontSizes) => fontSizes[type][fontSizeLevel];
@@ -614,7 +614,7 @@ function App() {
         
         {/* CONDITIONAL RENDERING: FLOW STEPS */}
         {flowStep === 'modeSelection' ? (
-          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="min-h-dvh flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

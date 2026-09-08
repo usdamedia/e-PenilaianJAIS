@@ -427,28 +427,30 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
         );
 
       case 'options':
-        const isShortList = (currentStep.options?.length || 0) <= 4 && currentStep.options?.every(o => o.length <= 15);
+        const optLength = currentStep.options?.length || 0;
+        const allShort = currentStep.options?.every(o => o.length <= 22);
+        const useGrid = (optLength <= 4 && currentStep.options?.every(o => o.length <= 15)) || (optLength > 4 && allShort);
         return (
-          <div className={`pt-1 ${isShortList ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-2.5'}`}>
+          <div className={`pt-1 touch-pan-y ${useGrid ? 'grid grid-cols-2 gap-2 sm:gap-2.5' : 'flex flex-col gap-2.5'}`}>
             {currentStep.options?.map((opt) => {
               const isSelected = currentValue === opt;
               return (
                 <motion.button
                   key={opt}
                   type="button"
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => handleNextStep(opt)}
                   className={`
-                    min-h-[52px] sm:min-h-[56px] px-4 py-3 rounded-xl sm:rounded-2xl border transition-all text-left font-bold text-sm sm:text-base flex items-center justify-between shadow-xs group
+                    min-h-[48px] sm:min-h-[54px] px-3.5 py-2.5 rounded-xl sm:rounded-2xl border transition-all text-left font-bold text-xs sm:text-sm flex items-center justify-between shadow-xs group active:scale-95 touch-manipulation cursor-pointer
                     ${isSelected 
                       ? 'bg-lime-50 border-lime-500 text-lime-950 ring-2 ring-lime-400/30' 
                       : 'bg-white border-gray-200 text-gray-800 hover:border-lime-400 hover:bg-lime-50/20'
                     }
                   `}
                 >
-                  <span className="leading-snug pr-2">{opt}</span>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-lime-500 text-black' : 'border border-gray-300 group-hover:border-lime-400'}`}>
-                    {isSelected ? <Check size={14} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-transparent group-hover:bg-lime-400 transition-colors" />}
+                  <span className="leading-tight pr-1.5 break-words line-clamp-2">{opt}</span>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-lime-500 text-black' : 'border border-gray-300 group-hover:border-lime-400'}`}>
+                    {isSelected ? <Check size={12} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-transparent group-hover:bg-lime-400 transition-colors" />}
                   </div>
                 </motion.button>
               );
@@ -689,9 +691,9 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-dvh w-full max-w-2xl mx-auto bg-[#F6F8F7] text-[#17201B] relative overflow-x-hidden">
+    <div className="flex flex-col h-dvh max-h-dvh w-full max-w-2xl mx-auto bg-[#F6F8F7] text-[#17201B] relative overflow-hidden">
       {/* 1. STICKY HEADER */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E4E9E6] shadow-xs px-4 py-3">
+      <header className="shrink-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E4E9E6] shadow-xs px-4 py-3">
         <div className="flex items-center justify-between gap-3 mb-2">
           {/* Bot Branding */}
           <div className="flex items-center gap-2.5">
@@ -766,7 +768,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       </header>
 
       {/* 2. MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col p-4 sm:p-6 pb-28 justify-start">
+      <main className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 pb-6 touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
         {/* SUCCESS VIEW */}
         {isCompleted && (
           <motion.div 
@@ -999,7 +1001,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       {/* 3. STICKY FOOTER NAVIGATION */}
       {!isCompleted && !isReviewing && (
         <footer 
-          className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E4E9E6] px-4 py-3 sm:px-6 sm:py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
+          className="shrink-0 z-20 bg-white border-t border-[#E4E9E6] px-4 py-3 sm:px-6 sm:py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="flex items-center gap-3 max-w-2xl mx-auto w-full">

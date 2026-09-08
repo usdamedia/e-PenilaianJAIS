@@ -61,6 +61,30 @@ export const Input: React.FC<InputProps> = ({
           ))}
         </datalist>
       )}
+
+      {/* Render Mobile-friendly Suggestion Chips */}
+      {suggestions && suggestions.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto touch-pan-y custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {suggestions.slice(0, 8).map((item, index) => (
+            <button
+              key={index}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (props.onChange) {
+                  const event = {
+                    target: { name: props.name || '', value: uppercase ? item.toUpperCase() : item }
+                  } as React.ChangeEvent<HTMLInputElement>;
+                  props.onChange(event);
+                }
+              }}
+              className="text-xs bg-white border border-gray-200 hover:border-lime-400 hover:bg-lime-50 text-gray-700 font-bold px-2.5 py-1.5 rounded-xl transition-all shadow-2xs text-left truncate max-w-[220px] active:scale-95 touch-manipulation cursor-pointer"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
       
       {error && (
         <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold animate-pulse">
