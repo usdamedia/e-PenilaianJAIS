@@ -592,8 +592,9 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                     type="date" 
                     value={inputText}
                     onChange={(e) => {
-                      setInputText(e.target.value);
-                      handleNextStep(e.target.value);
+                      const val = e.target.value;
+                      setInputText(val);
+                      setFormData(prev => ({ ...prev, tarikhMula: val }));
                     }}
                     className="w-full bg-transparent text-gray-900 font-extrabold text-base sm:text-lg focus:outline-none cursor-pointer"
                   />
@@ -601,7 +602,10 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                 {inputText && (
                   <button 
                     type="button" 
-                    onClick={() => setInputText('')} 
+                    onClick={() => {
+                      setInputText('');
+                      setFormData(prev => ({ ...prev, tarikhMula: '' }));
+                    }} 
                     className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
                     title="Kosongkan"
                   >
@@ -610,11 +614,16 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                 )}
               </div>
 
-              {/* Formatted Date Banner Preview */}
+              {/* Formatted Date Banner Preview for Verification */}
               {formattedDatePreview && (
-                <div className="bg-lime-50 border border-lime-200/80 rounded-xl p-2.5 flex items-center gap-2 text-lime-950 font-bold text-xs sm:text-sm animate-in fade-in duration-200">
-                  <CheckCircle2 size={16} className="text-lime-600 shrink-0" />
-                  <span>{formattedDatePreview}</span>
+                <div className="bg-lime-50 border border-lime-300 rounded-xl p-3 flex flex-col gap-1 text-lime-950 font-bold text-xs sm:text-sm animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-lime-600 shrink-0" />
+                    <span className="font-extrabold text-sm sm:text-base text-gray-900">{formattedDatePreview}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 font-semibold pl-6">
+                    Sila semak tarikh di atas. Tekan <strong className="text-black bg-lime-300 px-1 py-0.5 rounded">Seterusnya</strong> di bawah jika betul.
+                  </p>
                 </div>
               )}
             </div>
@@ -627,7 +636,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                   type="button"
                   onClick={() => {
                     setInputText(todayStr);
-                    handleNextStep(todayStr);
+                    setFormData(prev => ({ ...prev, tarikhMula: todayStr }));
                   }}
                   className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer ${
                     inputText === todayStr
@@ -643,7 +652,7 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                   type="button"
                   onClick={() => {
                     setInputText(yesterdayStr);
-                    handleNextStep(yesterdayStr);
+                    setFormData(prev => ({ ...prev, tarikhMula: yesterdayStr }));
                   }}
                   className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer ${
                     inputText === yesterdayStr
