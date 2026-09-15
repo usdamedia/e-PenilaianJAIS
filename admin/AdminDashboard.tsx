@@ -19,6 +19,7 @@ import { ProgramDetail } from './ProgramDetail';
 import { ReportBSC } from './ReportBSC';
 import { CommentsPage } from './CommentsPage';
 import { ChangelogPage } from './ChangelogPage';
+import { ParticipantsPage } from './ParticipantsPage';
 import BSCReportPDF from './BSCReportPDF';
 import { DashboardData } from '../dashboard/types';
 import { MONTHS } from '../constants';
@@ -166,9 +167,9 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl transition-all duration-200 font-bold text-sm group relative overflow-hidden ${
+    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all duration-150 font-semibold text-xs sm:text-sm group relative overflow-hidden ios-press ${
       active
-        ? 'bg-lime-400 text-[#171A18] shadow-xs'
+        ? 'bg-lime-400 text-[#1C1C1E] shadow-xs'
         : 'text-gray-300 hover:bg-white/10 hover:text-white'
     }`}
   >
@@ -176,27 +177,27 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
       <motion.div 
         layoutId="nav-active-bg"
         className="absolute inset-0 bg-lime-400 z-0"
-        transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+        transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
       />
     )}
-    <div className={`relative z-10 transition-transform duration-200 ${active ? 'scale-105' : 'group-hover:scale-105'}`}>
+    <div className={`relative z-10 transition-transform duration-150 ${active ? 'scale-105' : 'group-hover:scale-105'}`}>
       {icon}
     </div>
-    <span className="relative z-10 tracking-tight text-xs sm:text-sm">{label}</span>
+    <span className="relative z-10 tracking-tight">{label}</span>
     {active && (
       <motion.div 
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        className="absolute right-3 w-2 h-2 rounded-full bg-[#171A18] z-10"
+        className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#1C1C1E] z-10"
       />
     )}
   </button>
 );
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { rawData: dashboardRawData, loading, refreshData, lastFetchTime } = useDashboardData(); 
+  const { rawData: dashboardRawData, loading, refreshData, lastFetchTime, updateParticipantStatus, isOffline } = useDashboardData(); 
   const rawData = dashboardRawData || [];
-  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments' | 'changelog'>('analysis');
+  const [currentTab, setCurrentTab] = useState<'analysis' | 'bsc' | 'comments' | 'changelog' | 'participants'>('analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProgram, setSelectedProgram] = useState<ProgramSelectionState | null>(null);
 
@@ -1302,24 +1303,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F6] flex font-sans text-dark overflow-x-hidden">
-      {/* Sidebar Desktop & Mobile */}
+    <div className="min-h-screen bg-[#F2F2F7] flex font-sans text-dark overflow-x-hidden">
+      {/* Apple Inset Sidebar Desktop & Mobile */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-60 bg-[#171A18] text-white transform transition-transform duration-300 lg:translate-x-0 lg:static lg:block shrink-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#1C1C1E] text-white transform transition-transform duration-300 lg:translate-x-0 lg:static lg:block shrink-0 border-r border-black/20
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="h-full flex flex-col p-6">
-          <div className="flex items-center gap-3 mb-8 mt-1">
-            <div className="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center shadow-xs">
+        <div className="h-full flex flex-col p-5">
+          <div className="flex items-center gap-3 mb-8 mt-2 px-1">
+            <div className="w-10 h-10 bg-white rounded-2xl p-1.5 flex items-center justify-center shadow-2xs border border-white/10">
               <LogoImage />
             </div>
             <div>
-              <span className="font-black text-xl tracking-tight block leading-none text-white">JAIS</span>
-              <span className="text-[10px] text-lime-400 uppercase tracking-widest font-extrabold">Admin Panel</span>
+              <span className="font-bold text-lg tracking-tight block leading-tight text-white">JAIS</span>
+              <span className="text-[10px] text-lime-400 uppercase tracking-wider font-bold">Admin Portal</span>
             </div>
           </div>
 
-          <nav className="flex-1 space-y-2">
+          <nav className="flex-1 space-y-1.5">
             <NavItem 
               icon={<LayoutDashboard size={18} />} 
               label="Analisis Data" 
@@ -1346,10 +1347,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             />
             <NavItem 
               icon={<MessageSquare size={18} />} 
-              label="Komen" 
+              label="Komen Peserta" 
               active={currentTab === 'comments'} 
               onClick={() => {
                 setCurrentTab('comments');
+                setSelectedProgram(null);
+                setProgramVariantPicker(null);
+                setIsMobileMenuOpen(false);
+                window.scrollTo(0,0);
+              }}
+            />
+            <NavItem 
+              icon={<Users size={18} />} 
+              label="Senarai Nama Peserta" 
+              active={currentTab === 'participants'} 
+              onClick={() => {
+                setCurrentTab('participants');
                 setSelectedProgram(null);
                 setProgramVariantPicker(null);
                 setIsMobileMenuOpen(false);
@@ -1370,13 +1383,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             />
           </nav>
 
-          <div className="pt-6 border-t border-gray-800/60 space-y-3">
+          <div className="pt-4 border-t border-white/10 space-y-2">
             <button 
               onClick={onLogout}
-              className="flex items-center gap-2.5 px-4 py-3 text-red-400 hover:bg-white/5 rounded-xl transition-all w-full text-xs font-bold group"
+              className="flex items-center gap-2.5 px-3.5 py-2.5 text-red-400 hover:bg-red-500/10 rounded-2xl transition-all w-full text-xs font-semibold group ios-press"
             >
-              <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-              Log Keluar
+              <LogOut size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+              <span>Log Keluar</span>
             </button>
           </div>
         </div>
@@ -1385,57 +1398,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen relative min-w-0">
-        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-30 px-6 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#E6EAE7]">
+      <main className="flex-1 overflow-y-auto h-screen relative min-w-0 bg-[#F2F2F7]">
+        {/* Apple Frosted Glass Top Navigation Bar */}
+        <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-30 px-6 sm:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-black/[0.06] shadow-2xs">
           <div className="flex items-center gap-3">
             <button 
-              className="p-2 -ml-2 rounded-xl hover:bg-gray-100 lg:hidden text-dark"
+              className="p-2 -ml-2 rounded-xl hover:bg-black/5 lg:hidden text-[#1C1C1E] ios-press"
               onClick={() => setIsMobileMenuOpen(true)}
               aria-label="Buka Menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[#171A18] tracking-tight">
-                {currentTab === 'analysis' ? 'Analisis Program' : currentTab === 'bsc' ? 'Laporan BSC' : currentTab === 'comments' ? 'Komen Peserta' : 'Sejarah Penambahbaikan Aplikasi'}
+              <h1 className="text-lg sm:text-xl font-bold text-[#1C1C1E] tracking-tight leading-snug">
+                {currentTab === 'analysis' 
+                  ? 'Analisis Program' 
+                  : currentTab === 'bsc' 
+                    ? 'Laporan BSC' 
+                    : currentTab === 'comments' 
+                      ? 'Komen Peserta' 
+                      : currentTab === 'participants'
+                        ? 'Senarai Nama Peserta'
+                        : 'Sejarah Penambahbaikan Aplikasi'}
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium">
                 {currentTab === 'analysis' 
                   ? 'Dashboard prestasi dan maklum balas masa nyata' 
                   : currentTab === 'bsc' 
                     ? 'Analisis strategik Penilaian Keseluruhan Program'
                     : currentTab === 'comments'
                       ? 'Maklum balas jujur dan cadangan daripada peserta'
-                      : 'Log kemaskini rasmi, penambahbaikan ciri & kelajuan sistem'}
+                      : currentTab === 'participants'
+                        ? 'Pengurusan kelulusan e-sijil dan pengesahan kehadiran peserta program'
+                        : 'Log kemaskini rasmi, penambahbaikan ciri & kelajuan sistem'}
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
              <button 
                 onClick={handleExportDashboardPDF}
                 disabled={isExporting || filteredData.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#171A18] text-lime-400 hover:bg-black transition-all text-xs font-bold shadow-xs active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#1C1C1E] text-lime-400 hover:bg-black transition-all text-xs font-semibold shadow-xs ios-press disabled:opacity-50"
              >
-                {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                {isExporting ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
                 <span>Export PDF</span>
              </button>
 
+             {isOffline && (
+               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                 <span>Mod Disandarkan</span>
+               </div>
+             )}
+
              <button 
                 onClick={() => refreshData()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E6EAE7] hover:border-lime-400 hover:bg-lime-50 transition-all text-xs font-bold text-gray-700 shadow-xs active:scale-95 group"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-black/[0.06] hover:bg-black/5 transition-all text-xs font-semibold text-gray-700 shadow-2xs ios-press group"
              >
-                <RefreshCw size={14} className="group-hover:animate-spin text-lime-600" />
+                <RefreshCw size={13} className="group-hover:animate-spin text-gray-700" />
                 <span>Kemas Kini</span>
              </button>
 
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lime-400 to-lime-600 flex items-center justify-center text-black font-extrabold text-xs border border-lime-500/30">
+            <div className="w-8 h-8 rounded-full bg-lime-400 text-[#1C1C1E] flex items-center justify-center font-bold text-xs border border-lime-500/30 shadow-2xs">
               AD
             </div>
           </div>
@@ -1443,8 +1474,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         <div className="p-4 sm:p-6 xl:p-8 space-y-6 max-w-[1600px] w-full mx-auto pb-20 min-w-0">
           
-            {/* FILTER BAR - Floating Card Design */}
-            <div className="space-y-2">
+            {/* FILTER BAR - Floating Card Design (only for analysis, bsc, comments) */}
+            {(currentTab === 'analysis' || currentTab === 'bsc' || currentTab === 'comments') && (
+              <>
+                <div className="space-y-2">
               {/* BARIS ATAS: Carian, Tahun, Bulan & Reset */}
               <div className="bg-white p-2 rounded-[24px] shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-2">
                 
@@ -1965,7 +1998,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </button>
               </div>
             )}
-
+            </>
+          )}
 
           {currentTab === 'changelog' ? (
             <ChangelogPage />
@@ -1973,6 +2007,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <CommentsPage data={filteredData} onProgramSelect={handleProgramSelect} />
           ) : currentTab === 'bsc' ? (
             <ReportBSC data={filteredData} onExportPDF={handleExportBSCPDF} isExporting={isExporting} />
+          ) : currentTab === 'participants' ? (
+            <ParticipantsPage 
+              data={rawData} 
+              onUpdateStatus={updateParticipantStatus} 
+              onRefresh={refreshData} 
+              isLoading={loading}
+            />
           ) : (
             <>
 

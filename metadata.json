@@ -1,7 +1,10 @@
 {
   "name": "e-Penilaian Program",
-  "description": "Sistem Borang Penilaian Program rasmi dengan dashboard analisis, pemetaan suku tahunan, dan tempoh program boleh laras.",
+  "description": "Sistem Borang Penilaian Program rasmi dengan dashboard analisis, senarai kelulusan nama peserta, dan penghantaran e-sijil automatik.",
   "requestFramePermissions": [
     "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

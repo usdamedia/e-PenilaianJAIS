@@ -12,6 +12,8 @@ export interface EvaluationFormData {
 
   // Section B
   namaPenuh: string;
+  noKadPengenalan?: string;
+  emel?: string;
   jantina: 'LELAKI' | 'PEREMPUAN' | '';
   umur: string;
   tarafPendidikan: string;

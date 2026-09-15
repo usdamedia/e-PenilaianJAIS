@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2, Sparkles, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
 import ReactConfetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import { Analytics } from '@vercel/analytics/react';
@@ -14,7 +14,6 @@ import { RatingScale } from './components/RatingScale';
 import { submitEvaluation } from './services/api';
 import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
-import { ChangelogPage } from './admin/ChangelogPage';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
 import LogoImage from './components/LogoImage';
 import html2canvas from 'html2canvas';
@@ -27,6 +26,7 @@ const INITIAL_DATA: EvaluationFormData = {
   tempohProgram: '',
   penganjurUtama: '',
   namaPenuh: '',
+  emel: '',
   jantina: '',
   umur: '',
   tarafPendidikan: '',
@@ -105,8 +105,8 @@ class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminE
 }
 
 function App() {
-  // Navigation State: 'form' | 'adminLogin' | 'adminPanel' | 'changelog'
-  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel' | 'changelog'>('form');
+  // Navigation State: 'form' | 'adminLogin' | 'adminPanel'
+  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
   
   // NEW: Flow Step State
   const [flowStep, setFlowStep] = useState<'modeSelection' | 'filling'>('modeSelection');
@@ -165,12 +165,12 @@ function App() {
   const [fontSizeLevel, setFontSizeLevel] = useState(0);
 
   const fontSizes = {
-    base: ['text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-lg sm:text-[10pt]'],
-    input: ['text-base sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-base sm:text-[10pt]'], // Ensure 16px on mobile to prevent iOS auto-zoom
-    header: ['text-[14pt]', 'text-[14pt]', 'text-[14pt]'],
-    subHeader: ['text-xs sm:text-[10pt]', 'text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]'],
-    label: ['text-xs sm:text-[10pt]', 'text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]'],
-    sectionTitle: ['text-sm sm:text-[10pt]', 'text-base sm:text-[10pt]', 'text-lg sm:text-[10pt]'],
+    base: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    input: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'], // Standardized to 10pt
+    header: ['text-[14pt]', 'text-[14pt]', 'text-[14pt]'], // Standardized to 14pt
+    subHeader: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    label: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
+    sectionTitle: ['text-[10pt]', 'text-[10pt]', 'text-[10pt]'],
   };
 
   const currentFontSize = (type: keyof typeof fontSizes) => fontSizes[type][fontSizeLevel];
@@ -182,20 +182,15 @@ function App() {
     });
   };
 
-  // Prevent body scroll when in chat mode or selection mode
+  // Allow body scroll freely
   useEffect(() => {
-    if ((inputMode === 'chat' || flowStep !== 'filling') && view === 'form') {
-      document.body.style.overflow = 'hidden';
-      document.body.style.height = '100dvh';
-    } else {
-      document.body.style.overflow = 'auto';
-      document.body.style.height = 'auto';
-    }
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
     return () => {
       document.body.style.overflow = 'auto';
       document.body.style.height = 'auto';
     };
-  }, [inputMode, view, flowStep]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -366,75 +361,58 @@ function App() {
     );
   }
 
-  if (view === 'changelog') {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA]">
-        <div className="bg-[#111827] text-white px-4 py-3 flex items-center justify-between border-b border-gray-800">
-          <button
-            onClick={() => setView('form')}
-            className="inline-flex items-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-lime-400 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
-          >
-            <ChevronLeft size={16} />
-            Kembali ke Borang Utama
-          </button>
-          <span className="text-xs font-mono text-gray-400">e-Penilaian JAIS v2.4.0</span>
-        </div>
-        <ChangelogPage onBack={() => setView('form')} />
-      </div>
-    );
-  }
-
   // ROUTE: SUCCESS PAGE (Standard Form)
   if (submitted) {
     return (
-      <div className="min-h-screen bg-dark-surface flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#F2F2F7] flex flex-col items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-md flex flex-col items-center">
           
-          <div className="bg-white w-full rounded-[2rem] shadow-soft p-8 md:p-10 text-center relative overflow-hidden mb-6">
-            <div className="w-16 h-16 bg-lime-400/20 text-lime-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={32} strokeWidth={3} />
+          {/* Apple HIG Success Card */}
+          <div className="bg-white w-full rounded-3xl shadow-ios-card p-6 sm:p-8 text-center relative overflow-hidden mb-6 border border-black/[0.06]">
+            <div className="w-16 h-16 bg-[#34C759]/10 text-[#34C759] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xs">
+              <CheckCircle2 size={32} strokeWidth={2.6} />
             </div>
-            <h1 className="text-[14pt] font-extrabold text-dark tracking-tight mb-2">Penilaian dihantar!</h1>
-            <p className="text-gray-500 text-[10pt]">
-              Terima kasih atas maklum balas anda.
+            <h1 className="text-xl sm:text-2xl font-bold text-[#1C1C1E] tracking-tight mb-1.5">Penilaian Dihantar</h1>
+            <p className="text-gray-500 text-sm font-medium">
+              Terima kasih atas maklum balas anda terhadap program JAIS.
             </p>
           </div>
 
           {/* SOCIAL FLEX POSTER PREVIEW */}
           <div className="w-full mb-6">
-             <div className="flex justify-between items-end mb-3">
-               <p className="text-gray-500 text-[10pt] font-bold uppercase tracking-widest">
-                ✨ Kongsi pencapaian anda
+             <div className="flex justify-between items-center mb-3 px-1">
+               <p className="text-gray-500 text-xs font-semibold tracking-tight">
+                Kongsikan Pencapaian Program
                </p>
-               {/* Ratio Toggles */}
-               <div className="bg-gray-200 p-1 rounded-lg flex gap-1">
+               {/* Apple Segmented Ratio Toggles */}
+               <div className="bg-black/5 p-1 rounded-xl flex gap-1">
                   <button 
                     onClick={() => setPosterRatio('square')}
-                    className={`p-1.5 rounded-md transition-all ${posterRatio === 'square' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
-                    title="Square 1:1"
+                    className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'square' ? 'bg-white shadow-xs text-[#1C1C1E]' : 'text-gray-400 hover:text-gray-700'}`}
+                    title="Petak 1:1"
                   >
-                     <Square size={16} />
+                     <Square size={14} />
                   </button>
                   <button 
                     onClick={() => setPosterRatio('story')}
-                    className={`p-1.5 rounded-md transition-all ${posterRatio === 'story' ? 'bg-white shadow-sm text-dark' : 'text-gray-400 hover:text-dark'}`}
-                    title="Story 9:16"
+                    className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'story' ? 'bg-white shadow-xs text-[#1C1C1E]' : 'text-gray-400 hover:text-gray-700'}`}
+                    title="Cerita 9:16"
                   >
-                     <Smartphone size={16} />
+                     <Smartphone size={14} />
                   </button>
                </div>
              </div>
             
-            {/* EDITABLE NAME SECTION */}
-            <div className="bg-white rounded-xl p-3 mb-4 shadow-sm border border-gray-100 flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <PenLine size={12}/> Edit nama program (Poster)
+            {/* EDITABLE NAME SECTION - Apple Inset Cell */}
+            <div className="bg-white rounded-2xl p-3.5 mb-4 shadow-2xs border border-black/[0.06] flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <PenLine size={12}/> Edit Nama Program (Poster)
                 </label>
                 <input 
                     type="text" 
                     value={formData.namaProgram}
                     onChange={(e) => setFormData(prev => ({...prev, namaProgram: e.target.value.toUpperCase()}))}
-                    className="w-full font-bold text-dark text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-lime-400 focus:outline-none uppercase"
+                    className="w-full font-bold text-[#1C1C1E] text-sm bg-[#F2F2F7] border border-black/[0.04] rounded-xl px-3 py-2.5 focus:bg-white focus:ring-4 focus:ring-lime-400/20 focus:border-lime-500 focus:outline-none uppercase transition-all"
                     placeholder="NAMA PROGRAM"
                 />
             </div>
@@ -459,7 +437,7 @@ function App() {
                      Tamat Program
                   </div>
                   
-                  {/* Organizer (NEW) */}
+                  {/* Organizer */}
                   <div className="flex items-center gap-2 text-lime-400 mb-2 opacity-90">
                       <Building2 size={16} className="shrink-0"/>
                       <span className="text-[10px] font-bold uppercase tracking-wider line-clamp-1">
@@ -475,7 +453,7 @@ function App() {
                     {formData.namaProgram || "NAMA PROGRAM"}
                   </h2>
                   
-                  {/* Location & Date Group (UPDATED) */}
+                  {/* Location & Date Group */}
                   <div className="space-y-3 mt-4 border-l-2 border-white/20 pl-4">
                       {/* Location */}
                       <div className="flex items-center gap-3 text-gray-300">
@@ -510,30 +488,30 @@ function App() {
               </div>
             </div>
 
-            {/* Share Buttons */}
-            <div className="space-y-3 mt-4">
+            {/* Share Buttons - Apple Styled */}
+            <div className="space-y-2.5 mt-4">
               {/* WhatsApp Share */}
               <button 
                 onClick={handleSharePoster}
                 disabled={isSharing}
-                className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 hover:bg-[#20bd5a] active:scale-95 transition-all"
+                className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl font-bold text-base shadow-xs flex items-center justify-center gap-2 hover:bg-[#20bd5a] ios-press transition-all"
               >
-                {isSharing ? <Loader2 className="animate-spin" /> : <Share2 size={24} />}
-                Kongsi ke status WhatsApp
+                {isSharing ? <Loader2 className="animate-spin" size={20} /> : <Share2 size={20} />}
+                Kongsi ke Status WhatsApp
               </button>
 
               {/* Save to Album */}
               <button 
                 onClick={handleSaveToAlbum}
                 disabled={isSaving}
-                className="w-full bg-[#1A1C1E] text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all border border-gray-800"
+                className="w-full bg-[#1C1C1E] text-white py-3.5 rounded-2xl font-bold text-base shadow-xs flex items-center justify-center gap-2 hover:bg-black ios-press transition-all"
               >
-                {isSaving ? <Loader2 className="animate-spin text-lime-400" /> : <ImageIcon size={24} className="text-lime-400" />}
-                Simpan Poster (Album)
+                {isSaving ? <Loader2 className="animate-spin text-lime-400" size={20} /> : <ImageIcon size={20} className="text-lime-400" />}
+                Simpan Gambar (Album)
               </button>
             </div>
             
-            <p className="text-center text-xs text-gray-400 mt-3">Simpan kenangan ini!</p>
+            <p className="text-center text-xs text-gray-400 mt-3 font-medium">Simpan kenangan penyertaan program ini</p>
           </div>
 
           <button 
@@ -542,13 +520,13 @@ function App() {
               setFormData(INITIAL_DATA);
               setDateParts({ d: '', m: '', y: '' });
             }}
-            className="text-gray-500 font-bold hover:text-dark transition-colors text-sm flex items-center gap-2 py-2"
+            className="text-gray-500 font-semibold hover:text-[#1C1C1E] transition-colors text-sm flex items-center gap-1.5 py-2 ios-press"
           >
             <ArrowRight size={16} /> Kembali ke borang utama
           </button>
 
         </div>
-        <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500">
+        <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400">
           RUJUKAN KAMI: BPNP/UPS/B/NILAI/02
         </div>
       </div>
@@ -557,7 +535,7 @@ function App() {
 
   // ROUTE: MAIN FORM
   return (
-    <div className={`min-h-screen bg-[#F2F2F2] font-sans selection:bg-lime-400 selection:text-black ${inputMode === 'chat' ? 'h-dvh overflow-hidden' : 'pb-32 sm:pb-20'}`}>
+    <div className="min-h-screen bg-[#F2F2F7] font-sans selection:bg-lime-400 selection:text-black pb-32">
       {showConfetti && (
         <ReactConfetti
           width={width}
@@ -568,95 +546,110 @@ function App() {
           colors={['#DAA520', '#000080']} // Gold and Navy
         />
       )}
-      {/* Mobile-First Sticky Header */}
-      <div className={`sticky top-0 z-40 bg-[#F2F2F2]/80 backdrop-blur-md border-b border-gray-200/50 sm:border-none sm:bg-transparent sm:backdrop-blur-none sm:static sm:pt-6 sm:mb-2 ${inputMode === 'chat' || flowStep !== 'filling' ? 'hidden sm:block' : 'block'}`}>
-        <div className="max-w-4xl mx-auto px-4 py-3 sm:bg-white/80 sm:backdrop-blur-xl sm:rounded-full sm:shadow-soft sm:px-6 sm:py-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:border sm:border-white/50">
+      {/* Apple iOS Translucent Navigation Bar */}
+      <div className={`sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-black/[0.06] shadow-2xs py-2 sm:py-3 sm:mb-4 ${inputMode === 'chat' || flowStep !== 'filling' ? 'hidden sm:block' : 'block'}`}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           
           {/* Logo & Title */}
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-xl p-1 shadow-sm border border-gray-100 flex items-center justify-center">
+              <div className="w-10 h-10 bg-white rounded-2xl p-1.5 shadow-2xs border border-black/[0.06] flex items-center justify-center">
                  <LogoImage />
               </div>
-              <span className="font-bold text-dark text-sm sm:text-base tracking-tight leading-tight">
-                e-Penilaian <span className="text-lime-600 block sm:inline">JAIS</span>
-              </span>
+              <div>
+                <span className="font-bold text-[#1C1C1E] text-sm sm:text-base tracking-tight leading-tight block">
+                  e-Penilaian <span className="text-lime-600">JAIS</span>
+                </span>
+                <span className="text-[11px] text-gray-500 font-medium">Jabatan Agama Islam Sarawak</span>
+              </div>
             </div>
 
-            {/* Admin & Font Controls (Mobile: Show on right of logo) */}
+            {/* Admin Control (Mobile: Show on right of logo) */}
             <div className="flex items-center gap-2 sm:hidden">
-               <button onClick={() => setView('adminLogin')} className="p-2 text-gray-400"><Lock size={16}/></button>
+               <button 
+                 onClick={() => setView('adminLogin')} 
+                 className="w-9 h-9 flex items-center justify-center rounded-full bg-black/5 text-gray-600 hover:text-black ios-press transition-colors"
+                 title="Log Masuk Admin"
+               >
+                 <Lock size={15}/>
+               </button>
             </div>
           </div>
-          
-          {/* Center: MODE TOGGLE (Pill Option) HIDING AS REQUESTED */}
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
              <button
                onClick={() => setView('adminLogin')}
-               className="p-2 text-gray-400 hover:text-dark transition-colors"
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/5 hover:bg-black/10 text-gray-700 text-xs font-semibold transition-all ios-press"
              >
-               <Lock size={16} />
+               <Lock size={14} />
+               <span>Admin</span>
              </button>
              {inputMode === 'standard' && flowStep === 'filling' && (
-                <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
-                  <button onClick={() => handleFontSizeChange(false)} disabled={fontSizeLevel === 0} className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full hover:text-lime-600 disabled:opacity-30"><Minus size={14} /></button>
-                  <div className="w-6 text-center font-bold text-dark text-xs">A{fontSizeLevel > 0 && '+'}</div>
-                  <button onClick={() => handleFontSizeChange(true)} disabled={fontSizeLevel === 2} className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full hover:text-lime-600 disabled:opacity-30"><Plus size={14} /></button>
+                <div className="flex items-center gap-1 bg-[#F2F2F7] p-1 rounded-full border border-black/[0.04]">
+                  <button onClick={() => handleFontSizeChange(false)} disabled={fontSizeLevel === 0} className="w-7 h-7 flex items-center justify-center bg-white rounded-full text-gray-700 shadow-2xs disabled:opacity-30 ios-press"><Minus size={13} /></button>
+                  <div className="w-6 text-center font-bold text-[#1C1C1E] text-xs">A{fontSizeLevel > 0 && '+'}</div>
+                  <button onClick={() => handleFontSizeChange(true)} disabled={fontSizeLevel === 2} className="w-7 h-7 flex items-center justify-center bg-white rounded-full text-gray-700 shadow-2xs disabled:opacity-30 ios-press"><Plus size={13} /></button>
                 </div>
              )}
           </div>
         </div>
       </div>
 
-      <div className={`max-w-4xl mx-auto transition-all duration-500 ${inputMode === 'chat' || flowStep !== 'filling' ? 'px-0 sm:px-6 pt-0 sm:pt-0' : 'px-3 sm:px-6 pt-4 sm:pt-0'}`}>
+      <div className={`max-w-4xl mx-auto transition-all duration-300 ${inputMode === 'chat' || flowStep !== 'filling' ? 'px-0 sm:px-6 pt-0 sm:pt-0' : 'px-3 sm:px-6 pt-4 sm:pt-0'}`}>
         
         {/* CONDITIONAL RENDERING: FLOW STEPS */}
         {flowStep === 'modeSelection' ? (
-          <div className="min-h-dvh flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="min-h-[85vh] flex flex-col items-center justify-center p-4 sm:p-6 text-center">
+            {/* Apple Inset Grouped Sheet */}
             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full"
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="bg-white p-7 sm:p-10 rounded-3xl sm:rounded-[2.5rem] shadow-ios-sheet border border-black/[0.06] max-w-md w-full"
             >
-              <div className="w-20 h-20 bg-white border-2 border-black rounded-3xl flex items-center justify-center mx-auto mb-8 p-3">
+              {/* Official Crest Squircle */}
+              <div className="w-20 h-20 bg-[#F2F2F7] border border-black/[0.06] rounded-3xl flex items-center justify-center mx-auto mb-6 p-3.5 shadow-2xs">
                 <LogoImage />
               </div>
-              <h2 className="text-[14pt] font-black text-dark mb-4 tracking-tight">Selamat datang</h2>
-              <p className="text-gray-500 font-medium mb-10">Sila pilih cara anda ingin mengisi borang penilaian ini.</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#1C1C1E] mb-2 tracking-tight">Selamat Datang</h2>
+              <p className="text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                Sila pilih mod pengisian borang penilaian program JAIS ini.
+              </p>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
+                {/* Active Mode Button */}
                 <button 
                   onClick={() => { setInputMode('chat'); setFlowStep('filling'); }}
-                  className="w-full bg-dark text-white p-6 rounded-2xl flex items-center justify-between group hover:bg-black transition-all"
+                  className="w-full bg-[#1C1C1E] text-white p-5 rounded-2xl flex items-center justify-between group hover:bg-black shadow-ios ios-press transition-all"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-lime-400 rounded-xl text-dark group-hover:scale-110 transition-transform">
-                      <Bot size={24} />
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-3 bg-lime-400 rounded-xl text-black shadow-xs group-hover:scale-105 transition-transform">
+                      <Bot size={22} strokeWidth={2.4} />
                     </div>
                     <div className="text-left">
-                      <div className="font-black text-lg leading-none mb-1">Isi borang Penilaian</div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Interaksi AI</div>
+                      <div className="font-bold text-base sm:text-lg leading-tight mb-0.5 tracking-tight">Isi Borang Penilaian</div>
+                      <div className="text-xs text-lime-400/90 font-medium">Interaktif & Mudah</div>
                     </div>
                   </div>
-                  <ArrowRight size={20} className="text-lime-400" />
+                  <ArrowRight size={18} className="text-lime-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
 
+                {/* Legacy Mode Button */}
                 <button 
                   disabled
-                  className="w-full bg-gray-50 border-2 border-gray-100 text-gray-400 p-6 rounded-2xl flex items-center justify-between opacity-70 cursor-not-allowed transition-all"
+                  className="w-full bg-[#F2F2F7] border border-black/[0.04] text-gray-400 p-5 rounded-2xl flex items-center justify-between opacity-60 cursor-not-allowed transition-all"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-200 rounded-xl text-gray-400 transition-colors">
-                      <FileText size={24} />
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-3 bg-black/5 rounded-xl text-gray-400">
+                      <FileText size={22} />
                     </div>
                     <div className="text-left">
-                      <div className="font-black text-[10pt] leading-none mb-1 text-gray-400 line-through decoration-gray-300">Borang klasik (Legasi)</div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Telah Ditutup</div>
+                      <div className="font-semibold text-sm leading-tight mb-0.5 text-gray-400 line-through decoration-gray-300">Borang Klasik (Legasi)</div>
+                      <div className="text-[11px] text-gray-400 font-medium">Telah Ditutup</div>
                     </div>
                   </div>
-                  <Lock size={20} className="text-gray-400" />
+                  <Lock size={18} className="text-gray-400" />
                 </button>
               </div>
             </motion.div>
@@ -1210,16 +1203,8 @@ function App() {
         )
         )}
       </div>
-      <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-        <span>RUJUKAN KAMI: BPNP/UPS/B/NILAI/02</span>
-        <span className="hidden sm:inline text-gray-300">•</span>
-        <button
-          onClick={() => setView('changelog')}
-          className="text-lime-700 hover:text-dark font-black flex items-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <Sparkles size={13} className="text-lime-600" />
-          <span>Sejarah Penambahbaikan (13 Ogos 2026)</span>
-        </button>
+      <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500">
+        RUJUKAN KAMI: BPNP/UPS/B/NILAI/02
       </div>
       <Analytics />
     </div>

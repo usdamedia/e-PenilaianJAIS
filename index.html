@@ -3,11 +3,14 @@
 <html lang="ms">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#F2F2F2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#F2F2F7" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Borang Penilaian Program Jabatan Agama Islam Sarawak</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>e-Penilaian Program</title>
+    <meta name="description" content="Sistem Borang Penilaian Program rasmi dengan dashboard analisis, senarai kelulusan nama peserta, dan penghantaran e-sijil automatik." />
+    <meta property="og:title" content="e-Penilaian Program" />
+    <meta property="og:description" content="Sistem Borang Penilaian Program rasmi dengan dashboard analisis, senarai kelulusan nama peserta, dan penghantaran e-sijil automatik." />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,37 +20,58 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
             },
             colors: {
               lime: {
                 300: '#E1F87E',
-                400: '#D0F240', // The neon lime accent from the image
+                400: '#D0F240', // Neon lime accent
                 500: '#B8D930',
                 600: '#9AB820',
               },
+              ios: {
+                bg: '#F2F2F7',           // Apple System Grouped Background
+                card: '#FFFFFF',          // Apple Card Background
+                elevated: '#FFFFFF',
+                separator: 'rgba(60, 60, 67, 0.12)', // Apple Hairline Separator
+                label: '#1C1C1E',         // Primary Apple Label
+                secondary: '#8E8E93',     // Secondary Apple Label
+                tertiary: '#C7C7CC',
+                tint: '#10B981',
+                blue: '#007AFF',
+                red: '#FF3B30',
+                green: '#34C759',
+                amber: '#FF9500',
+              },
               dark: {
-                DEFAULT: '#111111', // Primary black
+                DEFAULT: '#111111',
                 800: '#1A1A1A',
                 900: '#0A0A0A',
-                surface: '#F2F2F2', // The light grey dashboard background
+                surface: '#F2F2F7',
               },
               gray: {
                 50: '#F9FAFB',
-                100: '#F3F4F6',
-                200: '#E5E7EB',
-                300: '#D1D5DB',
+                100: '#F2F2F7',
+                200: '#E5E5EA',
+                300: '#D1D1D6',
+                400: '#AEAEB2',
+                500: '#8E8E93',
+                600: '#636366',
               }
             },
             borderRadius: {
-              '2xl': '1rem',
+              'xl': '0.875rem',
+              '2xl': '1.125rem',
               '3xl': '1.5rem',
-              '4xl': '2rem', // Super rounded cards
+              '4xl': '2rem',
             },
             boxShadow: {
-              'soft': '0 4px 40px -10px rgba(0, 0, 0, 0.05)',
-              'glow': '0 0 20px rgba(208, 242, 64, 0.3)',
-              'up': '0 -4px 20px rgba(0,0,0,0.05)',
+              'soft': '0 4px 24px -6px rgba(0, 0, 0, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.02)',
+              'ios': '0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 1px 3px -1px rgba(0, 0, 0, 0.02)',
+              'ios-card': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.02)',
+              'ios-sheet': '0 10px 40px -10px rgba(0, 0, 0, 0.12), 0 2px 8px -2px rgba(0, 0, 0, 0.04)',
+              'glow': '0 0 20px rgba(208, 242, 64, 0.25)',
+              'up': '0 -4px 20px rgba(0, 0, 0, 0.03)',
             }
           }
         }
@@ -55,10 +79,28 @@
     </script>
     <style>
       body {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: #F2F2F2;
-        color: #111111;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Plus Jakarta Sans", system-ui, sans-serif;
+        background-color: #F2F2F7;
+        color: #1C1C1E;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
         -webkit-tap-highlight-color: transparent;
+      }
+      /* Apple iOS tactile active press */
+      .ios-press {
+        transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
+      }
+      .ios-press:active {
+        transform: scale(0.97);
+        opacity: 0.88;
+      }
+      /* Safe area support for iOS notches & Dynamic Island */
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
       /* Custom scrollbar */
       ::-webkit-scrollbar {

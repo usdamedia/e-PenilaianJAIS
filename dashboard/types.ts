@@ -11,6 +11,21 @@ export interface DashboardData {
   umur: string;        // Col I
   quarter: string;     // New: Mapped from 'QUARTER' column
   tarafPendidikan: string; // Col J (New)
+  
+  // Participant & Certificate Management
+  namaPeserta?: string;
+  noKpPeserta?: string;
+  emelPeserta?: string;
+  statusKelulusan?: 'MENUNGGU' | 'TELAH DIHANTAR' | 'DILULUSKAN' | 'DITOLAK';
+  tarikhKelulusan?: string;
+  pautanSijil?: string;
+  noSijil?: string;
+  certFileId?: string;
+  certPdfUrl?: string;
+  emailStatus?: 'NOT_GENERATED' | 'PENDING' | 'GENERATING' | 'GENERATED' | 'NOT_SENT' | 'SENT' | 'FAILED' | 'GENERATION_FAILED' | 'EMAIL_FAILED';
+  emailedAt?: string;
+  lastError?: string;
+
   // Ratings Col K - W (Assuming K-O are scores, P-W might be detailed scores or comments)
   // Mapping based on common structure
   skorLogistik: number; // K

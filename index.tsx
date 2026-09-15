@@ -14,7 +14,15 @@ console.warn = (...args) => {
 };
 
 console.error = (...args) => {
-  if (typeof args[0] === 'string' && args[0].includes('Support for defaultProps will be removed from function components')) {
+  const firstArg = typeof args[0] === 'string' ? args[0] : (args[0]?.message || '');
+  if (
+    firstArg.includes('Support for defaultProps will be removed from function components') ||
+    firstArg.includes('Gagal tarik data cleaned') ||
+    firstArg.includes('Load failed') ||
+    firstArg.includes('Failed to fetch')
+  ) {
+    // Demote network/library noise to console.warn
+    originalWarn(...args);
     return;
   }
   originalError(...args);

@@ -57,7 +57,7 @@ const formatVariantDateLabel = (isoString: string) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
-  const { loading, stats, charts, rawData, refreshData } = useDashboardData();
+  const { loading, stats, charts, rawData, refreshData, isOffline } = useDashboardData();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
 
@@ -173,8 +173,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
           <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200 w-fit self-end md:self-auto">
              <span className="text-xs font-bold text-gray-500 px-3 uppercase tracking-wider">Status Data</span>
              <div className="bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-bold text-dark">Aktif</span>
+                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-green-500 animate-pulse'}`}></div>
+                <span className="text-xs font-bold text-dark">{isOffline ? 'Luar Talian (Disandarkan)' : 'Aktif (Terkini)'}</span>
              </div>
           </div>
         </div>
