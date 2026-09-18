@@ -18,6 +18,7 @@ import LogoImage from './LogoImage';
 interface ChatEvaluationProps {
   onBack: () => void;
   onSubmitSuccess?: () => void;
+  onOpenRefleksi?: () => void;
   programSuggestions?: string[];
   initialData?: Partial<EvaluationFormData>;
   isLocked?: boolean;
@@ -87,6 +88,7 @@ const STEPS: QuestionStep[] = [
 export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({ 
   onBack, 
   onSubmitSuccess,
+  onOpenRefleksi,
   programSuggestions = [],
   initialData = {},
   isLocked = false
@@ -293,8 +295,9 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       return false;
     }
 
-    if (val !== undefined && val !== null && val !== '') return true;
-    return false;
+    if (currentStep.type === 'rating') {
+      return typeof val === 'number' && val >= 1 && val <= 5;
+    }
   };
 
   const handleTextSubmit = (e?: React.FormEvent) => {
@@ -541,8 +544,8 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
       case 'rating':
         return (
           <div className="pt-1 space-y-3">
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
-              {[0, 1, 2, 3, 4, 5].map((num) => {
+            <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
+              {[1, 2, 3, 4, 5].map((num) => {
                 const isSelected = currentValue === num;
                 return (
                   <motion.button
@@ -560,15 +563,15 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
                   >
                     <span className="text-xl sm:text-2xl leading-none tracking-tight">{num}</span>
                     <span className="text-[10px] font-medium opacity-75 mt-1 tracking-tight">
-                      {num === 0 ? 'Tiada' : num === 5 ? 'Cemerlang' : `Skala ${num}`}
+                      {num === 1 ? 'Rendah' : num === 5 ? 'Cemerlang' : `Skala ${num}`}
                     </span>
                   </motion.button>
                 );
               })}
             </div>
             <div className="flex justify-between items-center text-xs font-medium text-gray-500 px-1 pt-1">
-              <span>0 = Tidak Berkenaan / Rendah</span>
-              <span>5 = Cemerlang</span>
+              <span>1 = Rendah</span>
+              <span>5 = Cemerlang (Wajib Pilih)</span>
             </div>
           </div>
         );
@@ -871,89 +874,27 @@ export const ChatEvaluation: React.FC<ChatEvaluationProps> = ({
               </p>
             </div>
 
-            {/* Poster / Certificate card */}
-            <div className="w-full bg-white rounded-3xl p-5 sm:p-6 border border-black/[0.06] shadow-ios-card space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-lime-400/20 text-lime-800 rounded-xl">
-                    <Sparkles size={16} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-[#1C1C1E] tracking-tight">Kongsikan Poster</p>
-                    <p className="text-xs text-gray-500 font-medium">Sijil penyertaan & tamat program</p>
-                  </div>
-                </div>
-                {/* Apple Segmented Control */}
-                <div className="bg-black/5 p-1 rounded-xl flex gap-1">
-                  <button onClick={() => setPosterRatio('square')} className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'square' ? 'bg-white shadow-xs text-black' : 'text-gray-400'}`} title="1:1 Petak"><Square size={14} /></button>
-                  <button onClick={() => setPosterRatio('story')} className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'story' ? 'bg-white shadow-xs text-black' : 'text-gray-400'}`} title="9:16 Cerita"><Smartphone size={14} /></button>
-                </div>
+            {/* Refleksi Harian Card */}
+            <div className="w-full bg-white rounded-3xl p-5 sm:p-6 border border-black/[0.06] shadow-ios-card space-y-4 text-center">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+                <Sparkles size={24} />
               </div>
-
-              {/* Poster Preview Frame */}
-              <div className="flex justify-center bg-[#F2F2F7] rounded-2xl p-4 border border-black/[0.04]">
-                <div 
-                  ref={posterRef}
-                  className={`
-                    w-full bg-[#0F0F0F] rounded-[1.5rem] p-5 flex flex-col justify-between relative overflow-hidden shadow-xl border-[3px] border-lime-400
-                    ${posterRatio === 'square' ? 'aspect-square max-w-[260px]' : 'aspect-[9/16] max-w-[190px]'}
-                    transition-all duration-300
-                  `}
-                >
-                  <div className="relative z-10">
-                    <div className="bg-lime-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full tracking-wider inline-block mb-2">
-                      Tamat Program
-                    </div>
-                    <div className="flex items-center gap-1 text-lime-400 mb-1">
-                      <Building2 size={10} className="shrink-0"/>
-                      <span className="text-[10px] font-bold line-clamp-1">
-                        {formData.penganjurUtama || "Penganjur"}
-                      </span>
-                    </div>
-                    <h3 className={`text-white font-black leading-tight tracking-tight mb-2 break-words ${getTitleFontSize(formData.namaProgram || "")}`}>
-                      {formData.namaProgram || "Program"}
-                    </h3>
-                    <div className="space-y-1 border-l-2 border-white/20 pl-2 mt-2">
-                      <div className="flex items-center gap-1 text-gray-300">
-                        <MapPin size={10} className="text-white shrink-0"/>
-                        <span className="text-[10px] font-medium line-clamp-1">
-                          {formData.tempatProgram || "Lokasi"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-300">
-                        <Clock size={10} className="text-white shrink-0"/>
-                        <span className="text-[10px] font-medium">
-                          {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="relative z-10 pt-2 border-t border-white/10 mt-auto flex items-center gap-2">
-                    <div className="w-5 h-5 bg-white rounded flex items-center justify-center p-0.5">
-                      <LogoImage />
-                    </div>
-                    <span className="text-white font-bold text-[9px]">e-Penilaian JAIS</span>
-                  </div>
-                </div>
+              <div>
+                <p className="font-bold text-base text-[#1C1C1E] tracking-tight">Refleksi Harian JAIS</p>
+                <p className="text-sm text-gray-500 font-medium">Jana dan kongsikan kata-kata refleksi harian secara visual.</p>
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
+              <div className="pt-2">
                 <button 
-                  onClick={handleSharePoster}
-                  disabled={isSharing}
-                  className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl font-bold text-sm shadow-xs flex items-center justify-center gap-2 hover:bg-[#20bd5a] ios-press transition-all"
+                  onClick={() => {
+                    if (onOpenRefleksi) {
+                      onOpenRefleksi();
+                    }
+                  }}
+                  className="w-full bg-[#1C1C1E] text-lime-400 py-3.5 rounded-2xl font-bold text-sm shadow-xs flex items-center justify-center gap-2 hover:bg-black ios-press transition-all"
                 >
-                  {isSharing ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
-                  Kongsi ke WhatsApp Status
-                </button>
-                <button 
-                  onClick={handleSaveToAlbum}
-                  disabled={isSaving}
-                  className="w-full bg-[#1C1C1E] text-white py-3.5 rounded-2xl font-bold text-sm shadow-xs flex items-center justify-center gap-2 hover:bg-black ios-press transition-all"
-                >
-                  {isSaving ? <Loader2 className="animate-spin text-lime-400" size={18} /> : <ImageIcon size={18} className="text-lime-400" />}
-                  Simpan Gambar
+                  Buka Modul Refleksi Harian
                 </button>
               </div>
             </div>

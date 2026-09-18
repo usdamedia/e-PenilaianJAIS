@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Send, AlertCircle, Minus, Plus, ArrowRight, LayoutDashboard, ChevronDown, PieChart, Lock, X, Bot, FileText, Share2, Download, Award, Smartphone, Square, Clock, PenLine, Image as ImageIcon, MapPin, Building2, Loader2, Sparkles } from 'lucide-react';
 import ReactConfetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import { Analytics } from '@vercel/analytics/react';
@@ -16,6 +16,7 @@ import { AdminLogin } from './admin/AdminLogin';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { ChatEvaluation } from './components/ChatEvaluation'; // Import Chat Component
 import LogoImage from './components/LogoImage';
+import { RefleksiHarianModule } from './components/RefleksiHarianModule';
 import html2canvas from 'html2canvas';
 
 const INITIAL_DATA: EvaluationFormData = {
@@ -105,8 +106,8 @@ class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminE
 }
 
 function App() {
-  // Navigation State: 'form' | 'adminLogin' | 'adminPanel'
-  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel'>('form');
+  // Navigation State: 'form' | 'adminLogin' | 'adminPanel' | 'refleksi'
+  const [view, setView] = useState<'form' | 'adminLogin' | 'adminPanel' | 'refleksi'>('form');
   
   // NEW: Flow Step State
   const [flowStep, setFlowStep] = useState<'modeSelection' | 'filling'>('modeSelection');
@@ -339,10 +340,40 @@ function App() {
     formData.tarafPendidikan !== '' &&
     formData.ratingTarikhMasa > 0 &&
     formData.ratingPengisian > 0 &&
+    formData.ratingJamuan > 0 &&
+    formData.ratingFasilitator > 0 &&
     formData.ratingUrusetia > 0 &&
     formData.ratingKeseluruhan > 0;
 
   // --- ROUTING LOGIC ---
+
+  if (view === 'refleksi') {
+    return (
+      <div className="min-h-screen bg-[#F2F2F7] flex flex-col">
+        <header className="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-black/[0.06]">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white rounded-xl p-1 shadow-2xs border border-black/[0.06] flex items-center justify-center">
+                 <LogoImage />
+              </div>
+              <span className="font-bold text-[#1C1C1E] text-sm tracking-tight">
+                e-Penilaian <span className="text-emerald-600">JAIS</span> - Refleksi Harian
+              </span>
+            </div>
+            <button
+              onClick={() => setView('form')}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-all ios-press"
+            >
+              ← Kembali ke Borang Penilaian
+            </button>
+          </div>
+        </header>
+        <main className="flex-1">
+          <RefleksiHarianModule />
+        </main>
+      </div>
+    );
+  }
 
   if (view === 'adminLogin') {
     return (
@@ -377,142 +408,14 @@ function App() {
               Terima kasih atas maklum balas anda terhadap program JAIS.
             </p>
           </div>
-
-          {/* SOCIAL FLEX POSTER PREVIEW */}
-          <div className="w-full mb-6">
-             <div className="flex justify-between items-center mb-3 px-1">
-               <p className="text-gray-500 text-xs font-semibold tracking-tight">
-                Kongsikan Pencapaian Program
-               </p>
-               {/* Apple Segmented Ratio Toggles */}
-               <div className="bg-black/5 p-1 rounded-xl flex gap-1">
-                  <button 
-                    onClick={() => setPosterRatio('square')}
-                    className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'square' ? 'bg-white shadow-xs text-[#1C1C1E]' : 'text-gray-400 hover:text-gray-700'}`}
-                    title="Petak 1:1"
-                  >
-                     <Square size={14} />
-                  </button>
-                  <button 
-                    onClick={() => setPosterRatio('story')}
-                    className={`p-1.5 rounded-lg text-xs font-semibold transition-all ios-press ${posterRatio === 'story' ? 'bg-white shadow-xs text-[#1C1C1E]' : 'text-gray-400 hover:text-gray-700'}`}
-                    title="Cerita 9:16"
-                  >
-                     <Smartphone size={14} />
-                  </button>
-               </div>
-             </div>
-            
-            {/* EDITABLE NAME SECTION - Apple Inset Cell */}
-            <div className="bg-white rounded-2xl p-3.5 mb-4 shadow-2xs border border-black/[0.06] flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    <PenLine size={12}/> Edit Nama Program (Poster)
-                </label>
-                <input 
-                    type="text" 
-                    value={formData.namaProgram}
-                    onChange={(e) => setFormData(prev => ({...prev, namaProgram: e.target.value.toUpperCase()}))}
-                    className="w-full font-bold text-[#1C1C1E] text-sm bg-[#F2F2F7] border border-black/[0.04] rounded-xl px-3 py-2.5 focus:bg-white focus:ring-4 focus:ring-lime-400/20 focus:border-lime-500 focus:outline-none uppercase transition-all"
-                    placeholder="NAMA PROGRAM"
-                />
-            </div>
-
-            {/* The Actual Poster to be Captured */}
-            <div 
-              ref={posterRef}
-              className={`
-                w-full bg-[#0F0F0F] rounded-[2rem] p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl border-[3px] border-lime-400
-                ${posterRatio === 'square' ? 'aspect-square' : 'aspect-[9/16]'}
-                transition-all duration-300
-              `}
-            >
-              {/* Background Accents (Reference Style) */}
-              <div className="absolute -top-10 -right-10 w-48 h-48 bg-lime-400 rounded-full blur-[60px] opacity-20"></div>
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-lime-400 rounded-full blur-[60px] opacity-10"></div>
-              
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div>
-                  {/* Badge */}
-                  <div className="inline-block bg-lime-400 text-[#0F0F0F] text-[11px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-6">
-                     Tamat Program
-                  </div>
-                  
-                  {/* Organizer */}
-                  <div className="flex items-center gap-2 text-lime-400 mb-2 opacity-90">
-                      <Building2 size={16} className="shrink-0"/>
-                      <span className="text-[10px] font-bold uppercase tracking-wider line-clamp-1">
-                      {formData.penganjurUtama || "PENGANJUR"}
-                      </span>
-                  </div>
-
-                  {/* Title */}
-                  <h2 
-                    className={`text-white font-black uppercase leading-[0.9] tracking-tighter mb-4 break-words ${getTitleFontSize(formData.namaProgram || "")}`}
-                    style={{ overflowWrap: 'break-word', wordWrap: 'break-word' }}
-                  >
-                    {formData.namaProgram || "NAMA PROGRAM"}
-                  </h2>
-                  
-                  {/* Location & Date Group */}
-                  <div className="space-y-3 mt-4 border-l-2 border-white/20 pl-4">
-                      {/* Location */}
-                      <div className="flex items-center gap-3 text-gray-300">
-                        <MapPin size={18} className="text-white shrink-0"/>
-                        <span className="text-[10px] font-bold uppercase tracking-wide leading-tight line-clamp-2">
-                           {formData.tempatProgram || "LOKASI PROGRAM"}
-                        </span>
-                      </div>
-                      
-                      {/* Date */}
-                      <div className="flex items-center gap-3 text-gray-300">
-                        <Clock size={18} className="text-white shrink-0"/>
-                        <span className="text-[10px] font-bold uppercase tracking-wide">
-                          {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
-                        </span>
-                      </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="pt-6 border-t border-white/10 mt-auto">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 border border-white/20 shadow-sm">
-                         <LogoImage />
-                      </div>
-                      <div>
-                         <div className="text-white font-bold text-base leading-none mb-1">e-Penilaian JAIS</div>
-                         <div className="text-gray-500 text-[8px] uppercase tracking-widest font-bold">Jabatan Agama Islam Sarawak</div>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Share Buttons - Apple Styled */}
-            <div className="space-y-2.5 mt-4">
-              {/* WhatsApp Share */}
-              <button 
-                onClick={handleSharePoster}
-                disabled={isSharing}
-                className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl font-bold text-base shadow-xs flex items-center justify-center gap-2 hover:bg-[#20bd5a] ios-press transition-all"
-              >
-                {isSharing ? <Loader2 className="animate-spin" size={20} /> : <Share2 size={20} />}
-                Kongsi ke Status WhatsApp
-              </button>
-
-              {/* Save to Album */}
-              <button 
-                onClick={handleSaveToAlbum}
-                disabled={isSaving}
-                className="w-full bg-[#1C1C1E] text-white py-3.5 rounded-2xl font-bold text-base shadow-xs flex items-center justify-center gap-2 hover:bg-black ios-press transition-all"
-              >
-                {isSaving ? <Loader2 className="animate-spin text-lime-400" size={20} /> : <ImageIcon size={20} className="text-lime-400" />}
-                Simpan Gambar (Album)
-              </button>
-            </div>
-            
-            <p className="text-center text-xs text-gray-400 mt-3 font-medium">Simpan kenangan penyertaan program ini</p>
-          </div>
+          
+          <button 
+            onClick={() => setView('refleksi')}
+            className="w-full bg-[#1C1C1E] text-lime-400 py-3.5 rounded-2xl font-bold text-base shadow-xs flex items-center justify-center gap-2 hover:bg-black ios-press transition-all mb-4"
+          >
+            <Sparkles size={20} />
+            Buka Modul Refleksi Harian
+          </button>
 
           <button 
             onClick={() => {
@@ -566,6 +469,12 @@ function App() {
 
             {/* Admin Control (Mobile: Show on right of logo) */}
             <div className="flex items-center gap-2 sm:hidden">
+               <button
+                 onClick={() => setView('refleksi')}
+                 className="px-2.5 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold ios-press"
+               >
+                 <span>✨ Refleksi</span>
+               </button>
                <button 
                  onClick={() => setView('adminLogin')} 
                  className="w-9 h-9 flex items-center justify-center rounded-full bg-black/5 text-gray-600 hover:text-black ios-press transition-colors"
@@ -578,6 +487,12 @@ function App() {
           
           {/* Desktop Controls */}
           <div className="hidden sm:flex items-center gap-2">
+             <button
+               onClick={() => setView('refleksi')}
+               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold transition-all ios-press"
+             >
+               <span>✨ Refleksi Harian</span>
+             </button>
              <button
                onClick={() => setView('adminLogin')}
                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/5 hover:bg-black/10 text-gray-700 text-xs font-semibold transition-all ios-press"
@@ -664,6 +579,7 @@ function App() {
                  setShowConfetti(true);
                  setTimeout(() => setShowConfetti(false), 5000);
                }}
+               onOpenRefleksi={() => setView('refleksi')}
                programSuggestions={CADANGAN_NAMA_PROGRAM} 
                initialData={formData}
                isLocked={isLocked}
@@ -964,7 +880,7 @@ function App() {
                   <div className="text-[10pt] font-bold text-lime-400">Amat baik</div>
                 </div>
                 <div className="flex justify-between mt-1 sm:mt-2 font-mono font-bold text-base sm:text-lg">
-                  <span>0</span>
+                  <span>1</span>
                   <span>5</span>
                 </div>
               </div>
@@ -987,21 +903,18 @@ function App() {
                 />
 
                 <RatingScale
-                  label="3. Penilaian untuk jamuan (jika ada)?"
+                  label="3. Penilaian untuk jamuan?"
                   value={formData.ratingJamuan}
                   onChange={(val) => handleRatingChange('ratingJamuan', val)}
+                  required
                   fontSizeClass={currentFontSize('label')}
                 />
-                {formData.ratingJamuan === 0 && (
-                  <p className="text-[10pt] text-gray-400 font-bold -mt-4 mb-4 italic">
-                    * Tiada jamuan
-                  </p>
-                )}
 
                 <RatingScale
-                  label="4. Prestasi fasilitator/pembentang (jika ada)?"
+                  label="4. Prestasi fasilitator/pembentang?"
                   value={formData.ratingFasilitator}
                   onChange={(val) => handleRatingChange('ratingFasilitator', val)}
+                  required
                   fontSizeClass={currentFontSize('label')}
                 />
 
@@ -1206,6 +1119,7 @@ function App() {
       <div className="px-4 py-4 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500">
         RUJUKAN KAMI: BPNP/UPS/B/NILAI/02
       </div>
+
       <Analytics />
     </div>
   );

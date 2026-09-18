@@ -24,7 +24,7 @@ export const RatingScale: React.FC<RatingScaleProps> = ({
       </label>
       
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        {[0, 1, 2, 3, 4, 5].map((num) => (
+        {[1, 2, 3, 4, 5].map((num) => (
           <button
             key={num}
             type="button"

@@ -125,14 +125,12 @@ const getQuarterFromDate = (isoDate: string) => {
 };
 
 const mapRawSheetItem = (item: any, index: number): DashboardData => {
-  const rawTimestamp = getVal(item, ['Timestamp Dibetulkan', 'Timestamp Ori', 'Timestamp', 'ts_ori']);
+  const rawTimestamp = getVal(item, ['Timestamp Ori', 'Timestamp Dibetulkan', 'Timestamp', 'ts_ori']);
   const parsedTimestamp = parseMalaysianDate(rawTimestamp);
 
   const rawProgramDate = getVal(item, [
     'TARIKH MULA PROGRAM',
-    'TARIKH MULA PROGRAM ORI',
-    'Tarikh Mula',
-    'tarikh_mula_ori'
+    'Tarikh Mula'
   ]);
   const parsedProgramDate = parseMalaysianDate(rawProgramDate);
   const finalProgramDate = parsedProgramDate || parsedTimestamp || '1970-01-01T00:00:00.000Z';
@@ -165,26 +163,24 @@ const mapRawSheetItem = (item: any, index: number): DashboardData => {
 
       filterTahun,
 
-      programName: getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori'])
-          ? toUpperTrim(getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori']))
+      programName: getVal(item, ['NAMA PROGRAM'])
+          ? toUpperTrim(getVal(item, ['NAMA PROGRAM']))
           : 'PROGRAM TIDAK DINYATAKAN',
       
       tempat: toUpperTrim(
-        getVal(item, ['TEMPAT PROGRAM DILAKSANA', 'TEMPAT PROGRAM DILAKSANA ORI', 'TEMPAT', 'tempat_ori']),
+        getVal(item, ['TEMPAT PROGRAM DILAKSANA', 'TEMPAT']),
         '-'
       ),
       
       bahagian: toUpperTrim(
-        getVal(item, ['BAHAGIAN PROGRAM DILAKSANA', 'BAHAGIAN PROGRAM DILAKSANA ORI', 'BAHAGIAN', 'bahagian_ori']),
+        getVal(item, ['BAHAGIAN PROGRAM DILAKSANA', 'BAHAGIAN']),
         'UMUM'
       ),
       
       penganjur: toUpperTrim(
         getVal(item, [
           'BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM',
-          'BAHAGIAN/ PEJABAT AGAMA YANG MENGANJUR UTAMA PROGRAM ORI',
-          'PENGANJUR',
-          'penganjur_utama_ori'
+          'PENGANJUR'
         ]),
         '-'
       ),
@@ -212,7 +208,7 @@ const mapRawSheetItem = (item: any, index: number): DashboardData => {
 
         const val = getVal(item, [
           'NAMA PENUH', 'NAMA PESERTA', 'NAMA', 'NAMA_PENUH', 'NAMA_PESERTA', 
-          'NAMA PENUH ORI', 'nama_penuh_ori', 'Nama Penuh', 'Nama Peserta', 'Nama', 
+          'Nama Penuh', 'Nama Peserta', 'Nama', 
           'namaPenuh', 'namaPeserta', 'Nama Lengkap', 'NAMA LENGKAP', 'Nama Responden',
           'NAMA RESPONDEN', 'Peserta', 'Full Name', 'FULL NAME', 'Name'
         ]);
@@ -372,17 +368,21 @@ export const useDashboardData = () => {
   const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
 
   const processRawDataList = useCallback((rawList: any[]): DashboardData[] => {
-    const filtered = rawList.filter((item: any) => {
-      const rawTimestamp = getVal(item, ['Timestamp Dibetulkan', 'Timestamp Ori', 'Timestamp', 'ts_ori']);
-      const tsStr = rawTimestamp ? String(rawTimestamp).trim() : '';
-      const rawProgramName = getVal(item, ['NAMA PROGRAM', 'NAMA PROGRAM ORI', 'nama_program_ori']);
-      const programName = rawProgramName ? String(rawProgramName).toUpperCase().trim() : '';
+    const filtered = rawList.filter((item: any, index: number) => {
+      const tsOri = String(getVal(item, ['Timestamp Ori', 'Timestamp Dibetulkan', 'Timestamp', 'ts_ori'])).trim();
+      const nama = String(getVal(item, ['NAMA PENUH', 'NAMA PESERTA', 'NAMA', 'NAMA PENUH ORI'])).trim();
+      const program = String(getVal(item, ['NAMA PROGRAM'])).trim();
 
-      if (tsStr === 'TIMESTAMP DIBETULKAN' || tsStr === 'Timestamp Dibetulkan') {
-          return false; 
+      const tsUpper = tsOri.toUpperCase();
+      if (tsUpper.includes('TIMESTAMP') || tsUpper.includes('TS_ORI') || tsUpper.includes('TIMESTAMPS')) {
+        return false;
       }
-      if (programName === 'NAMA PROGRAM') return false;
-      return Boolean(tsStr || programName);
+      if (nama.toUpperCase() === 'NAMA PENUH' || nama.toUpperCase() === 'NAMA PESERTA' || program.toUpperCase() === 'NAMA PROGRAM') {
+        return false;
+      }
+
+      // Valid if it has at least a timestamp, participant name, or program name
+      return Boolean(tsOri || nama || program);
     });
 
     return filtered.map((item, index) => mapRawSheetItem(item, index));
@@ -393,9 +393,9 @@ export const useDashboardData = () => {
     let fetchSuccess = false;
 
     try {
-      // Abort controller with 10s timeout to avoid long hanging requests
+      // Abort controller with 45s timeout for large sheets with thousands of rows
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
 
       const response = await fetch(
         `${GOOGLE_SCRIPT_URL}?action=read&token=JAIS_PenilaianProgram2026&_t=${Date.now()}`,

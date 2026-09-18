@@ -1789,10 +1789,11 @@ export const ParticipantsPage: React.FC<ParticipantsPageProps> = ({
                           <button
                             type="button"
                             onClick={() => handleOpenPdfLibPreview(p)}
-                            className="p-2 rounded-xl text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors ios-press"
-                            title="Pratonton Sijil Rasmi (PDF-Lib)"
+                            className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition-colors flex items-center gap-1.5 ios-press"
+                            title="Preview Sijil Rasmi"
                           >
-                            <Award size={15} />
+                            <Award size={14} />
+                            <span className="hidden md:inline">Preview Sijil</span>
                           </button>
 
                           {/* Preview Email Content Modal */}

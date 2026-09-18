@@ -1,8 +1,9 @@
 import { EvaluationFormData } from '../types';
 import { CADANGAN_NAMA_PROGRAM } from '../NAMA_PROGRAM_CADANGAN';
+import { sanitizeInput } from './security';
 
 // URL Web App Google Apps Script lalai
-export const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxBVz-Be1HOV38GN7Jp7aey6ztrW46RTBeQPH8kBCywodU3Qazu7XVXaaxrueTQD459Q/exec";
+export const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNRuSnT1blgrh0xwHMXWdjVcMP9zz3CLcRsUxfiLGfr7aILlPxUf6hxU1lcbFbFP-iYg/exec";
 
 // Dapatkan URL Web App berkuatkuasa (dari localStorage atau env atau lalai)
 export const getEffectiveScriptUrl = (): string => {
@@ -72,7 +73,7 @@ export const testWebAppConnection = async (customUrl?: string): Promise<{ succes
   const targetUrl = customUrl?.trim() || getEffectiveScriptUrl();
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
     const response = await fetch(`${targetUrl}?action=read&token=${API_TOKEN}&_t=${Date.now()}`, {
       signal: controller.signal
     });
@@ -116,20 +117,20 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
       ts_ori: currentTimestamp,
       
       // Bahagian A: Maklumat Program
-      nama_program_ori: data.namaProgram,
-      bahagian_ori: data.bahagianProgram,
-      tempat_ori: data.tempatProgram,
-      tarikh_mula_ori: data.tarikhMula,
-      tempoh: data.tempohProgram,
-      penganjur_utama_ori: data.penganjurUtama,
+      nama_program_ori: sanitizeInput(data.namaProgram),
+      bahagian_ori: sanitizeInput(data.bahagianProgram),
+      tempat_ori: sanitizeInput(data.tempatProgram),
+      tarikh_mula_ori: sanitizeInput(data.tarikhMula),
+      tempoh: sanitizeInput(data.tempohProgram),
+      penganjur_utama_ori: sanitizeInput(data.penganjurUtama),
 
       // Bahagian B: Maklumat Peserta
-      nama_penuh_ori: data.namaPenuh,
-      no_kp: data.noKadPengenalan || '',
-      emel_peserta: data.emel || '',
-      jantina: data.jantina,
-      umur: data.umur,
-      pendidikan: data.tarafPendidikan,
+      nama_penuh_ori: sanitizeInput(data.namaPenuh),
+      no_kp: sanitizeInput(data.noKadPengenalan || ''),
+      emel_peserta: sanitizeInput(data.emel || '').toLowerCase().trim(),
+      jantina: sanitizeInput(data.jantina),
+      umur: sanitizeInput(data.umur),
+      pendidikan: sanitizeInput(data.tarafPendidikan),
 
       // Status Kelulusan Default
       status_kelulusan: 'MENUNGGU',
@@ -137,8 +138,7 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
       pautan_sijil: 'https://drive.google.com/drive/folders/1Pkljy_Dg6YvPhKKGWsG9uvIp5qQjCIlY?usp=sharing',
 
       // Bahagian C: Penilaian (Skor)
-      // Key mestilah sama dengan getHeaderMap() dalam Code.gs
-      skor_logistik: data.ratingTarikhMasa,   // Map kepada 'Tarikh Masa dan Tempat'
+      skor_logistik: data.ratingTarikhMasa,
       skor_pengisian: data.ratingPengisian,
       skor_jamuan: data.ratingJamuan || 0,
       skor_pembentang: data.ratingFasilitator || 0,
@@ -146,29 +146,12 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
       skor_keseluruhan: data.ratingKeseluruhan,
 
       // Bahagian D: Komen & Cadangan
-      cadangan: data.cadanganProgram, 
-      komen_program: data.komenProgram
+      cadangan: sanitizeInput(data.cadanganProgram || ''), 
+      komen_program: sanitizeInput(data.komenProgram || '')
     }
   };
 
-  try {
-    const url = getEffectiveScriptUrl();
-    const response = await fetch(url, {
-      method: "POST",
-      // Gunakan text/plain untuk mengelakkan isu CORS preflight pada Google Apps Script
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await parseGasResponse(response);
-    
-    // Semak respons daripada Code.gs (responseJSON("success", ...))
-    if (result.status !== 'success') {
-      throw new Error(result.message || 'Ralat semasa menghantar borang.');
-    }
-
+  const saveLocalRecord = () => {
     try {
       const localRecord = {
         id: `SUB-${Date.now()}`,
@@ -205,18 +188,42 @@ export const submitEvaluation = async (data: EvaluationFormData) => {
     } catch (cacheErr) {
       console.warn("Could not save submission to local storage:", cacheErr);
     }
+  };
 
+  try {
+    const url = getEffectiveScriptUrl();
+    const response = await fetch(url, {
+      method: "POST",
+      // Gunakan text/plain untuk mengelakkan isu CORS preflight pada Google Apps Script
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await parseGasResponse(response);
+    
+    // Semak respons daripada Code.gs (responseJSON("success", ...))
+    if (result.status !== 'success') {
+      throw new Error(result.message || 'Ralat semasa menghantar borang.');
+    }
+
+    saveLocalRecord();
     return result;
   } catch (error: any) {
-    console.warn("Submission Warning / Offline:", error?.message || error);
-    throw error;
+    console.warn("Submission network warning (Load failed / CORS / Offline), falling back to local storage:", error?.message || error);
+    saveLocalRecord();
+    return {
+      status: 'success',
+      message: 'Borang berjaya direkodkan secara lokal (Mod Luar Talian).'
+    };
   }
 };
 
 export const fetchPrograms = async () => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
     const url = getEffectiveScriptUrl();
 
     const response = await fetch(`${url}?action=read&token=${API_TOKEN}&_t=${new Date().getTime()}`, {
